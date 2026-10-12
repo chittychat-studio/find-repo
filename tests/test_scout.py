@@ -499,3 +499,80 @@ def test_workflow_csv_option():
     wf = (ROOT / ".github" / "workflows" / "find.yml").read_text()
     assert "CSV: ${{ inputs.csv }}" in wf and '["--csv-block"] if os.environ["CSV"] == "true"' in wf
 
+
+def test_web_page_is_safe_static(monkeypatch):
+    """RS22: no embedded secret, no external scripts, uses the public search API, logic mirrors the script."""
+    html = (ROOT / "web" / "index.html").read_text()
+    # no key or token anywhere: the page never asks for, stores, or embeds one
+    import re as _re
+    assert not _re.search(r"gh[pousr]_[A-Za-z0-9]{20,}", html), "looks like a real token is embedded"
+    assert not _re.search(r"github_pat_[A-Za-z0-9_]{20,}", html)
+    assert 'id="token"' not in html and "localStorage" not in html
+    assert "models.github" not in html and "Authorization" not in html
+    # no third-party scripts/styles — nothing to leak to or break on
+    assert not _re.search(r'<script[^>]+src=', html), "no external script tags"
+    assert "cdn" not in html.lower() and "unpkg" not in html.lower()
+    # calls the public search API, sorted by stars, forks/archived excluded
+    assert "api.github.com/search/repositories" in html
+    assert "sort=stars" in html and "fork:false archived:false is:public" in html
+    # license sets kept in sync with scout.py
+    assert all(l in html for l in ("AGPL-3.0", "MPL-2.0", "MIT", "Unlicense"))
+    assert "STARTER_MIN_SHARE" in html and "0.10" in html
+    assert "max 200 characters" in html  # RS19 length guard
+    for col in ("OK in a paid product?", "Completely free?", "Starter?"):  # RS20 columns
+        assert col in html
+    # RS21 clickable example prompts fill the box
+    assert 'id="examples"' in html and "EXAMPLES" in html and "click to fill" in html
+    # RS23 PRD upload is client-side only (FileReader, never uploaded)
+    assert 'id="prd"' in html and "FileReader" in html and "prdFeatures" in html
+    assert "never uploaded" in html
+    # RS22: how-to-run-in-Claude-Code and the >10 edge-case CTA both point to the plugin
+    assert "/plugin install find-repo@find-repo" in html and "/find-repo:find" in html
+    assert "Use in Claude Code" in html and "PLUGIN_CTA" in html
+    assert "more match" in html  # the >10 banner
+    for t in ("portfolio website", "iPhone app", "trip planner", "practice app"):
+        assert t in html
+
+
+def test_pages_workflow_present():
+    """RS22."""
+    wf = (ROOT / ".github" / "workflows" / "pages.yml").read_text()
+    assert "upload-pages-artifact" in wf and "path: web" in wf and "deploy-pages" in wf
+
+
+def test_all_uncaps_and_groups_by_feature():
+    """RS23: --all returns every match; groups hold each feature's repos, deduped to the first finder."""
+    pages = [[repo("auth/a", 900), repo("shared/x", 500)], [repo("pay/a", 700), repo("shared/x", 500)]]
+    res, _ = run(pages, queries=["user auth", "payments"], top=None, candidates=None)
+    assert len(res["all"]) == 3  # shared/x counted once
+    assert [g["query"] for g in res["groups"]] == ["user auth", "payments"]
+    assert [r["full_name"] for r in res["groups"][0]["repos"]] == ["auth/a", "shared/x"]  # first finder keeps it
+    assert [r["full_name"] for r in res["groups"][1]["repos"]] == ["pay/a"]
+
+
+def test_grouped_markdown_sections_and_counts():
+    """RS23."""
+    pages = [[repo("a/1", 900)], [repo("b/1", 800), repo("b/2", 700)]]
+    res, _ = run(pages, queries=["login", "billing"], top=None, candidates=None)
+    md = scout.render_markdown_grouped(res)
+    assert "### login  (1)" in md and "### billing  (2)" in md
+    assert "3 open-source repos across 2 needs" in md and scout.FREE_NOTE in md
+
+
+def test_cli_all_and_group(monkeypatch, capsys):
+    """RS23."""
+    _patch_fetch(monkeypatch, lambda q, token=None: {"items": [repo("a/b", 500)]})
+    assert scout.main(["--all", "--json", "x"]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert "groups" in data and data["top"] == data["all"]
+    _patch_fetch(monkeypatch, lambda q, token=None: {"items": [repo("a/b", 500)]})
+    assert scout.main(["--markdown", "--group", "x"]) == 0
+    assert "grouped by need" in capsys.readouterr().out
+
+
+def test_workflow_all_group_options():
+    """RS23."""
+    wf = (ROOT / ".github" / "workflows" / "find.yml").read_text()
+    assert "ALL: ${{ inputs.all }}" in wf and "GROUP: ${{ inputs.group }}" in wf
+    assert '["--all"] if os.environ["ALL"]' in wf and '["--group"] if os.environ["GROUP"]' in wf
+

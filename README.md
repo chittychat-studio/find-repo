@@ -38,6 +38,24 @@ Starting from scratch?: <yes / no>
 
 The plugin answers with a comparison table of up to 10 repos. Ask for "as a sheet" to get CSV for Excel or Google Sheets.
 
+**Got a PRD or spec?** Attach it (or paste it) and the plugin reads every feature, searches per feature, and
+returns **all** the suitable open-source repos grouped by need — not just the top 10. "All suitable" means every
+open-source match that passes the filters, not every repo on GitHub.
+
+## Web page (no install)
+
+A static page at `web/index.html` lets anyone type a project and see the top 10 repos in the browser — no
+Claude, no Python. Deploy it free on GitHub Pages:
+
+1. Settings → Pages → Source → **GitHub Actions**.
+2. Push to `main` (the `pages` workflow deploys `web/`), or run the **pages** workflow by hand.
+3. Open the URL the workflow prints.
+
+It calls the public GitHub search API from the browser (about 10 searches a minute, no login, no key) and runs
+the same filters, ranking and license labels as the plugin. It uses basic keyword search; AI-written queries
+and the relevance check live in the Claude Code plugin — a public static page can't hold an API key, so the
+AI step stays in the plugin.
+
 ## Install (Claude Code)
 
 ```

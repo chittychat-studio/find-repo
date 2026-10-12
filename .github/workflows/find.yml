@@ -39,6 +39,16 @@ on:
         required: true
         default: false
         type: boolean
+      all:
+        description: "Show every suitable repo, not just the top 10 (for a PRD)"
+        required: true
+        default: false
+        type: boolean
+      group:
+        description: "Group results by need/feature (one section per search)"
+        required: true
+        default: false
+        type: boolean
 permissions:
   contents: read
 jobs:
@@ -58,6 +68,8 @@ jobs:
           RANK: ${{ inputs.rank }}
           PREFER_STARTERS: ${{ inputs.prefer_starters }}
           CSV: ${{ inputs.csv }}
+          ALL: ${{ inputs.all }}
+          GROUP: ${{ inputs.group }}
           GITHUB_TOKEN: ${{ github.token }}
         # RS19: explicit bash gives -o pipefail, so a script error fails the run instead of showing green.
         shell: bash
@@ -69,6 +81,8 @@ jobs:
           queries = [q.strip() for q in os.environ["QUERIES"].split(";") if q.strip()]
           flags = ["--prefer-starters"] if os.environ["PREFER_STARTERS"] == "true" else []
           flags += ["--csv-block"] if os.environ["CSV"] == "true" else []
+          flags += ["--all"] if os.environ["ALL"] == "true" else []
+          flags += ["--group"] if os.environ["GROUP"] == "true" else []
           code = scout.main(["--markdown", "--license", os.environ["LICENSE_MODE"],
                              "--max-age-months", os.environ["MAX_AGE"], "--min-stars", os.environ["MIN_STARS"],
                              "--rank", os.environ["RANK"], *flags, "--", *queries])

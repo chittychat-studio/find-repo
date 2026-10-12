@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Find the most-starred open-source GitHub repos matching search queries (SPEC RS1-RS21).
+"""Find the most-starred open-source GitHub repos matching search queries (SPEC RS1-RS23).
 
 Usage: scout.py "query one" ["query two" ...] [--top 10] [--candidates 20]
                 [--license open|any] [--max-age-months 24]
-                [--min-stars 50] [--rank balanced|stars] [--prefer-starters] [--json | --markdown | --csv]
+                [--min-stars 50] [--rank balanced|stars]
+                [--prefer-starters] [--all] [--group] [--json | --markdown | --csv]
 """
 import argparse
 import csv
@@ -223,9 +224,14 @@ def scout(queries, fetcher=fetch, top=10, candidates=20, license_mode="open", ma
             })
 
     kept = rank(by_query, rank_mode, prefer_starters)  # RS5, RS15
+    # RS23: per-feature groups (a repo appears under the first query that returned it); build before _pushed is dropped
+    groups = [{"query": queries[i], "repos": _order(by_query[i], prefer_starters)} for i in range(len(queries))]
     for i, r in enumerate(kept, 1):
         r["rank"] = i
-        del r["_pushed"]
+    for r in kept:
+        r.pop("_pushed", None)
+    cap = len(kept) if top is None else max(top, 1)
+    ccap = len(kept) if candidates is None else max(candidates, cap)
     return {
         "queries": queries,
         "license_mode": license_mode,
@@ -234,8 +240,10 @@ def scout(queries, fetcher=fetch, top=10, candidates=20, license_mode="open", ma
         "rank_mode": rank_mode,
         "prefer_starters": prefer_starters,
         "excluded": excluded,
-        "top": kept[:top],
-        "candidates": kept[:max(candidates, top)],
+        "top": kept[:cap],
+        "candidates": kept[:ccap],
+        "all": kept,
+        "groups": groups,
     }
 
 
@@ -259,6 +267,32 @@ def render(result):
         if r["description"]:
             out.append(f"    {r['description']}")
     out += ["", KEY, FREE_NOTE]
+    return "\n".join(out)
+
+
+def render_markdown_grouped(result):
+    """RS23: one section per feature/query, every suitable repo listed (no 10-cap)."""
+    out = ["## find-repo results — grouped by need", "",
+           f"**Filters:** license={result['license_mode']}, last push within "
+           f"{result['max_age_months'] or 'any'} months, at least {result['min_stars']} stars, no forks, no archived  ",
+           "**Excluded:** " + ", ".join(f"{k}={v}" for k, v in result["excluded"].items()), ""]
+    total = 0
+    for g in result["groups"]:
+        out += [f"### {_md(g['query'])}  ({len(g['repos'])})", ""]
+        if not g["repos"]:
+            out += ["_No match for this need._", ""]; continue
+        out += ["| Repo | Stars | What it does | License | OK in a paid product? | Completely free? | Starter? | Last push |",
+                "|---|---|---|---|---|---|---|---|"]
+        for r in g["repos"]:
+            total += 1
+            name = r["full_name"]
+            link = f"[{_md(name)}](https://github.com/{name})" if _NAME.fullmatch(name) else _md(name)
+            out.append(f"| {link} | {r['stars']:,} | {_md(r['description'])} | {_md(r['license'])} | {r['license_use']} | "
+                       f"{r['free']} | {'yes' if r['starter'] else 'no'} | {r['pushed']} |")
+        out.append("")
+    out += [f"{total} open-source repos across {len(result['groups'])} needs. Matches that pass the filters, "
+            "grouped by the first search that found each. Not a scan of every repository; no relevance check here "
+            "(that runs in the plugin skill).", "", KEY, "", FREE_NOTE]
     return "\n".join(out)
 
 
@@ -325,6 +359,8 @@ def main(argv=None):
     p.add_argument("queries", nargs="+")
     p.add_argument("--top", type=int, default=10)
     p.add_argument("--candidates", type=int, default=20)
+    p.add_argument("--all", dest="all_matches", action="store_true", help="no cap: every suitable repo (RS23)")
+    p.add_argument("--group", action="store_true", help="group results by need/feature, for a PRD (RS23)")
     p.add_argument("--license", dest="license_mode", choices=["open", "any"], default="open")
     p.add_argument("--max-age-months", type=int, default=24)
     p.add_argument("--min-stars", type=int, default=50)
@@ -338,15 +374,18 @@ def main(argv=None):
     a = p.parse_args(argv)
     if a.top < 1 or a.candidates < 1 or a.max_age_months < 0 or a.min_stars < 0:
         p.error("--top and --candidates must be >= 1, --max-age-months and --min-stars >= 0")
+    top = None if a.all_matches else a.top
+    cand = None if a.all_matches else a.candidates
     token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")  # RS8: never printed
     try:
-        res = scout(a.queries, fetcher=fetch, top=a.top, candidates=a.candidates, license_mode=a.license_mode,
+        res = scout(a.queries, fetcher=fetch, top=top, candidates=cand, license_mode=a.license_mode,
                     max_age_months=a.max_age_months, token=token, rank_mode=a.rank_mode,
                     prefer_starters=a.prefer_starters, min_stars=a.min_stars)
     except ScoutError as e:
         print(f"find-repo: {e}", file=sys.stderr)
         return 2
     out = (json.dumps(res, indent=2, ensure_ascii=False) if a.json
+           else render_markdown_grouped(res) if (a.markdown and a.group)
            else render_markdown(res) if a.markdown else render_csv(res) if a.csv else render(res))
     if a.markdown and a.csv_block and res["candidates"]:
         fence = chr(96) * 3
