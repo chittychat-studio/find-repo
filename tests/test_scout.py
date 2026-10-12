@@ -503,11 +503,12 @@ def test_workflow_csv_option():
 def test_web_page_is_safe_static(monkeypatch):
     """RS22: no embedded secret, no external scripts, uses the public search API, logic mirrors the script."""
     html = (ROOT / "web" / "index.html").read_text()
-    # no baked-in token (only the viewer's own, read from an input and localStorage)
+    # no key or token anywhere: the page never asks for, stores, or embeds one
     import re as _re
     assert not _re.search(r"gh[pousr]_[A-Za-z0-9]{20,}", html), "looks like a real token is embedded"
     assert not _re.search(r"github_pat_[A-Za-z0-9_]{20,}", html)
-    assert 'id="token"' in html and "localStorage" in html
+    assert 'id="token"' not in html and "localStorage" not in html
+    assert "models.github" not in html and "Authorization" not in html
     # no third-party scripts/styles — nothing to leak to or break on
     assert not _re.search(r'<script[^>]+src=', html), "no external script tags"
     assert "cdn" not in html.lower() and "unpkg" not in html.lower()

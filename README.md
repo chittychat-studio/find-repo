@@ -47,11 +47,10 @@ Claude, no Python. Deploy it free on GitHub Pages:
 2. Push to `main` (the `pages` workflow deploys `web/`), or run the **pages** workflow by hand.
 3. Open the URL the workflow prints.
 
-It calls the public GitHub search API from the browser (about 10 searches a minute, no token needed) and runs
-the same filters, ranking and license labels as the plugin. It uses basic keyword search; the Claude Code
-plugin writes smarter queries and runs a relevance check. **Optional:** paste your own free GitHub token with
-`models` access to let GitHub AI write the searches — it stays in your browser only. A public page can't hold
-a shared key, so there is no built-in AI without your own token.
+It calls the public GitHub search API from the browser (about 10 searches a minute, no login, no key) and runs
+the same filters, ranking and license labels as the plugin. It uses basic keyword search; AI-written queries
+and the relevance check live in the Claude Code plugin — a public static page can't hold an API key, so the
+AI step stays in the plugin.
 
 ## Install (Claude Code)
 

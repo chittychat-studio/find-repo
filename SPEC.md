@@ -120,11 +120,9 @@ Relevance gate: stars measure popularity, not fit. The skill may only *drop* a s
   mirroring `scripts/scout.py`, and calls the public GitHub search API from the browser (unauthenticated,
   ~10 searches/minute). It shows the top 10 as a table with the RS20 columns and the RS17 cautions, refuses a
   query over 200 characters and the harmful intents of RS18, and drops the harmful repo descriptions of RS18.
-  The page has no relevance gate (no model runs in it) and says so. Prompt generation: by default it uses
-  plain keyword search with no key. Optionally the viewer pastes their OWN GitHub token with model access to
-  use GitHub AI for queries; the token is read from an input, kept only in the browser (localStorage, opt-in),
-  sent only to GitHub, and never written into the page — because a public static page cannot hold a secret.
-  On any AI error it falls back to keywords. The page states it is the basic version and the plugin is smarter.
+  The page has no relevance gate and no AI (no model runs in it), and says so: a public static page cannot hold
+  a secret, so it never asks for or stores a key or token. Prompt generation in the browser is plain keyword
+  search only; AI-written queries and the relevance check live in the Claude Code plugin, which the page links to.
 - **RS11** Runtime: Python 3.11+ standard library only (`urllib`). No third-party packages.
   Unit tests make no network calls (HTTP is replaced with fixtures) and run in CI on every push and PR.
 - **RS12** License: MIT, in `LICENSE`, declared as `"license": "MIT"` in `plugin.json`. GitHub then detects
