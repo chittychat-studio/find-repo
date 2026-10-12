@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Find the most-starred open-source GitHub repos matching search queries (SPEC RS1-RS11).
+"""Find the most-starred open-source GitHub repos matching search queries (SPEC RS1-RS13).
 
 Usage: scout.py "query one" ["query two" ...] [--top 3] [--candidates 10]
-                [--license open|any] [--max-age-months 24] [--json]
+                [--license open|any] [--max-age-months 24] [--json | --markdown]
 """
 import argparse
 import datetime as dt
@@ -26,6 +26,7 @@ OPEN_LICENSES = {
     "MS-PL", "MS-RL", "NCSA", "OFL-1.1", "OSL-3.0", "PostgreSQL", "Unlicense", "UPL-1.0", "Zlib",
 }
 
+_NAME = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
 _CTRL = re.compile(r"[\x00-\x1f\x7f-\x9f​-‏‪-‮⁦-⁩]")
 
 
@@ -164,6 +165,37 @@ def render(result):
     return "\n".join(out)
 
 
+def _md(text):
+    """RS9, RS13: escape repo text so it cannot inject Markdown/HTML into a job summary."""
+    return re.sub(r"([\\`*_{}\[\]()#+!|<>~])", r"\\\1", text or "")
+
+
+def render_markdown(result):
+    """RS10, RS13: Markdown for a GitHub Actions job summary."""
+    out = ["## find-repo results", "",
+           f"**Queries:** {_md('; '.join(result['queries']))}  ",
+           f"**Filters:** license={result['license_mode']}, last push within "
+           f"{result['max_age_months'] or 'any'} months, no forks, no archived  ",
+           "**Excluded:** " + ", ".join(f"{k}={v}" for k, v in result["excluded"].items()), ""]
+    if not result["candidates"]:
+        out.append("No repository matched after filtering.")
+        return "\n".join(out)
+    for title, rows in (("Top %d by stars" % len(result["top"]), result["top"]),
+                        ("Shortlist", result["candidates"])):
+        out += [f"### {title}", "", "| # | Repo | Stars | License | Last push | Query | Description |",
+                "|---|---|---|---|---|---|---|"]
+        for r in rows:
+            name = r["full_name"]
+            link = f"[{_md(name)}](https://github.com/{name})" if _NAME.fullmatch(name) else _md(name)
+            out.append(f"| {r['rank']} | {link} | "
+                       f"{r['stars']:,} | {_md(r['license'])} | {r['pushed']} | {_md(r['query'])} | "
+                       f"{_md(r['description'])} |")
+        out.append("")
+    out.append("Ranked by GitHub stars among search matches, not a scan of every repository. "
+               "No relevance check here: that step runs only in the plugin skill.")
+    return "\n".join(out)
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("queries", nargs="+")
@@ -171,7 +203,9 @@ def main(argv=None):
     p.add_argument("--candidates", type=int, default=10)
     p.add_argument("--license", dest="license_mode", choices=["open", "any"], default="open")
     p.add_argument("--max-age-months", type=int, default=24)
-    p.add_argument("--json", action="store_true")
+    fmt = p.add_mutually_exclusive_group()
+    fmt.add_argument("--json", action="store_true")
+    fmt.add_argument("--markdown", action="store_true")
     a = p.parse_args(argv)
     if a.top < 1 or a.candidates < 1 or a.max_age_months < 0:
         p.error("--top and --candidates must be >= 1, --max-age-months >= 0")
@@ -182,7 +216,8 @@ def main(argv=None):
     except ScoutError as e:
         print(f"find-repo: {e}", file=sys.stderr)
         return 2
-    print(json.dumps(res, indent=2, ensure_ascii=False) if a.json else render(res))
+    print(json.dumps(res, indent=2, ensure_ascii=False) if a.json
+          else render_markdown(res) if a.markdown else render(res))
     return 0 if res["candidates"] else 1
 
 
