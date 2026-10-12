@@ -4,7 +4,7 @@ const html = fs.readFileSync(path.join(__dirname, "..", "web", "index.html"), "u
 const code = html.match(/<script>([\s\S]*)<\/script>/)[1].replace('"use strict";', "");
 // fake DOM: elements support the few methods the page's load-time code calls (chip rendering, RS21)
 const el = () => ({value:"",checked:false,textContent:"",innerHTML:"",type:"",className:"",
-                   addEventListener(){}, appendChild(){}, focus(){}});
+                   addEventListener(){}, appendChild(){}, focus(){}, querySelectorAll:()=>[], classList:{add(){},remove(){}}, style:{}});
 global.document = {getElementById: el, createElement: el};
 const s = {};
 new Function("document", "localStorage",
