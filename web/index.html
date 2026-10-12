@@ -78,6 +78,16 @@
     .chip:hover,.chip:active{transform:none}
   }
   .chips-label{font-size:13px;color:var(--muted);margin:12px 0 0}
+  .cta{border-color:var(--accent);background:linear-gradient(0deg,var(--card),var(--card))}
+  .cmd{background:var(--offbg);border:1px solid var(--line);border-radius:8px;padding:12px;margin:10px 0;
+    font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre-wrap;overflow-x:auto}
+  h2{font-size:19px;margin:0 0 6px;color:var(--accent-ink)}
+  @media (max-width:560px){
+    .wrap{padding:16px 14px 48px}
+    h1{font-size:22px}
+    table{font-size:12.5px}
+    th,td{padding:6px 7px}
+  }
 </style>
 </head>
 <body>
@@ -126,6 +136,19 @@
   </div>
 
   <div id="out"></div>
+
+  <div class="card">
+    <h2>Use in Claude Code (full version)</h2>
+    <p class="mut">This page shows the top 10 from basic keyword search. The Claude Code plugin writes smarter
+      searches with AI, runs a relevance check, reads a whole PRD feature by feature, and shows every suitable
+      repo — not just 10. It's free and open-source (MIT).</p>
+    <pre class="cmd">/plugin marketplace add chittychat-studio/find-repo
+/plugin install find-repo@find-repo
+/find-repo:find &lt;what you are building&gt;</pre>
+    <p class="mut">Then, for a PRD, attach or paste it and ask for the repos. Needs
+      <a href="https://claude.com/claude-code" target="_blank" rel="noopener">Claude Code</a> and Python 3.11+.
+      Full guide: <a href="https://github.com/chittychat-studio/find-repo" target="_blank" rel="noopener">github.com/chittychat-studio/find-repo</a>.</p>
+  </div>
 
   <p class="note">The browser version does basic keyword search; the
     <a href="https://github.com/chittychat-studio/find-repo" target="_blank" rel="noopener">Claude Code plugin</a>
@@ -234,9 +257,17 @@ function balanced(lists, preferStarters){
   return out;
 }
 
-function render(top, queries, excluded){
+var PLUGIN_CTA='<div class="card cta"><b>Need more than the top 10?</b> This page shows the top 10. '+
+  'For every suitable repo — and a PRD read feature by feature — run the plugin in Claude Code:'+
+  '<pre class="cmd">/plugin marketplace add chittychat-studio/find-repo\n'+
+  '/plugin install find-repo@find-repo\n'+
+  '/find-repo:find &lt;what you are building&gt;</pre>'+
+  '<a href="https://github.com/chittychat-studio/find-repo" target="_blank" rel="noopener">Plugin details &amp; install guide →</a></div>';
+
+function render(top, queries, excluded, totalMatches){
   if(!top.length){ return '<div class="card"><p class="err">No repository matched.</p>'+
     '<p class="mut">Searches: '+esc(queries.join("; "))+'. Try fewer or broader words, or lower the minimum stars.</p></div>'; }
+  var more=(totalMatches||top.length)-top.length;
   var h='<div class="card"><div class="scroll"><table><thead><tr>'+
     '<th>#</th><th>Repo</th><th>Stars</th><th>What it does</th><th>License</th>'+
     '<th>OK in a paid product?</th><th>Completely free?</th><th>Starter?</th><th>Updated</th></tr></thead><tbody>';
@@ -256,6 +287,8 @@ function render(top, queries, excluded){
   h+='</tbody></table></div><p class="mut">Searches: '+esc(queries.join("; "))+
     ' · Excluded — not open-source: '+excluded.license+', too old: '+excluded.stale+
     ', too few stars: '+excluded.low+', forks/archived: '+excluded.fork+', harmful: '+excluded.harm+'</p></div>';
+  if(more>0) h+=PLUGIN_CTA.replace("Need more than the top 10?",
+    "Need more than the top 10? "+more+" more match"+(more===1?"":"es")+" passed the filters.");
   return h;
 }
 
@@ -366,8 +399,8 @@ async function run(){
       var items=await search(queries[i]);
       var fresh=items.filter(function(it){ if(!it.full_name||seen.has(it.full_name))return false; seen.add(it.full_name); return true; });
       lists.push(keep(fresh,minStars,platform,excluded)); }
-    var top=balanced(lists,preferStarters).slice(0,10);
-    out.innerHTML=render(top,queries,excluded);
+    var ranked=balanced(lists,preferStarters), top=ranked.slice(0,10);
+    out.innerHTML=render(top,queries,excluded,ranked.length);
     st.textContent="Done.";
   }catch(e){ st.textContent=""; out.innerHTML='<div class="card"><p class="err">'+esc(e.message)+'</p></div>'; }
   finally{ go.disabled=false; }

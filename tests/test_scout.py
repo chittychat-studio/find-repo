@@ -526,6 +526,10 @@ def test_web_page_is_safe_static(monkeypatch):
     # RS23 PRD upload is client-side only (FileReader, never uploaded)
     assert 'id="prd"' in html and "FileReader" in html and "prdFeatures" in html
     assert "never uploaded" in html
+    # RS22: how-to-run-in-Claude-Code and the >10 edge-case CTA both point to the plugin
+    assert "/plugin install find-repo@find-repo" in html and "/find-repo:find" in html
+    assert "Use in Claude Code" in html and "PLUGIN_CTA" in html
+    assert "more match" in html  # the >10 banner
     for t in ("portfolio website", "iPhone app", "trip planner", "practice app"):
         assert t in html
 
