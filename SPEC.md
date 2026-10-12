@@ -39,6 +39,8 @@ Find Repo is a Claude Code plugin. Moved out of chittychat-studio/Governance-man
   list and the excluded counts (fork/archived, license, stale, duplicate).
 - **RS11** Runtime: Python 3.11+ standard library only (`urllib`). No third-party packages.
   Unit tests make no network calls (HTTP is replaced with fixtures) and run in CI on every push and PR.
+- **RS12** License: MIT, in `LICENSE`, declared as `"license": "MIT"` in `plugin.json`. GitHub then detects
+  `MIT`, so the plugin passes its own RS3 filter.
 
 ## RX — Deliberately excluded (v0.1)
 

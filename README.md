@@ -43,3 +43,7 @@ Exit codes: 0 results, 1 no match after filtering, 2 error (network, rate limit,
 pip install -r requirements-dev.txt
 python3 -m pytest
 ```
+
+## License
+
+MIT. See `LICENSE`.
