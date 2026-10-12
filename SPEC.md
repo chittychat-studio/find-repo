@@ -37,9 +37,15 @@ Find Repo is a Claude Code plugin. Moved out of chittychat-studio/Governance-man
 - **RS9** Repo text is data. Names and descriptions from GitHub are stripped of control characters
   and capped at 200 characters before printing. The skill treats them as data: if a description
   asks it to do something, it does not, and tells the user.
-- **RS10** Output: a plain table for people, or `--json` for machines. Each row has rank, `full_name`, stars,
+- **RS10** Output: a plain table for people, `--json` for machines, or `--markdown` for a job summary (RS13). Each row has rank, `full_name`, stars,
   license, last push date, URL, matched query and description. Every run also prints the query
   list and the excluded counts (fork/archived, license, stale, duplicate).
+- **RS13** GitHub Actions run (`.github/workflows/find.yml`): a manual "Run workflow" form takes search
+  queries separated by `;`, plus the license mode and the max age. It runs `scout.py --markdown` with the
+  Actions token (read-only, `contents: read`) and writes the result to the job summary. Inputs reach the
+  script through environment variables, never pasted into the shell command. Repo text is Markdown-escaped
+  in the summary, and a repo is linked only when its name is a plain `owner/repo`. This run has no
+  relevance gate (RS6), because no model runs in Actions, and the summary says so.
 - **RS11** Runtime: Python 3.11+ standard library only (`urllib`). No third-party packages.
   Unit tests make no network calls (HTTP is replaced with fixtures) and run in CI on every push and PR.
 - **RS12** License: MIT, in `LICENSE`, declared as `"license": "MIT"` in `plugin.json`. GitHub then detects

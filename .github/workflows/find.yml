@@ -1,0 +1,45 @@
+# Manual "Run workflow" search (RS13). GitHub search API only; no model, no secrets beyond the read-only Actions token.
+name: find
+on:
+  workflow_dispatch:
+    inputs:
+      queries:
+        description: "Search queries, separated by ; (max 4). Example: powerpoint generator; pptx generate; topic:pptx"
+        required: true
+        type: string
+      license:
+        description: "open = open-source licensed only; any = also unlicensed (flagged)"
+        required: true
+        default: open
+        type: choice
+        options: [open, any]
+      max_age_months:
+        description: "Skip repos with no push in this many months (0 = no limit)"
+        required: true
+        default: "24"
+        type: string
+permissions:
+  contents: read
+jobs:
+  find:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Search GitHub
+        env:
+          QUERIES: ${{ inputs.queries }}
+          LICENSE_MODE: ${{ inputs.license }}
+          MAX_AGE: ${{ inputs.max_age_months }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY' 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
+          import os, sys
+          sys.path.insert(0, "scripts")
+          import scout
+          queries = [q.strip() for q in os.environ["QUERIES"].split(";") if q.strip()]
+          sys.exit(scout.main(["--markdown", "--license", os.environ["LICENSE_MODE"],
+                               "--max-age-months", os.environ["MAX_AGE"], "--", *queries]))
+          PY

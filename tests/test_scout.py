@@ -242,3 +242,32 @@ def test_skill_asks_for_task_when_no_description():
     assert "$ARGUMENTS" in skill
     assert "What are you building, or what task do you need a GitHub repo for?" in skill
     assert skill.index("RS1a") < skill.index("scripts/scout.py"), "must ask before running the search"
+
+
+def test_markdown_summary_escapes_repo_text():
+    """RS13, RS9: repo text cannot inject Markdown, HTML or links into the job summary."""
+    res, _ = run([[repo("a/ok", 5, description="<img src=x> [click](http://evil) | **bold**"),
+                   repo("b/odd", 3)]])
+    res["top"][1]["full_name"] = "b/odd](http://evil)"
+    md = scout.render_markdown(res)
+    assert "\\<img src=x\\>" in md and "\\*\\*bold\\*\\*" in md and "\\|" in md
+    assert re.search(r"(?<!\\)<img", md) is None
+    assert "](http://evil)" not in md
+    assert "[a/ok](https://github.com/a/ok)" in md
+    assert "| 1 |" in md and "No relevance check" in md
+
+
+def test_markdown_no_match(monkeypatch, capsys):
+    """RS13, RS7."""
+    _patch_fetch(monkeypatch, lambda q, token=None: {"items": []})
+    assert scout.main(["--markdown", "x"]) == 1
+    assert "No repository matched" in capsys.readouterr().out
+
+
+def test_workflow_passes_inputs_via_env_only():
+    """RS13: workflow inputs never interpolated into the shell script."""
+    wf = (ROOT / ".github" / "workflows" / "find.yml").read_text()
+    run_block = wf.split("run: |", 1)[1]
+    assert "${{" not in run_block
+    assert "workflow_dispatch" in wf and "contents: read" in wf
+    assert '"--", *queries' in run_block
