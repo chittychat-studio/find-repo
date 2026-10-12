@@ -1,6 +1,6 @@
 {
-  "name": "find-top-skill",
-  "displayName": "Find Top Skill",
+  "name": "find-repo",
+  "displayName": "Find Repo",
   "version": "0.1.0",
   "description": "Describe your project in plain words; get the 3 most-starred open-source GitHub repos that fit it, with license and last-push date.",
   "author": {"name": "chittychat-studio"},

@@ -1,17 +1,17 @@
-# Find Top Skill
+# Find Repo
 
 A Claude Code plugin. Describe your project in plain words and get the 3 most-starred
 open-source GitHub repos that fit it, with license and last-push date.
 
 ```
-/find-top-skill:find a portfolio website with smooth scroll animations and good design taste
+/find-repo:find a portfolio website with smooth scroll animations and good design taste
 ```
 
 ## Install (Claude Code)
 
 ```
 /plugin marketplace add chittychat-studio/find-repo
-/plugin install find-top-skill@find-top-skill
+/plugin install find-repo@find-repo
 ```
 
 Needs Python 3.11+. Once installed, it is available in every project.
