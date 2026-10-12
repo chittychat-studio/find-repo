@@ -117,7 +117,7 @@ Relevance gate: stars measure popularity, not fit. The skill may only *drop* a s
 - **RS22** Web page (`web/index.html`, deployed to GitHub Pages by `.github/workflows/pages.yml`). Static,
   single file, no external scripts, no build step, no embedded secret. It runs the keyword-to-query, filter,
   balanced-rank (RS5), license-label (RS14), completely-free (RS20) and starter (RS15) logic in JavaScript,
-  mirroring `scripts/scout.py`, and calls the public GitHub search API from the browser (unauthenticated,
+  mirroring `scripts/scout.py`. It shows clickable example prompts (RS21) that fill the box, and calls the public GitHub search API from the browser (unauthenticated,
   ~10 searches/minute). It shows the top 10 as a table with the RS20 columns and the RS17 cautions, refuses a
   query over 200 characters and the harmful intents of RS18, and drops the harmful repo descriptions of RS18.
   The page has no relevance gate and no AI (no model runs in it), and says so: a public static page cannot hold

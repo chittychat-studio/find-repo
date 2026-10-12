@@ -56,6 +56,11 @@
   .note{font-size:13px;color:var(--muted);margin-top:14px}
   a{color:var(--accent)}
   code{background:var(--offbg);padding:1px 5px;border-radius:5px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .chip{background:var(--offbg);color:var(--ink);border:1px solid var(--line);border-radius:999px;
+    padding:6px 12px;font:inherit;font-size:13px;cursor:pointer;margin:0}
+  .chip:hover{border-color:var(--accent);color:var(--accent)}
+  .chips-label{font-size:13px;color:var(--muted);margin:12px 0 0}
 </style>
 </head>
 <body>
@@ -66,6 +71,8 @@
   <div class="card">
     <label for="q">What are you building?</label>
     <textarea id="q" placeholder="e.g. a diet app for iPhone, starting from scratch"></textarea>
+    <p class="chips-label">Try one (click to fill):</p>
+    <div id="examples" class="chips"></div>
     <div class="row">
       <div>
         <label for="platform" class="mut">Platform</label>
@@ -227,6 +234,29 @@ function render(top, queries, excluded){
     ', too few stars: '+excluded.low+', forks/archived: '+excluded.fork+', harmful: '+excluded.harm+'</p></div>';
   return h;
 }
+
+// RS21: ready-made prompts the user can click to fill the box.
+var EXAMPLES=[
+  {label:"🌐 Portfolio website with animations", text:"a portfolio website with smooth scroll animations", platform:"web", starters:"yes"},
+  {label:"🛒 SaaS landing page (Next.js)", text:"landing page for my SaaS in Next.js, I'll sell it", platform:"web", starters:"yes"},
+  {label:"📱 First iPhone app", text:"my first iPhone app, a habit tracker", platform:"ios", starters:"yes"},
+  {label:"🥗 Diet / calorie app", text:"a diet and calorie tracking app", platform:"", starters:"no"},
+  {label:"🤖 Chatbot over my PDFs", text:"a chatbot that answers questions from my PDFs, Python", platform:"", starters:"no"},
+  {label:"📊 Dashboard from a spreadsheet", text:"dashboard to show my sales spreadsheet as charts", platform:"web", starters:"no"},
+  {label:"🎮 2D browser game", text:"a simple 2D browser game engine for beginners", platform:"web", starters:"yes"},
+  {label:"🗺️ Offline maps for a trip planner", text:"offline maps for my trip planner app", platform:"", starters:"no"},
+  {label:"🔒 Learn security safely", text:"learn web security by hacking a practice app", platform:"", starters:"no"},
+  {label:"📑 PowerPoint from notes", text:"generate PowerPoint decks from my notes", platform:"", starters:"no"}
+];
+(function(){ var box=document.getElementById("examples");
+  EXAMPLES.forEach(function(ex){ var b=document.createElement("button"); b.type="button"; b.className="chip";
+    b.textContent=ex.label; b.addEventListener("click",function(){
+      document.getElementById("q").value=ex.text;
+      document.getElementById("platform").value=ex.platform;
+      document.getElementById("starters").value=ex.starters;
+      document.getElementById("status").textContent="Filled — press “Find repos”.";
+      document.getElementById("q").focus(); });
+    box.appendChild(b); }); })();
 
 async function run(){
   var text=document.getElementById("q").value.trim();

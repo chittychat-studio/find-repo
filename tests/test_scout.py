@@ -521,6 +521,10 @@ def test_web_page_is_safe_static(monkeypatch):
     assert "max 200 characters" in html  # RS19 length guard
     for col in ("OK in a paid product?", "Completely free?", "Starter?"):  # RS20 columns
         assert col in html
+    # RS21 clickable example prompts fill the box
+    assert 'id="examples"' in html and "EXAMPLES" in html and "click to fill" in html
+    for t in ("portfolio website", "iPhone app", "trip planner", "practice app"):
+        assert t in html
 
 
 def test_pages_workflow_present():
