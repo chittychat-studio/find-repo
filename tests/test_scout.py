@@ -136,7 +136,7 @@ def test_text_and_markdown_show_labels_and_key():
 
 def test_cli_rank_and_starter_flags(monkeypatch, capsys):
     """RS5, RS15."""
-    _patch_fetch(monkeypatch, lambda q, token=None: {"items": [repo("a/b", 5)]})
+    _patch_fetch(monkeypatch, lambda q, token=None: {"items": [repo("a/b", 500)]})
     assert scout.main(["--rank", "stars", "--prefer-starters", "--json", "x"]) == 0
     data = json.loads(capsys.readouterr().out)
     assert data["rank_mode"] == "stars" and data["prefer_starters"] is True
@@ -244,7 +244,7 @@ def test_token_passed_but_never_in_output(monkeypatch, capsys):
     """RS8."""
     seen = []
     monkeypatch.setenv("GITHUB_TOKEN", "ghp_secret123")
-    monkeypatch.setattr(scout, "fetch", lambda q, token=None: seen.append(token) or {"items": [repo("a/b", 1)]})
+    monkeypatch.setattr(scout, "fetch", lambda q, token=None: seen.append(token) or {"items": [repo("a/b", 500)]})
     assert scout.main(["x"]) == 0
     out = capsys.readouterr()
     assert seen == ["ghp_secret123"]
@@ -259,7 +259,7 @@ def _patch_fetch(monkeypatch, fn):
 
 def test_main_exit_codes(monkeypatch, capsys):
     """RS7, RS10: 0 ok, 1 no match, 2 error."""
-    _patch_fetch(monkeypatch, lambda q, token=None: {"items": [repo("a/b", 5)]})
+    _patch_fetch(monkeypatch, lambda q, token=None: {"items": [repo("a/b", 500)]})
     assert scout.main(["x"]) == 0
     assert "a/b" in capsys.readouterr().out
     _patch_fetch(monkeypatch, lambda q, token=None: {"items": []})
@@ -276,16 +276,17 @@ def test_main_exit_codes(monkeypatch, capsys):
 
 def test_main_json(monkeypatch, capsys):
     """RS10."""
-    _patch_fetch(monkeypatch, lambda q, token=None: {"items": [repo("a/b", 5)]})
+    _patch_fetch(monkeypatch, lambda q, token=None: {"items": [repo("a/b", 500)]})
     assert scout.main(["x", "--json"]) == 0
     data = json.loads(capsys.readouterr().out)
-    assert data["top"][0] == {"full_name": "a/b", "stars": 5, "license": "MIT", "open_license": True,
+    assert data["top"][0] == {"full_name": "a/b", "stars": 500, "license": "MIT", "open_license": True,
                               "license_use": scout.USE_PAID_OK, "starter": False,
                               "start_hint": scout.HINT_README,
                               "pushed": "2026-09-01", "url": "https://github.com/a/b", "query": "x",
                               "description": "a/b desc", "rank": 1}
     assert data["rank_mode"] == "balanced" and data["prefer_starters"] is False
-    assert set(data["excluded"]) == {"fork_or_archived", "license", "stale", "duplicate"}
+    assert set(data["excluded"]) == {"fork_or_archived", "license", "stale", "low_stars", "duplicate"}
+    assert data["min_stars"] == 50
 
 
 class _Resp(io.BytesIO):
@@ -378,3 +379,53 @@ def test_workflow_passes_inputs_via_env_only():
     assert "${{" not in run_block
     assert "workflow_dispatch" in wf and "contents: read" in wf
     assert '"--", *queries' in run_block
+
+
+def test_min_stars_filter_and_cli_default(monkeypatch, capsys):
+    """RS4a: live 'diet app' run put 41- and 48-star repos in the top 3."""
+    res, _ = run([[repo("wger/wger", 7104), repo("tiny/a", 41)], [repo("tiny/b", 48)]], min_stars=50)
+    assert [r["full_name"] for r in res["candidates"]] == ["wger/wger"]
+    assert res["excluded"]["low_stars"] == 2
+    _patch_fetch(monkeypatch, lambda q, token=None: {"items": [repo("tiny/a", 49)]})
+    assert scout.main(["x"]) == 1
+    assert "low_stars=1" in capsys.readouterr().out
+    assert scout.main(["--min-stars", "0", "x"]) == 0
+
+
+def test_long_query_refused_before_network():
+    """RS19: live run, a pasted sentence got HTTP 422 from GitHub."""
+    calls = []
+    long_q = "i want to build a really nice looking app " * 6
+    with pytest.raises(scout.ScoutError, match="too long.*1-3 keywords"):
+        scout.scout([long_q], fetcher=lambda q, t=None: calls.append(q) or {"items": []}, now=NOW)
+    assert calls == []
+
+
+def test_error_names_user_query_not_qualifiers():
+    """RS19: messages never show the added fork/archived qualifiers."""
+    def f(q, token=None):
+        raise scout.ScoutError("GitHub rejected it (HTTP 422). Use 1-3 keywords per search.")
+    with pytest.raises(scout.ScoutError) as e:
+        scout.scout(["calorie counter"], fetcher=f, now=NOW)
+    assert "'calorie counter'" in str(e.value) and "fork:false" not in str(e.value)
+
+
+def test_workflow_fails_on_error_but_not_on_no_match():
+    """RS19: live runs showed errors as green because the default shell had no pipefail."""
+    wf = (ROOT / ".github" / "workflows" / "find.yml").read_text()
+    step = wf.split("- name: Search GitHub", 1)[1]
+    assert "shell: bash" in step
+    assert "sys.exit(0 if code == 1 else code)" in step
+    assert "MIN_STARS: ${{ inputs.min_stars }}" in step and '"--min-stars", os.environ["MIN_STARS"]' in step
+
+
+def test_skill_edge_case_rules():
+    """RS1b, RS18, RS19."""
+    skill = (ROOT / "skills" / "find" / "SKILL.md").read_text()
+    assert "diet app" in skill and "Do not block on a question" in skill
+    assert "Do you mean learning security / testing an app you own, or a hackathon project?" in skill
+    assert "Only test systems you own or have written permission to test." in skill
+    for word in ("account takeover", "stalkerware", "credential stealers", "keygens", "generators"):
+        assert word in skill
+    assert "only finds open-source code on GitHub" in skill
+

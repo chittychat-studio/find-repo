@@ -22,13 +22,20 @@ Find Repo is a Claude Code plugin. Moved out of chittychat-studio/Governance-man
   flagged `no license: all rights reserved by default`.
 - **RS4** Staleness filter: a repo whose last push is older than `--max-age-months` (default 24) is excluded.
   `--max-age-months 0` turns the filter off.
-- **RS5** Ranking. Default `--rank balanced`: every query's own matches are sorted by stars (ties: most
+- **RS4a** Minimum stars: a repo with fewer than `--min-stars` stars (CLI and workflow default 50; 0 turns it
+  off) is excluded and counted as `low_stars`. Reason: balanced ranking (RS5) gives every search a slot, and a
+  live "diet app" run put 41- and 48-star repos in the top 3 ahead of one with 2,670.
+Ranking. Default `--rank balanced`: every query's own matches are sorted by stars (ties: most
   recent push, then `full_name`). The final order then takes rounds: round 1 holds each query's best match,
   round 2 each query's second best, and so on; within a round, stars descending. So one broad query cannot
   fill the whole list and push out the others. `--rank stars` keeps the old order: stars descending across all
   queries. The script returns the top `--top` (default 3) plus a shortlist of `--candidates` (default 10).
   A repo found by several queries is counted once, under the first query that returned it.
-- **RS6** Relevance gate: stars measure popularity, not fit. The skill may only *drop* a shortlisted
+- **RS1b** Vague but usable input (e.g. "diet app"): the skill does not block on a question. It searches the
+  domain (e.g. `diet tracker app`, `calorie counter`, `meal planner app`), says which platform it assumed or that
+  it searched all, and offers one line to narrow it. It asks first only when there is no domain at all
+  ("an app", "something cool", nonsense).
+Relevance gate: stars measure popularity, not fit. The skill may only *drop* a shortlisted
   repo that clearly does not match the description, giving a one-line reason for each drop, and then
   take the next one in star order. It never reorders, never adds a repo that is not in the script
   output, and never states a star count, license or date that the script did not print.
@@ -74,6 +81,24 @@ Find Repo is a Claude Code plugin. Moved out of chittychat-studio/Governance-man
   meaning. If no working Python is found, the skill stops and tells the user in plain words how to install it
   (Windows: python.org installer with "Add python.exe to PATH" ticked, or `winget install Python.Python.3.12`;
   macOS: `xcode-select --install` or `brew install python`).
+- **RS18** Security and harmful requests (skill text). "Hacking app" is ambiguous: security learning, testing
+  your own app, or a hackathon. If the purpose isn't stated, the skill asks once: "Do you mean learning security /
+  testing an app you own, or a hackathon project?" For learning or testing it searches defensive and practice terms
+  (`penetration testing tool`, `deliberately vulnerable app`, `capture the flag`), and adds: "Only test systems
+  you own or have written permission to test." If the stated goal is to get into someone else's account, device
+  or data, spy on a person, steal credentials, take down a service, cheat in online games, or crack paid software,
+  the skill declines in one line and runs no search. Regardless of the request, the relevance gate (RS6) always
+  skips repos whose description offers account takeover of named services ("hack WhatsApp/Instagram accounts"),
+  spyware or stalkerware, credential stealers, remote-access trojans, DDoS tools, cheats, cracks, keygens, or
+  "free premium/currency generators", even when labelled "ethical" or "educational", and says it skipped them.
+- **RS19** Other edge cases. A query over 200 characters is refused before any network call with a plain message
+  ("use 1–3 keywords per search"); GitHub rejects long queries (found live: HTTP 422). Error messages quote only
+  the user's query, never the added qualifiers. The skill writes queries in English (most repo descriptions are),
+  adding one in the user's language if they wrote in another. More than four needs: it searches the four most
+  important and names the rest. A request for something GitHub can't answer (paid apps, hardware, services): it
+  says the plugin only finds open-source code on GitHub. Nonsense or zero matches: it asks what they are building.
+  In the GitHub Actions run, "no match" (exit 1) shows as a successful run with the no-match summary; errors
+  (exit 2) fail the run (found live: the workflow shell had no `pipefail`, so failures showed green).
 - **RS11** Runtime: Python 3.11+ standard library only (`urllib`). No third-party packages.
   Unit tests make no network calls (HTTP is replaced with fixtures) and run in CI on every push and PR.
 - **RS12** License: MIT, in `LICENSE`, declared as `"license": "MIT"` in `plugin.json`. GitHub then detects

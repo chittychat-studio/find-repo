@@ -33,6 +33,10 @@ page. This version has no relevance check: Claude only runs inside Claude Code.
 
 ## Limits
 
+- Repos under 50 stars are skipped by default (`--min-stars 0` keeps them).
+- Vague asks ("diet app") get a search plus an offer to narrow; "hacking" asks get one question about the purpose,
+  and the plugin won't find tools for getting into other people's accounts, spying, cheats or cracks (SPEC RS18).
+
 - This is GitHub search, not a scan of every repository. Stars measure popularity, not quality.
 - Repos with no license file are excluded by default. `--license any` keeps them, flagged "all rights reserved".
 - Without a token GitHub allows 10 searches a minute. Set `GITHUB_TOKEN` to raise it; the token is never printed.
