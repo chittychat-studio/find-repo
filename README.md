@@ -1,11 +1,42 @@
 # Find Repo
 
-A Claude Code plugin. Describe your project in plain words and get the 3 most-starred
-open-source GitHub repos that fit it, with license and last-push date.
+A Claude Code plugin. Describe your project in plain words and get the 10 most-starred
+open-source GitHub repos that fit it, as a comparison table: stars, what it does, relevance, license,
+whether you can use it in a paid product, whether it's completely free, and how to start.
 
 ```
 /find-repo:find a portfolio website with smooth scroll animations and good design taste
 ```
+
+## Example prompts
+
+Type `/find-repo:find` followed by what you're building. Plain English is fine.
+
+- **Website:** `/find-repo:find a portfolio website with smooth scroll animations, starting from scratch`
+- **Website:** `/find-repo:find landing page for my SaaS in Next.js, I'll sell it`
+- **Mobile app:** `/find-repo:find my first iPhone app, a habit tracker, no coding experience`
+- **Mobile app:** `/find-repo:find diet app for Android and iPhone`
+- **AI agent:** `/find-repo:find a chatbot that answers questions from my PDFs, Python`
+- **AI agent:** `/find-repo:find generate PowerPoint decks from my notes`
+- **Data:** `/find-repo:find dashboard to show my sales spreadsheet as charts`
+- **Games:** `/find-repo:find a simple 2D browser game engine for beginners`
+- **Learning:** `/find-repo:find learn web security by hacking a practice app`
+- **Learning:** `/find-repo:find offline maps for my trip planner app`
+
+## Prompt template
+
+Copy, fill in what you know, delete the rest. Only the first line is needed.
+
+```
+/find-repo:find
+What I'm building: <one sentence>
+Platform: <web / iPhone / Android / desktop / not sure>
+Stack: <React, Python, Swift... or not sure>
+Selling it?: <yes / no>
+Starting from scratch?: <yes / no>
+```
+
+The plugin answers with a comparison table of up to 10 repos. Ask for "as a sheet" to get CSV for Excel or Google Sheets.
 
 ## Install (Claude Code)
 
@@ -44,7 +75,7 @@ page. This version has no relevance check: Claude only runs inside Claude Code.
 ## Direct use
 
 ```
-python3 scripts/scout.py "animation library" "topic:css-framework" [--json | --markdown] [--license any]
+python3 scripts/scout.py "animation library" "topic:css-framework" [--json | --markdown | --csv] [--license any]
     [--max-age-months 12] [--rank balanced|stars] [--prefer-starters]
 ```
 

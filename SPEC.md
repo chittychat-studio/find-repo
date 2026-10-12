@@ -1,7 +1,7 @@
 # Find Repo — Specification v0.1
 
 Status: draft v0.1, 2026-10-12. Every line of code traces to a rule ID below.
-Find Repo is a Claude Code plugin. Moved out of chittychat-studio/Governance-manager
+Find Repo is a Claude Code plugin that returns the top 10 open-source GitHub repos for a described project. Moved out of chittychat-studio/Governance-manager
 (where it was drafted as "Repo Scout", later named "Find Top Skill") into its own repository, so it ships and installs on its own.
 
 ## RS — Behaviour
@@ -29,7 +29,8 @@ Ranking. Default `--rank balanced`: every query's own matches are sorted by star
   recent push, then `full_name`). The final order then takes rounds: round 1 holds each query's best match,
   round 2 each query's second best, and so on; within a round, stars descending. So one broad query cannot
   fill the whole list and push out the others. `--rank stars` keeps the old order: stars descending across all
-  queries. The script returns the top `--top` (default 3) plus a shortlist of `--candidates` (default 10).
+  queries. The script returns the top `--top` (default 10) plus a shortlist of `--candidates` (default 20), so
+  the relevance gate (RS6) can drop repos and still have 10 left.
   A repo found by several queries is counted once, under the first query that returned it.
 - **RS1b** Vague but usable input (e.g. "diet app"): the skill does not block on a question. It searches the
   domain (e.g. `diet tracker app`, `calorie counter`, `meal planner app`), says which platform it assumed or that
@@ -53,7 +54,7 @@ Relevance gate: stars measure popularity, not fit. The skill may only *drop* a s
   list and the excluded counts (fork/archived, license, stale, duplicate).
 - **RS13** GitHub Actions run (`.github/workflows/find.yml`): a manual "Run workflow" form takes search
   queries separated by `;`, plus the license mode, the max age, the ranking mode (RS5) and
-  prefer-starters (RS15). It runs `scout.py --markdown` with the
+  prefer-starters (RS15), and an optional CSV block (`--csv-block` with `--markdown`, RS20). It runs `scout.py --markdown` with the
   Actions token (read-only, `contents: read`) and writes the result to the job summary. Inputs reach the
   script through environment variables, never pasted into the shell command. Repo text is Markdown-escaped
   in the summary, and a repo is linked only when its name is a plain `owner/repo`. This run has no
@@ -99,6 +100,20 @@ Relevance gate: stars measure popularity, not fit. The skill may only *drop* a s
   says the plugin only finds open-source code on GitHub. Nonsense or zero matches: it asks what they are building.
   In the GitHub Actions run, "no match" (exit 1) shows as a successful run with the no-match summary; errors
   (exit 2) fail the run (found live: the workflow shell had no `pipefail`, so failures showed green).
+- **RS20** Comparison sheet. Every result carries `free`, a plain answer to "is it completely free?" derived only
+  from the license (RS14): permissive → "Yes"; weak copyleft → "Yes, but changes to its files must stay open";
+  GPL/AGPL family → "Free to use, but you must share your code"; no license → "No: no license". The output says
+  this checks the license only: some projects also sell a paid hosted version or paid add-ons, which the plugin does
+  not check. `--csv` prints the same rows as CSV (rank, repo, url, stars, license, can_use_in_paid_product,
+  completely_free, starter, how_to_start, last_push, query, description) for Excel or Google Sheets. The skill
+  answers with a comparison table of up to 10 repos with these columns: #, Repo, Stars, What it does, Relevance,
+  License, OK in a paid product?, Completely free?, Starter?, Last update, How to start. "What it does" is taken
+  from the description only. "Relevance" is High/Medium/Low with a short reason; it is the skill's judgment from
+  the description and is labelled as such.
+- **RS21** Prompt examples. The README lists example prompts by goal (website, mobile app, AI agent, data, games,
+  learning) and a fill-in prompt template (What I'm building / Platform / Stack / Selling it? / Starting from
+  scratch?). The skill reads the same five fields from whatever the user wrote, and asks only for the ones it
+  needs per RS1a/RS1b.
 - **RS11** Runtime: Python 3.11+ standard library only (`urllib`). No third-party packages.
   Unit tests make no network calls (HTTP is replaced with fixtures) and run in CI on every push and PR.
 - **RS12** License: MIT, in `LICENSE`, declared as `"license": "MIT"` in `plugin.json`. GitHub then detects

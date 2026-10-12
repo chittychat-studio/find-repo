@@ -280,7 +280,7 @@ def test_main_json(monkeypatch, capsys):
     assert scout.main(["x", "--json"]) == 0
     data = json.loads(capsys.readouterr().out)
     assert data["top"][0] == {"full_name": "a/b", "stars": 500, "license": "MIT", "open_license": True,
-                              "license_use": scout.USE_PAID_OK, "starter": False,
+                              "license_use": scout.USE_PAID_OK, "free": scout.FREE_YES, "starter": False,
                               "start_hint": scout.HINT_README,
                               "pushed": "2026-09-01", "url": "https://github.com/a/b", "query": "x",
                               "description": "a/b desc", "rank": 1}
@@ -331,7 +331,7 @@ def test_stdlib_only_and_no_model_calls():
     """RS1, RS11."""
     src = (ROOT / "scripts" / "scout.py").read_text()
     imports = set(re.findall(r"^\s*(?:import|from)\s+([a-zA-Z_]+)", src, re.M))
-    assert imports <= {"argparse", "datetime", "json", "os", "re", "sys", "urllib"}, imports
+    assert imports <= {"argparse", "csv", "datetime", "io", "json", "os", "re", "sys", "urllib"}, imports
     assert not re.search(r"anthropic|openai|claude", src, re.I)
 
 
@@ -428,4 +428,74 @@ def test_skill_edge_case_rules():
     for word in ("account takeover", "stalkerware", "credential stealers", "keygens", "generators"):
         assert word in skill
     assert "only finds open-source code on GitHub" in skill
+
+
+def test_defaults_are_top10_with_20_candidates():
+    """RS5: top 10, shortlist 20 so the relevance gate can drop and still have 10."""
+    res, _ = run([[repo(f"o/r{i}", 1000 - i) for i in range(30)]])
+    assert len(res["top"]) == 10 and len(res["candidates"]) == 20
+
+
+@pytest.mark.parametrize("spdx,want", [("MIT", "FREE_YES"), ("MPL-2.0", "FREE_WEAK"), ("GPL-3.0", "FREE_SHARE"),
+                                       ("AGPL-3.0", "FREE_SHARE"), (None, "FREE_NO"), ("NOASSERTION", "FREE_NO")])
+def test_completely_free_from_license(spdx, want):
+    """RS20."""
+    assert scout.free_text(spdx) == getattr(scout, want)
+
+
+def test_csv_output_rows_and_formula_guard(monkeypatch, capsys):
+    """RS20: CSV for Excel/Sheets; repo text starting with = is not run as a formula."""
+    import csv as _csv
+    _patch_fetch(monkeypatch, lambda q, token=None: {"items": [
+        repo("a/b", 900, description="=HYPERLINK(evil)"), repo("c/d", 800, spdx="GPL-3.0")]})
+    assert scout.main(["--csv", "x"]) == 0
+    rows = list(_csv.reader(capsys.readouterr().out.splitlines()))
+    assert rows[0] == scout.CSV_FIELDS
+    assert rows[1][1] == "a/b" and rows[1][3] == "900" and rows[1][6] == scout.FREE_YES
+    assert rows[1][11].startswith("'=")
+    assert rows[2][6] == scout.FREE_SHARE and len(rows) == 3
+
+
+def test_markdown_top_table_then_extra_candidates_and_free_note():
+    """RS20, RS10: top 10 printed once, the rest under 'More candidates'."""
+    res, _ = run([[repo(f"o/r{i}", 1000 - i) for i in range(15)]])
+    md = scout.render_markdown(res)
+    assert "### Top 10" in md and "### More candidates" in md
+    assert md.count("[o/r0]") == 1 and "[o/r14]" in md
+    assert "Completely free?" in md and scout.FREE_NOTE in md
+    small, _ = run([[repo("a/b", 900)]], top=10)
+    assert "More candidates" not in scout.render_markdown(small)
+
+
+def test_skill_comparison_table_and_prompt_fields():
+    """RS20, RS21."""
+    skill = (ROOT / "skills" / "find" / "SKILL.md").read_text()
+    for col in ("What it does", "Relevance", "OK in a paid product?", "Completely free?", "How to start"):
+        assert col in skill
+    assert "up to 10" in skill and "Stop when you have 10" in skill
+    for field in ("What I'm building", "Platform", "Stack", "Selling it?", "Starting from scratch?"):
+        assert field in skill
+
+
+def test_readme_has_prompt_examples_and_template():
+    """RS21."""
+    readme = (ROOT / "README.md").read_text()
+    assert "## Example prompts" in readme and "## Prompt template" in readme
+    for goal in ("Website", "Mobile app", "AI agent", "Data", "Games", "Learning"):
+        assert f"**{goal}" in readme
+
+
+def test_csv_block_under_markdown_cannot_break_fence(monkeypatch, capsys):
+    """RS20, RS9: one search, CSV fenced under the summary; repo text with ``` can't close the fence."""
+    fence = chr(96) * 3
+    _patch_fetch(monkeypatch, lambda q, token=None: {"items": [repo("a/b", 900, description=fence + " x")]})
+    assert scout.main(["--markdown", "--csv-block", "x"]) == 0
+    out = capsys.readouterr().out
+    assert "## CSV" in out and out.count(fence) == 2 and out.rstrip().endswith(fence)
+
+
+def test_workflow_csv_option():
+    """RS20, RS13."""
+    wf = (ROOT / ".github" / "workflows" / "find.yml").read_text()
+    assert "CSV: ${{ inputs.csv }}" in wf and '["--csv-block"] if os.environ["CSV"] == "true"' in wf
 

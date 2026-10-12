@@ -34,6 +34,11 @@ on:
         required: true
         default: false
         type: boolean
+      csv:
+        description: "Also show the results as CSV (copy into Excel / Google Sheets)"
+        required: true
+        default: false
+        type: boolean
 permissions:
   contents: read
 jobs:
@@ -52,6 +57,7 @@ jobs:
           MIN_STARS: ${{ inputs.min_stars }}
           RANK: ${{ inputs.rank }}
           PREFER_STARTERS: ${{ inputs.prefer_starters }}
+          CSV: ${{ inputs.csv }}
           GITHUB_TOKEN: ${{ github.token }}
         # RS19: explicit bash gives -o pipefail, so a script error fails the run instead of showing green.
         shell: bash
@@ -62,6 +68,7 @@ jobs:
           import scout
           queries = [q.strip() for q in os.environ["QUERIES"].split(";") if q.strip()]
           flags = ["--prefer-starters"] if os.environ["PREFER_STARTERS"] == "true" else []
+          flags += ["--csv-block"] if os.environ["CSV"] == "true" else []
           code = scout.main(["--markdown", "--license", os.environ["LICENSE_MODE"],
                              "--max-age-months", os.environ["MAX_AGE"], "--min-stars", os.environ["MIN_STARS"],
                              "--rank", os.environ["RANK"], *flags, "--", *queries])

@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""Find the most-starred open-source GitHub repos matching search queries (SPEC RS1-RS19).
+"""Find the most-starred open-source GitHub repos matching search queries (SPEC RS1-RS21).
 
-Usage: scout.py "query one" ["query two" ...] [--top 3] [--candidates 10]
+Usage: scout.py "query one" ["query two" ...] [--top 10] [--candidates 20]
                 [--license open|any] [--max-age-months 24]
-                [--min-stars 50] [--rank balanced|stars] [--prefer-starters] [--json | --markdown]
+                [--min-stars 50] [--rank balanced|stars] [--prefer-starters] [--json | --markdown | --csv]
 """
 import argparse
+import csv
 import datetime as dt
+import io
 import json
 import os
 import re
@@ -40,6 +42,15 @@ USE_WEAK = "OK in a paid product, but changes to its own files must stay open"
 USE_SHARE = "You must share your app's code if you give the app to others"
 USE_NETWORK = "You must share your code, even for a website or online service"
 USE_NONE = "No license: you may not reuse this code"
+# RS20: "is it completely free?", from the license only.
+FREE_YES = "Yes"
+FREE_WEAK = "Yes, but changes to its files must stay open"
+FREE_SHARE = "Free to use, but you must share your code"
+FREE_NO = "No: no license"
+FREE_NOTE = ("'Completely free' checks the license only: some projects also sell a paid hosted version or "
+             "paid add-ons, which this does not check.")
+CSV_FIELDS = ["rank", "repo", "url", "stars", "license", "can_use_in_paid_product", "completely_free",
+              "starter", "how_to_start", "last_push", "query", "description"]
 STARTER_MIN_SHARE = 0.10  # RS15: a starter jumps ahead only with >= 10% of its query's top stars
 STARTER_TOPICS = {"template", "starter", "starter-kit", "starter-template", "boilerplate"}  # RS15
 HINT_TEMPLATE = "On GitHub, click 'Use this template'"
@@ -104,6 +115,13 @@ def license_use(spdx):
     return USE_NONE
 
 
+def free_text(spdx):
+    """RS20."""
+    use = license_use(spdx)
+    return {USE_PAID_OK: FREE_YES, USE_WEAK: FREE_WEAK, USE_SHARE: FREE_SHARE,
+            USE_NETWORK: FREE_SHARE}.get(use, FREE_NO)
+
+
 def _order(rows, prefer_starters):
     """RS5, RS15: one query's own order."""
     floor = max((r["stars"] for r in rows), default=0) * STARTER_MIN_SHARE
@@ -130,7 +148,7 @@ def _pushed(item):
         return None
 
 
-def scout(queries, fetcher=fetch, top=3, candidates=10, license_mode="open", max_age_months=24,
+def scout(queries, fetcher=fetch, top=10, candidates=20, license_mode="open", max_age_months=24,
           now=None, token=None, rank_mode="balanced", prefer_starters=False, min_stars=0):
     """RS2-RS5: search, merge, filter, rank. Returns a result dict; raises ScoutError (RS7)."""
     queries = [q.strip() for q in queries if q and q.strip()]
@@ -194,6 +212,7 @@ def scout(queries, fetcher=fetch, top=3, candidates=10, license_mode="open", max
                 "license": label,
                 "open_license": is_open,
                 "license_use": license_use(spdx),
+                "free": free_text(spdx),
                 "starter": is_template or bool(topics & STARTER_TOPICS),
                 "start_hint": HINT_TEMPLATE if is_template else HINT_README,
                 "pushed": pushed.date().isoformat() if pushed else "unknown",
@@ -234,13 +253,27 @@ def render(result):
     for r in result["candidates"]:
         star = "  [starter]" if r["starter"] else ""
         out.append(f"{r['rank']:>2}. {r['full_name']}  ★{r['stars']:,}  {r['license']}  pushed {r['pushed']}{star}")
-        out.append(f"    {r['license_use']}")
+        out.append(f"    {r['license_use']} | Completely free? {r['free']}")
         out.append(f"    {r['url']}  [query: {r['query']}]")
         out.append(f"    How to start: {r['start_hint']}")
         if r["description"]:
             out.append(f"    {r['description']}")
-    out += ["", KEY]
+    out += ["", KEY, FREE_NOTE]
     return "\n".join(out)
+
+
+def render_csv(result):
+    """RS20: spreadsheet rows (top + candidates)."""
+    buf = io.StringIO()
+    w = csv.writer(buf, lineterminator="\n")
+    w.writerow(CSV_FIELDS)
+    for r in result["candidates"]:
+        desc = r["description"]
+        if desc[:1] in "=+-@":  # keep spreadsheet apps from treating repo text as a formula
+            desc = "'" + desc
+        w.writerow([r["rank"], r["full_name"], r["url"], r["stars"], r["license"], r["license_use"], r["free"],
+                    "yes" if r["starter"] else "no", r["start_hint"], r["pushed"], r["query"], desc])
+    return buf.getvalue().rstrip("\n")
 
 
 def _rank_text(result):
@@ -266,29 +299,32 @@ def render_markdown(result):
     if not result["candidates"]:
         out += ["No repository matched after filtering.", "", KEY]
         return "\n".join(out)
+    extra = result["candidates"][len(result["top"]):]
     for title, rows in (("Top %d" % len(result["top"]), result["top"]),
-                        ("Shortlist", result["candidates"])):
+                        ("More candidates (used if the relevance check drops some)", extra)):
+        if not rows:
+            continue
         out += [f"### {title}", "",
-                "| # | Repo | Stars | License | Can I use it? | Starter? | How to start | Last push | Query | Description |",
-                "|---|---|---|---|---|---|---|---|---|---|"]
+                "| # | Repo | Stars | What it does | License | OK in a paid product? | Completely free? | Starter? | "
+                "Last push | How to start | Query |",
+                "|---|---|---|---|---|---|---|---|---|---|---|"]
         for r in rows:
             name = r["full_name"]
             link = f"[{_md(name)}](https://github.com/{name})" if _NAME.fullmatch(name) else _md(name)
-            out.append(f"| {r['rank']} | {link} | "
-                       f"{r['stars']:,} | {_md(r['license'])} | {r['license_use']} | "
-                       f"{'yes' if r['starter'] else 'no'} | {_md(r['start_hint'])} | {r['pushed']} | {_md(r['query'])} | "
-                       f"{_md(r['description'])} |")
+            out.append(f"| {r['rank']} | {link} | {r['stars']:,} | {_md(r['description'])} | {_md(r['license'])} | "
+                       f"{r['license_use']} | {r['free']} | {'yes' if r['starter'] else 'no'} | {r['pushed']} | "
+                       f"{_md(r['start_hint'])} | {_md(r['query'])} |")
         out.append("")
     out += ["Ranked among GitHub search matches, not a scan of every repository. "
-            "No relevance check here: that step runs only in the plugin skill.", "", KEY]
+            "No relevance check here: that step runs only in the plugin skill.", "", KEY, "", FREE_NOTE]
     return "\n".join(out)
 
 
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("queries", nargs="+")
-    p.add_argument("--top", type=int, default=3)
-    p.add_argument("--candidates", type=int, default=10)
+    p.add_argument("--top", type=int, default=10)
+    p.add_argument("--candidates", type=int, default=20)
     p.add_argument("--license", dest="license_mode", choices=["open", "any"], default="open")
     p.add_argument("--max-age-months", type=int, default=24)
     p.add_argument("--min-stars", type=int, default=50)
@@ -297,6 +333,8 @@ def main(argv=None):
     fmt = p.add_mutually_exclusive_group()
     fmt.add_argument("--json", action="store_true")
     fmt.add_argument("--markdown", action="store_true")
+    fmt.add_argument("--csv", action="store_true")
+    p.add_argument("--csv-block", action="store_true", help="with --markdown: add a fenced CSV block (RS20)")
     a = p.parse_args(argv)
     if a.top < 1 or a.candidates < 1 or a.max_age_months < 0 or a.min_stars < 0:
         p.error("--top and --candidates must be >= 1, --max-age-months and --min-stars >= 0")
@@ -308,8 +346,13 @@ def main(argv=None):
     except ScoutError as e:
         print(f"find-repo: {e}", file=sys.stderr)
         return 2
-    print(json.dumps(res, indent=2, ensure_ascii=False) if a.json
-          else render_markdown(res) if a.markdown else render(res))
+    out = (json.dumps(res, indent=2, ensure_ascii=False) if a.json
+           else render_markdown(res) if a.markdown else render_csv(res) if a.csv else render(res))
+    if a.markdown and a.csv_block and res["candidates"]:
+        fence = chr(96) * 3
+        out += ("\n\n## CSV (copy into Excel / Google Sheets)\n\n" + fence + "csv\n"
+                + render_csv(res).replace(fence, chr(39) * 3) + "\n" + fence)
+    print(out)
     return 0 if res["candidates"] else 1
 
 
