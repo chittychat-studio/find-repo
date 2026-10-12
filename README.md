@@ -14,14 +14,22 @@ open-source GitHub repos that fit it, with license and last-push date.
 /plugin install find-repo@find-repo
 ```
 
-Needs Python 3.11+. Once installed, it is available in every project.
+Needs Python 3.11+ (the plugin tells you how to install it if it's missing). Once installed, it is available in every project.
 
 ## How it works (rules in `SPEC.md`)
 
 1. Claude turns your description into 1–4 GitHub search queries (RS1).
 2. `scripts/scout.py` runs them against the GitHub search API, sorted by stars, no forks, no archived repos (RS2).
-3. It keeps only repos with an open-source license (RS3) that were pushed in the last 24 months (RS4), then ranks by stars (RS5).
-4. Claude may drop off-topic repos from the shortlist, giving a reason, but never reorders the list or adds repos (RS6).
+3. It keeps only repos with an open-source license (RS3) that were pushed in the last 24 months (RS4).
+4. Ranking is balanced (RS5): each search's best match comes first, then the rest by stars, so one broad
+   search can't crowd out the others. Starting a new project? Starter templates go first (RS15).
+5. Claude may drop off-topic repos from the shortlist, giving a reason, but never reorders the list or adds repos (RS6).
+6. Every result says in plain words whether you can use it in a paid product (RS14) and how to start (RS15).
+
+## Run it on GitHub (no install)
+
+Repo → Actions → **find** → Run workflow. Type searches separated by `;`. Results appear on the run's summary
+page. This version has no relevance check: Claude only runs inside Claude Code.
 
 ## Limits
 
@@ -32,7 +40,8 @@ Needs Python 3.11+. Once installed, it is available in every project.
 ## Direct use
 
 ```
-python3 scripts/scout.py "animation library" "topic:css-framework" [--json] [--license any] [--max-age-months 12]
+python3 scripts/scout.py "animation library" "topic:css-framework" [--json | --markdown] [--license any]
+    [--max-age-months 12] [--rank balanced|stars] [--prefer-starters]
 ```
 
 Exit codes: 0 results, 1 no match after filtering, 2 error (network, rate limit, bad query).

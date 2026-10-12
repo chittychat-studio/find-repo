@@ -18,6 +18,17 @@ on:
         required: true
         default: "24"
         type: string
+      rank:
+        description: "balanced = each search's best match first; stars = pure star order"
+        required: true
+        default: balanced
+        type: choice
+        options: [balanced, stars]
+      prefer_starters:
+        description: "Put ready-made starter templates first"
+        required: true
+        default: false
+        type: boolean
 permissions:
   contents: read
 jobs:
@@ -33,6 +44,8 @@ jobs:
           QUERIES: ${{ inputs.queries }}
           LICENSE_MODE: ${{ inputs.license }}
           MAX_AGE: ${{ inputs.max_age_months }}
+          RANK: ${{ inputs.rank }}
+          PREFER_STARTERS: ${{ inputs.prefer_starters }}
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           python - <<'PY' 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
@@ -40,6 +53,8 @@ jobs:
           sys.path.insert(0, "scripts")
           import scout
           queries = [q.strip() for q in os.environ["QUERIES"].split(";") if q.strip()]
+          flags = ["--prefer-starters"] if os.environ["PREFER_STARTERS"] == "true" else []
           sys.exit(scout.main(["--markdown", "--license", os.environ["LICENSE_MODE"],
-                               "--max-age-months", os.environ["MAX_AGE"], "--", *queries]))
+                               "--max-age-months", os.environ["MAX_AGE"], "--rank", os.environ["RANK"],
+                               *flags, "--", *queries]))
           PY

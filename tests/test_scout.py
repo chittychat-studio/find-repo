@@ -38,7 +38,7 @@ def run(pages, queries=None, **kw):
     return res, f
 
 
-def test_ranks_by_stars_across_queries_and_dedupes():
+def test_dedupes_and_ranks_across_queries():
     """RS2, RS5."""
     res, _ = run([[repo("a/gsap", 20000), repo("b/x", 500)], [repo("c/taste", 3000), repo("a/gsap", 20000)]])
     assert [r["full_name"] for r in res["top"]] == ["a/gsap", "c/taste", "b/x"]
@@ -51,6 +51,103 @@ def test_tie_broken_by_recent_push():
     """RS5."""
     res, _ = run([[repo("a/old", 100, pushed="2026-01-01T00:00:00Z"), repo("b/new", 100)]])
     assert [r["full_name"] for r in res["top"]] == ["b/new", "a/old"]
+
+
+def test_balanced_rank_stops_one_query_swamping_others():
+    """RS5: the iOS/website failure: one broad query used to fill the whole top 10."""
+    broad = [repo(f"big/r{i}", 100000 - i) for i in range(10)]
+    niche = [repo("niche/a", 900), repo("niche/b", 800)]
+    other = [repo("other/a", 50)]
+    res, _ = run([broad, niche, other], top=3)
+    assert [r["full_name"] for r in res["top"]] == ["big/r0", "niche/a", "other/a"]
+    assert [r["full_name"] for r in res["candidates"][3:5]] == ["big/r1", "niche/b"]
+
+
+def test_stars_rank_mode_keeps_old_order():
+    """RS5."""
+    broad = [repo(f"big/r{i}", 100000 - i) for i in range(5)]
+    res, _ = run([broad, [repo("niche/a", 900)]], top=3, rank_mode="stars")
+    assert [r["full_name"] for r in res["top"]] == ["big/r0", "big/r1", "big/r2"]
+
+
+def test_balanced_round_sorted_by_stars_and_empty_query_skipped():
+    """RS5."""
+    res, _ = run([[repo("a/low", 10)], [], [repo("b/high", 99)]])
+    assert [r["full_name"] for r in res["top"]] == ["b/high", "a/low"]
+
+
+@pytest.mark.parametrize("spdx,want", [
+    ("MIT", "USE_PAID_OK"), ("Apache-2.0", "USE_PAID_OK"), ("CC0-1.0", "USE_PAID_OK"), ("BSD-3-Clause", "USE_PAID_OK"),
+    ("MPL-2.0", "USE_WEAK"), ("LGPL-3.0", "USE_WEAK"),
+    ("GPL-3.0", "USE_SHARE"), ("GPL-2.0", "USE_SHARE"), ("EUPL-1.2", "USE_SHARE"),
+    ("AGPL-3.0", "USE_NETWORK"), ("OSL-3.0", "USE_NETWORK"),
+    (None, "USE_NONE"), ("NOASSERTION", "USE_NONE"), ("CC-BY-NC-4.0", "USE_NONE"),
+])
+def test_license_use_plain_english(spdx, want):
+    """RS14."""
+    assert scout.license_use(spdx) == getattr(scout, want)
+
+
+def test_every_open_license_has_a_label():
+    """RS14: no open license falls through to 'no license'."""
+    labelled = scout.PERMISSIVE | scout.WEAK_COPYLEFT | scout.STRONG_COPYLEFT | scout.NETWORK_COPYLEFT
+    assert scout.OPEN_LICENSES <= labelled
+
+
+def test_starter_detection_and_hint():
+    """RS15."""
+    res, _ = run([[repo("a/tpl", 3, is_template=True), repo("b/topic", 2, topics=["Boilerplate", "react"]),
+                   repo("c/lib", 1, topics=["ui"])]])
+    by = {r["full_name"]: r for r in res["candidates"]}
+    assert by["a/tpl"]["starter"] and by["a/tpl"]["start_hint"] == scout.HINT_TEMPLATE
+    assert by["b/topic"]["starter"] and by["b/topic"]["start_hint"] == scout.HINT_README
+    assert not by["c/lib"]["starter"]
+
+
+def test_prefer_starters_within_each_query():
+    """RS15: starters first inside a query; balanced rounds still apply across queries."""
+    q0 = [repo("lib/big", 50000), repo("tpl/small", 300, is_template=True)]
+    q1 = [repo("other/x", 1000)]
+    res, _ = run([q0, q1], prefer_starters=True)
+    assert [r["full_name"] for r in res["candidates"]] == ["other/x", "tpl/small", "lib/big"]
+    res, _ = run([q0, q1])
+    assert [r["full_name"] for r in res["candidates"]] == ["lib/big", "other/x", "tpl/small"]
+
+
+def test_text_and_markdown_show_labels_and_key():
+    """RS10, RS14, RS15, RS17."""
+    res, _ = run([[repo("a/tpl", 3, spdx="AGPL-3.0", is_template=True)]], license_mode="open")
+    txt, md = scout.render(res), scout.render_markdown(res)
+    for out in (txt, md):
+        assert scout.USE_NETWORK in out and scout.HINT_TEMPLATE.replace("'", "") in out.replace("'", "").replace("\\", "")
+        assert "stars can be bought" in out and "not legal advice" in out
+        assert "balanced" in out
+    assert "[starter]" in txt and "| yes |" in md
+    empty, _ = run([[]])
+    assert "stars can be bought" in scout.render(empty) and "stars can be bought" in scout.render_markdown(empty)
+
+
+def test_cli_rank_and_starter_flags(monkeypatch, capsys):
+    """RS5, RS15."""
+    _patch_fetch(monkeypatch, lambda q, token=None: {"items": [repo("a/b", 5)]})
+    assert scout.main(["--rank", "stars", "--prefer-starters", "--json", "x"]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["rank_mode"] == "stars" and data["prefer_starters"] is True
+
+
+def test_skill_vibe_coder_rules():
+    """RS16, RS17, RS14, RS15."""
+    skill = (ROOT / "skills" / "find" / "SKILL.md").read_text()
+    assert "-topic:macos" in skill and "--prefer-starters" in skill
+    assert "winget install Python.Python.3.12" in skill and "Add python.exe to PATH" in skill
+    assert "license_use" in skill and "start_hint" in skill and "stars can be bought" in skill
+
+
+def test_workflow_passes_rank_and_starters_via_env():
+    """RS13, RS5, RS15."""
+    wf = (ROOT / ".github" / "workflows" / "find.yml").read_text()
+    assert "RANK: ${{ inputs.rank }}" in wf and "PREFER_STARTERS: ${{ inputs.prefer_starters }}" in wf
+    assert '"--rank", os.environ["RANK"]' in wf
 
 
 def test_top_and_candidates_limits():
@@ -176,8 +273,11 @@ def test_main_json(monkeypatch, capsys):
     assert scout.main(["x", "--json"]) == 0
     data = json.loads(capsys.readouterr().out)
     assert data["top"][0] == {"full_name": "a/b", "stars": 5, "license": "MIT", "open_license": True,
+                              "license_use": scout.USE_PAID_OK, "starter": False,
+                              "start_hint": scout.HINT_README,
                               "pushed": "2026-09-01", "url": "https://github.com/a/b", "query": "x",
                               "description": "a/b desc", "rank": 1}
+    assert data["rank_mode"] == "balanced" and data["prefer_starters"] is False
     assert set(data["excluded"]) == {"fork_or_archived", "license", "stale", "duplicate"}
 
 
