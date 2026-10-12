@@ -1,0 +1,2 @@
+# Dev/test only. The plugin itself is stdlib-only (RS11).
+pytest>=8

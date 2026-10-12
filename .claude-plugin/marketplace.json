@@ -1,0 +1,12 @@
+{
+  "name": "find-top-skill",
+  "description": "Marketplace for the Find Top Skill plugin.",
+  "owner": {"name": "chittychat-studio"},
+  "plugins": [
+    {
+      "name": "find-top-skill",
+      "source": "./",
+      "description": "Find the 3 most-starred open-source GitHub repos for a project you describe."
+    }
+  ]
+}

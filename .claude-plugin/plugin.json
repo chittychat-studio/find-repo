@@ -1,0 +1,9 @@
+{
+  "name": "find-top-skill",
+  "displayName": "Find Top Skill",
+  "version": "0.1.0",
+  "description": "Describe your project in plain words; get the 3 most-starred open-source GitHub repos that fit it, with license and last-push date.",
+  "author": {"name": "chittychat-studio"},
+  "repository": "https://github.com/chittychat-studio/find-repo",
+  "keywords": ["github", "search", "discovery", "open-source", "recommendations"]
+}
