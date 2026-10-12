@@ -1,14 +1,17 @@
-# Find Top Skill — Specification v0.1
+# Find Repo — Specification v0.1
 
 Status: draft v0.1, 2026-10-12. Every line of code traces to a rule ID below.
-Find Top Skill is a Claude Code plugin. Moved out of chittychat-studio/Governance-manager
-(where it was drafted as "Repo Scout") into its own repository, so it ships and installs on its own.
+Find Repo is a Claude Code plugin. Moved out of chittychat-studio/Governance-manager
+(where it was drafted as "Repo Scout", later named "Find Top Skill") into its own repository, so it ships and installs on its own.
 
 ## RS — Behaviour
 
-- **RS1** Input is any free-text project description. The `/find-top-skill:find` skill, running in the
+- **RS1** Input is any free-text project description. The `/find-repo:find` skill, running in the
   user's own Claude Code session, turns it into 1–4 GitHub search queries (keywords, optionally
   `topic:` / `language:` qualifiers). The script never calls a model and holds no model API key.
+- **RS1a** When the skill starts without a description (bare `/find-repo:find`, or a request that does not say
+  what is being built), it asks the user one plain question about the project or task, and runs no search until
+  they answer. The question also offers two optional preferences: language or stack, and whether unlicensed repos are OK.
 - **RS2** "All public GitHub" means the GitHub REST search API (`GET /search/repositories`). Each query
   is sent with `sort=stars&order=desc&per_page=30`, and `fork:false archived:false is:public` is added.
   Results from all queries are merged and de-duplicated by `full_name`.
@@ -39,6 +42,8 @@ Find Top Skill is a Claude Code plugin. Moved out of chittychat-studio/Governanc
   list and the excluded counts (fork/archived, license, stale, duplicate).
 - **RS11** Runtime: Python 3.11+ standard library only (`urllib`). No third-party packages.
   Unit tests make no network calls (HTTP is replaced with fixtures) and run in CI on every push and PR.
+- **RS12** License: MIT, in `LICENSE`, declared as `"license": "MIT"` in `plugin.json`. GitHub then detects
+  `MIT`, so the plugin passes its own RS3 filter.
 
 ## RX — Deliberately excluded (v0.1)
 

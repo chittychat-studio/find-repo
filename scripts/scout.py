@@ -50,7 +50,7 @@ def fetch(query, token=None, timeout=20):
     req = urllib.request.Request(f"{API}?{params}", headers={
         "Accept": "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
-        "User-Agent": "find-top-skill",
+        "User-Agent": "find-repo",
     })
     if token:
         req.add_header("Authorization", f"Bearer {token}")
@@ -180,7 +180,7 @@ def main(argv=None):
         res = scout(a.queries, fetcher=fetch, top=a.top, candidates=a.candidates, license_mode=a.license_mode,
                     max_age_months=a.max_age_months, token=token)
     except ScoutError as e:
-        print(f"find-top-skill: {e}", file=sys.stderr)
+        print(f"find-repo: {e}", file=sys.stderr)
         return 2
     print(json.dumps(res, indent=2, ensure_ascii=False) if a.json else render(res))
     return 0 if res["candidates"] else 1

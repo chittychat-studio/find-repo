@@ -1,4 +1,4 @@
-"""Find Top Skill unit tests. No network: fetch is replaced with fixtures (RS2-RS11)."""
+"""Find Repo unit tests. No network: fetch is replaced with fixtures (RS2-RS11)."""
 import datetime as dt
 import io
 import json
@@ -232,3 +232,13 @@ def test_skill_calls_real_script():
     skill = (ROOT / "skills" / "find" / "SKILL.md").read_text()
     assert "${CLAUDE_PLUGIN_ROOT}/scripts/scout.py" in skill
     assert (ROOT / "scripts" / "scout.py").exists()
+
+
+def test_skill_asks_for_task_when_no_description():
+    """RS1a."""
+    skill = (ROOT / "skills" / "find" / "SKILL.md").read_text()
+    front = skill.split("---")[1]
+    assert "argument-hint:" in front
+    assert "$ARGUMENTS" in skill
+    assert "What are you building, or what task do you need a GitHub repo for?" in skill
+    assert skill.index("RS1a") < skill.index("scripts/scout.py"), "must ask before running the search"
