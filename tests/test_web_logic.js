@@ -9,7 +9,7 @@ global.document = {getElementById: el, createElement: el};
 const s = {};
 new Function("document", "localStorage",
   code + "; this.keywordQueries=keywordQueries; this.balanced=balanced; this.lu=lu; this.freeText=freeText;" +
-  " this.keep=keep; this.harmful=harmful; this.harmfulRepo=harmfulRepo;").call(s, document, global.localStorage || {getItem:()=>null,setItem(){},removeItem(){}});
+  " this.keep=keep; this.harmful=harmful; this.harmfulRepo=harmfulRepo; this.prdFeatures=prdFeatures;").call(s, document, global.localStorage || {getItem:()=>null,setItem(){},removeItem(){}});
 
 // RS16: iOS excludes macOS
 assert.ok(s.keywordQueries("a diet app for iphone", "ios").every(q => q.includes("-topic:macos")));
@@ -37,3 +37,12 @@ assert.deepStrictEqual(k1.map(r => r.name), ["a/big", "a/tpl"]);  // old, no-lic
 assert.strictEqual(ex.stale, 1); assert.strictEqual(ex.license, 1); assert.strictEqual(ex.low, 1);
 assert.deepStrictEqual(s.balanced([k1, k2], true).map(r => r.name), ["b/x", "a/tpl", "a/big"]);
 console.log("web logic ok");
+
+// RS23: PRD feature extraction (client-side, capped for the rate limit)
+const prd = ["# My app PRD","## Features","- User authentication with email and Google",
+ "- Payment checkout with Stripe","- Push notifications","* Image upload and cropping",
+ "The app must support offline mode","1) Admin dashboard with charts","random prose line here"].join("\n");
+const f = s.prdFeatures(prd);
+assert.ok(f.length >= 2 && f.length <= 6, "features: " + f.length);
+assert.ok(f.some(x => x.includes("authentication")) && f.some(x => x.includes("payment")), f.join(" | "));
+console.log("prd ok:", f.join(" | "));

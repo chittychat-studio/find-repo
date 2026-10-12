@@ -523,6 +523,9 @@ def test_web_page_is_safe_static(monkeypatch):
         assert col in html
     # RS21 clickable example prompts fill the box
     assert 'id="examples"' in html and "EXAMPLES" in html and "click to fill" in html
+    # RS23 PRD upload is client-side only (FileReader, never uploaded)
+    assert 'id="prd"' in html and "FileReader" in html and "prdFeatures" in html
+    assert "never uploaded" in html
     for t in ("portfolio website", "iPhone app", "trip planner", "practice app"):
         assert t in html
 
@@ -531,4 +534,41 @@ def test_pages_workflow_present():
     """RS22."""
     wf = (ROOT / ".github" / "workflows" / "pages.yml").read_text()
     assert "upload-pages-artifact" in wf and "path: web" in wf and "deploy-pages" in wf
+
+
+def test_all_uncaps_and_groups_by_feature():
+    """RS23: --all returns every match; groups hold each feature's repos, deduped to the first finder."""
+    pages = [[repo("auth/a", 900), repo("shared/x", 500)], [repo("pay/a", 700), repo("shared/x", 500)]]
+    res, _ = run(pages, queries=["user auth", "payments"], top=None, candidates=None)
+    assert len(res["all"]) == 3  # shared/x counted once
+    assert [g["query"] for g in res["groups"]] == ["user auth", "payments"]
+    assert [r["full_name"] for r in res["groups"][0]["repos"]] == ["auth/a", "shared/x"]  # first finder keeps it
+    assert [r["full_name"] for r in res["groups"][1]["repos"]] == ["pay/a"]
+
+
+def test_grouped_markdown_sections_and_counts():
+    """RS23."""
+    pages = [[repo("a/1", 900)], [repo("b/1", 800), repo("b/2", 700)]]
+    res, _ = run(pages, queries=["login", "billing"], top=None, candidates=None)
+    md = scout.render_markdown_grouped(res)
+    assert "### login  (1)" in md and "### billing  (2)" in md
+    assert "3 open-source repos across 2 needs" in md and scout.FREE_NOTE in md
+
+
+def test_cli_all_and_group(monkeypatch, capsys):
+    """RS23."""
+    _patch_fetch(monkeypatch, lambda q, token=None: {"items": [repo("a/b", 500)]})
+    assert scout.main(["--all", "--json", "x"]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert "groups" in data and data["top"] == data["all"]
+    _patch_fetch(monkeypatch, lambda q, token=None: {"items": [repo("a/b", 500)]})
+    assert scout.main(["--markdown", "--group", "x"]) == 0
+    assert "grouped by need" in capsys.readouterr().out
+
+
+def test_workflow_all_group_options():
+    """RS23."""
+    wf = (ROOT / ".github" / "workflows" / "find.yml").read_text()
+    assert "ALL: ${{ inputs.all }}" in wf and "GROUP: ${{ inputs.group }}" in wf
+    assert '["--all"] if os.environ["ALL"]' in wf and '["--group"] if os.environ["GROUP"]' in wf
 

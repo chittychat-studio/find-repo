@@ -111,11 +111,18 @@
           <option value="no">No — just show by stars</option></select>
       </div>
     </div>
-    <button id="go">Find repos</button>
-    <span id="status" class="mut" style="margin-left:10px"></span>
-    <p class="note">No login, no key — this searches public GitHub straight from your browser. For AI-written
-      searches and a relevance check, use the <a href="https://github.com/chittychat-studio/find-repo"
-      target="_blank" rel="noopener">Claude Code plugin</a>.</p>
+    <div class="row" style="align-items:flex-end">
+      <div><button id="go" style="width:100%">Find repos</button></div>
+      <div>
+        <label for="prd" class="mut">Have a PRD or spec? Upload it (stays in your browser)</label>
+        <input id="prd" type="file" accept=".md,.markdown,.txt,.text,text/plain,text/markdown">
+      </div>
+    </div>
+    <span id="status" class="mut"></span>
+    <p class="note">No login, no key — this searches public GitHub straight from your browser. A PRD is read on
+      your device only (never uploaded); the browser runs a few searches (rate-limited) and groups the results.
+      For the full PRD — every feature, every suitable repo — use the
+      <a href="https://github.com/chittychat-studio/find-repo" target="_blank" rel="noopener">Claude Code plugin</a>.</p>
   </div>
 
   <div id="out"></div>
@@ -279,6 +286,65 @@ var EXAMPLES=[
       document.getElementById("q").focus(); });
     box.appendChild(b); }); })();
 
+// RS23: pull up to N short feature phrases from a PRD/spec (client-side only).
+var PRD_MAX=6; // unauthenticated rate limit is ~10 searches/minute; keep headroom
+function prdFeatures(text){
+  var lines=text.split(/\r?\n/), feats=[];
+  function add(p){ p=clean(p).toLowerCase().replace(/^[\-*\d.\)\s]+/,"").replace(/[^a-z0-9 +#]/g," ")
+    .split(/\s+/).filter(function(w){return w&&!STOP.has(w);}).slice(0,4).join(" ").trim();
+    if(p && feats.indexOf(p)<0) feats.push(p); }
+  // bullets, numbered items, and "must/should" requirement lines first
+  for(var i=0;i<lines.length;i++){ var l=lines[i].trim();
+    if(/^([-*]|\d+[.)])\s+/.test(l) || /\b(must|shall|should|needs? to|able to|support)\b/i.test(l)) add(l); }
+  if(feats.length<2) for(var j=0;j<lines.length && feats.length<PRD_MAX;j++){ var t=lines[j].trim();
+    if(t && !/^#/.test(t)) add(t); }
+  return feats.slice(0,PRD_MAX);
+}
+
+function renderGrouped(groups, excluded, note){
+  var total=groups.reduce(function(n,g){return n+g.repos.length;},0);
+  if(!total) return '<div class="card"><p class="err">No repository matched for any feature.</p></div>';
+  var h='<div class="card"><h2 style="margin:0 0 4px;font-size:19px">Grouped by need</h2>'+
+    '<p class="mut">'+esc(note||"")+'</p>';
+  groups.forEach(function(g){
+    h+='<h3 style="margin:16px 0 6px">'+esc(g.query)+' <span class="mut">('+g.repos.length+')</span></h3>';
+    if(!g.repos.length){ h+='<p class="mut">No match.</p>'; return; }
+    h+='<div class="scroll"><table><thead><tr><th>Repo</th><th>Stars</th><th>What it does</th>'+
+      '<th>License</th><th>Paid OK?</th><th>Free?</th><th>Starter?</th></tr></thead><tbody>';
+    g.repos.forEach(function(r){ var free=freeText(r.spdx),paid=lu(r.spdx);
+      h+='<tr><td><a href="'+esc(r.url)+'" target="_blank" rel="noopener">'+esc(r.name)+'</a></td>'+
+        '<td class="n">'+r.stars.toLocaleString()+'</td><td>'+esc(r.desc)+'</td><td>'+esc(r.spdx)+'</td>'+
+        '<td><span class="tag '+(paid.indexOf("OK to use")===0?'t-good':'t-warn')+'">'+esc(paid)+'</span></td>'+
+        '<td><span class="tag '+(free==="Yes"?'t-good':'t-warn')+'">'+esc(free)+'</span></td>'+
+        '<td>'+(r.starter?'Yes':'No')+'</td></tr>';
+    });
+    h+='</tbody></table></div>';
+  });
+  h+='<p class="mut" style="margin-top:12px">'+total+' open-source repos across '+groups.length+
+    ' needs. Excluded — not open-source: '+excluded.license+', too old: '+excluded.stale+
+    ', too few stars: '+excluded.low+', harmful: '+excluded.harm+'. '+
+    'Every suitable match that passed the filters, grouped by the first search that found it — not every repo on GitHub.</p></div>';
+  return h;
+}
+
+async function runFeatures(features, minStars, platform, preferStarters, out, st){
+  var ex2=platform==="ios"?" -topic:macos":"", excluded={license:0,stale:0,low:0,fork:0,harm:0}, seen=new Set(), groups=[];
+  for(var i=0;i<features.length;i++){ st.textContent="Searching feature "+(i+1)+"/"+features.length+"…";
+    var items=await search((features[i]+ex2).trim());
+    var fresh=items.filter(function(it){ if(!it.full_name||seen.has(it.full_name))return false; seen.add(it.full_name); return true; });
+    var kept=keep(fresh,minStars,platform,excluded);
+    // order within the feature (prefer starters with the 10% floor), no cap
+    var floor=kept.reduce(function(m,r){return Math.max(m,r.stars);},0)*STARTER_MIN_SHARE;
+    kept.sort(function(a,b){ if(preferStarters){var as=(a.starter&&a.stars>=floor)?0:1,bs=(b.starter&&b.stars>=floor)?0:1; if(as!==bs)return as-bs;}
+      return b.stars-a.stars||a.name.localeCompare(b.name); });
+    groups.push({query:features[i],repos:kept});
+  }
+  out.innerHTML=renderGrouped(groups,excluded,
+    "From your PRD (read on your device, never uploaded). Browser mode covers the first "+features.length+
+    " features; the Claude Code plugin reads them all.");
+  st.textContent="Done.";
+}
+
 async function run(){
   var text=document.getElementById("q").value.trim();
   var platform=document.getElementById("platform").value;
@@ -307,6 +373,23 @@ async function run(){
   finally{ go.disabled=false; }
 }
 document.getElementById("go").addEventListener("click",run);
+document.getElementById("prd").addEventListener("change",function(e){
+  var f=e.target.files&&e.target.files[0]; if(!f) return;
+  var st=document.getElementById("status"), out=document.getElementById("out"), go=document.getElementById("go");
+  if(f.size>400000){ out.innerHTML='<div class="card"><p class="err">That file is large; paste the key sections instead.</p></div>'; return; }
+  var rd=new FileReader();
+  rd.onload=async function(){ var text=String(rd.result||"");
+    var features=prdFeatures(text);
+    if(!features.length){ out.innerHTML='<div class="card"><p class="err">Couldn’t find features in that file. Use bullet points or short requirement lines.</p></div>'; return; }
+    var minStars=Math.max(0,parseInt(document.getElementById("minstars").value,10)||0);
+    var platform=document.getElementById("platform").value, preferStarters=document.getElementById("starters").value==="yes";
+    go.disabled=true; out.innerHTML="";
+    try{ await runFeatures(features,minStars,platform,preferStarters,out,st); }
+    catch(err){ st.textContent=""; out.innerHTML='<div class="card"><p class="err">'+esc(err.message)+'</p></div>'; }
+    finally{ go.disabled=false; e.target.value=""; } };
+  rd.onerror=function(){ out.innerHTML='<div class="card"><p class="err">Could not read that file.</p></div>'; };
+  rd.readAsText(f);
+});
 document.getElementById("q").addEventListener("keydown",function(e){ if(e.key==="Enter"&&(e.metaKey||e.ctrlKey)) run(); });
 </script>
 </body>

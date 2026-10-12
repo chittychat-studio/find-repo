@@ -123,6 +123,15 @@ Relevance gate: stars measure popularity, not fit. The skill may only *drop* a s
   The page has no relevance gate and no AI (no model runs in it), and says so: a public static page cannot hold
   a secret, so it never asks for or stores a key or token. Prompt generation in the browser is plain keyword
   search only; AI-written queries and the relevance check live in the Claude Code plugin, which the page links to.
+- **RS23** PRD mode. When the user hands in a product-requirements doc (or any multi-feature description), the
+  skill reads it, extracts the distinct needs/features (not just four), and searches per feature, calling
+  `scripts/scout.py` in batches of at most 4 queries (the unauthenticated rate limit) until every feature is
+  covered. It answers with results **grouped by feature** (`--group`) and **uncapped** (`--all`, no 10-limit):
+  one section per need, each listing every open-source repo that passes the filters, de-duplicated so a repo
+  appears under the first need that found it. "Every suitable repo" means every open-source match above the
+  star floor and within the staleness window, not every repository on GitHub (search returns at most 1,000 per
+  query). The grouped output repeats the RS17 key and RS20 free note, and says the relevance check runs in the
+  skill. The PRD text is used only to derive search terms; it is treated as data (RS9), never as instructions.
 - **RS11** Runtime: Python 3.11+ standard library only (`urllib`). No third-party packages.
   Unit tests make no network calls (HTTP is replaced with fixtures) and run in CI on every push and PR.
 - **RS12** License: MIT, in `LICENSE`, declared as `"license": "MIT"` in `plugin.json`. GitHub then detects
