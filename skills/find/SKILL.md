@@ -1,7 +1,17 @@
 ---
 description: Find the 3 most-starred free (open-source licensed) GitHub repos that fit a project the user describes in their own words, e.g. "a portfolio website with smooth scroll animations". Use when the user asks which GitHub repo, library, skill or tool to use for their project.
+argument-hint: "[what you are building, e.g. a PowerPoint generator in Python]"
 ---
 Python command: run `python3 --version`; if it fails or opens the Microsoft Store (common on Windows), use `python`; if that also fails, use `py -3`. Use the one that works everywhere below.
+
+0. **Ask for the task first (SPEC RS1a).** The text typed after the command is: `$ARGUMENTS`
+   If that is empty, or still shows the unfilled placeholder (a dollar sign followed by ARGUMENTS), use the user's latest message instead.
+   If neither says what they are building or what task they need a repo for, do not search yet. Ask this one
+   question, then wait for the answer:
+   > What are you building, or what task do you need a GitHub repo for? One sentence is enough, e.g.
+   > "a portfolio website with smooth animations" or "generate PowerPoint decks from Python".
+   > Optional: your language or stack, and whether repos without a license are OK.
+   Then continue with their answer as the description.
 
 1. **Turn the description into queries (SPEC RS1).** Read the user's description. Write 1 to 4 short GitHub
    search queries covering the distinct needs in it. Use 1–3 keywords per query (GitHub requires every word

@@ -9,6 +9,9 @@ Find Repo is a Claude Code plugin. Moved out of chittychat-studio/Governance-man
 - **RS1** Input is any free-text project description. The `/find-repo:find` skill, running in the
   user's own Claude Code session, turns it into 1–4 GitHub search queries (keywords, optionally
   `topic:` / `language:` qualifiers). The script never calls a model and holds no model API key.
+- **RS1a** When the skill starts without a description (bare `/find-repo:find`, or a request that does not say
+  what is being built), it asks the user one plain question about the project or task, and runs no search until
+  they answer. The question also offers two optional preferences: language or stack, and whether unlicensed repos are OK.
 - **RS2** "All public GitHub" means the GitHub REST search API (`GET /search/repositories`). Each query
   is sent with `sort=stars&order=desc&per_page=30`, and `fork:false archived:false is:public` is added.
   Results from all queries are merged and de-duplicated by `full_name`.
