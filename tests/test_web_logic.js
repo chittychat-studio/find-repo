@@ -2,13 +2,14 @@
 const fs = require("fs"), path = require("path"), assert = require("assert");
 const html = fs.readFileSync(path.join(__dirname, "..", "web", "index.html"), "utf8");
 const code = html.match(/<script>([\s\S]*)<\/script>/)[1].replace('"use strict";', "");
-global.document = {getElementById: () => ({value:"",checked:false,addEventListener(){},textContent:"",innerHTML:""}),
-                   createElement: () => ({textContent:"",innerHTML:""})};
-global.localStorage = {getItem: () => null, setItem(){}, removeItem(){}};
+// fake DOM: elements support the few methods the page's load-time code calls (chip rendering, RS21)
+const el = () => ({value:"",checked:false,textContent:"",innerHTML:"",type:"",className:"",
+                   addEventListener(){}, appendChild(){}, focus(){}});
+global.document = {getElementById: el, createElement: el};
 const s = {};
 new Function("document", "localStorage",
   code + "; this.keywordQueries=keywordQueries; this.balanced=balanced; this.lu=lu; this.freeText=freeText;" +
-  " this.keep=keep; this.harmful=harmful; this.harmfulRepo=harmfulRepo;").call(s, document, localStorage);
+  " this.keep=keep; this.harmful=harmful; this.harmfulRepo=harmfulRepo;").call(s, document, global.localStorage || {getItem:()=>null,setItem(){},removeItem(){}});
 
 // RS16: iOS excludes macOS
 assert.ok(s.keywordQueries("a diet app for iphone", "ios").every(q => q.includes("-topic:macos")));
