@@ -6,7 +6,7 @@
     {
       "name": "find-repo",
       "source": "./",
-      "description": "Find the 3 most-starred open-source GitHub repos for a project you describe."
+      "description": "Find the 10 most-starred open-source GitHub repos for a project you describe."
     }
   ]
 }

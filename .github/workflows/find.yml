@@ -18,6 +18,27 @@ on:
         required: true
         default: "24"
         type: string
+      min_stars:
+        description: "Skip repos with fewer stars than this (0 = no limit)"
+        required: true
+        default: "50"
+        type: string
+      rank:
+        description: "balanced = each search's best match first; stars = pure star order"
+        required: true
+        default: balanced
+        type: choice
+        options: [balanced, stars]
+      prefer_starters:
+        description: "Put ready-made starter templates first"
+        required: true
+        default: false
+        type: boolean
+      csv:
+        description: "Also show the results as CSV (copy into Excel / Google Sheets)"
+        required: true
+        default: false
+        type: boolean
 permissions:
   contents: read
 jobs:
@@ -33,13 +54,23 @@ jobs:
           QUERIES: ${{ inputs.queries }}
           LICENSE_MODE: ${{ inputs.license }}
           MAX_AGE: ${{ inputs.max_age_months }}
+          MIN_STARS: ${{ inputs.min_stars }}
+          RANK: ${{ inputs.rank }}
+          PREFER_STARTERS: ${{ inputs.prefer_starters }}
+          CSV: ${{ inputs.csv }}
           GITHUB_TOKEN: ${{ github.token }}
+        # RS19: explicit bash gives -o pipefail, so a script error fails the run instead of showing green.
+        shell: bash
         run: |
           python - <<'PY' 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
           import os, sys
           sys.path.insert(0, "scripts")
           import scout
           queries = [q.strip() for q in os.environ["QUERIES"].split(";") if q.strip()]
-          sys.exit(scout.main(["--markdown", "--license", os.environ["LICENSE_MODE"],
-                               "--max-age-months", os.environ["MAX_AGE"], "--", *queries]))
+          flags = ["--prefer-starters"] if os.environ["PREFER_STARTERS"] == "true" else []
+          flags += ["--csv-block"] if os.environ["CSV"] == "true" else []
+          code = scout.main(["--markdown", "--license", os.environ["LICENSE_MODE"],
+                             "--max-age-months", os.environ["MAX_AGE"], "--min-stars", os.environ["MIN_STARS"],
+                             "--rank", os.environ["RANK"], *flags, "--", *queries])
+          sys.exit(0 if code == 1 else code)  # RS19: no match is a result, not a failure
           PY
