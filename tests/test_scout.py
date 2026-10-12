@@ -499,3 +499,31 @@ def test_workflow_csv_option():
     wf = (ROOT / ".github" / "workflows" / "find.yml").read_text()
     assert "CSV: ${{ inputs.csv }}" in wf and '["--csv-block"] if os.environ["CSV"] == "true"' in wf
 
+
+def test_web_page_is_safe_static(monkeypatch):
+    """RS22: no embedded secret, no external scripts, uses the public search API, logic mirrors the script."""
+    html = (ROOT / "web" / "index.html").read_text()
+    # no baked-in token (only the viewer's own, read from an input and localStorage)
+    import re as _re
+    assert not _re.search(r"gh[pousr]_[A-Za-z0-9]{20,}", html), "looks like a real token is embedded"
+    assert not _re.search(r"github_pat_[A-Za-z0-9_]{20,}", html)
+    assert 'id="token"' in html and "localStorage" in html
+    # no third-party scripts/styles — nothing to leak to or break on
+    assert not _re.search(r'<script[^>]+src=', html), "no external script tags"
+    assert "cdn" not in html.lower() and "unpkg" not in html.lower()
+    # calls the public search API, sorted by stars, forks/archived excluded
+    assert "api.github.com/search/repositories" in html
+    assert "sort=stars" in html and "fork:false archived:false is:public" in html
+    # license sets kept in sync with scout.py
+    assert all(l in html for l in ("AGPL-3.0", "MPL-2.0", "MIT", "Unlicense"))
+    assert "STARTER_MIN_SHARE" in html and "0.10" in html
+    assert "max 200 characters" in html  # RS19 length guard
+    for col in ("OK in a paid product?", "Completely free?", "Starter?"):  # RS20 columns
+        assert col in html
+
+
+def test_pages_workflow_present():
+    """RS22."""
+    wf = (ROOT / ".github" / "workflows" / "pages.yml").read_text()
+    assert "upload-pages-artifact" in wf and "path: web" in wf and "deploy-pages" in wf
+

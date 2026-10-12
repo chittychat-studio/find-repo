@@ -114,6 +114,17 @@ Relevance gate: stars measure popularity, not fit. The skill may only *drop* a s
   learning) and a fill-in prompt template (What I'm building / Platform / Stack / Selling it? / Starting from
   scratch?). The skill reads the same five fields from whatever the user wrote, and asks only for the ones it
   needs per RS1a/RS1b.
+- **RS22** Web page (`web/index.html`, deployed to GitHub Pages by `.github/workflows/pages.yml`). Static,
+  single file, no external scripts, no build step, no embedded secret. It runs the keyword-to-query, filter,
+  balanced-rank (RS5), license-label (RS14), completely-free (RS20) and starter (RS15) logic in JavaScript,
+  mirroring `scripts/scout.py`, and calls the public GitHub search API from the browser (unauthenticated,
+  ~10 searches/minute). It shows the top 10 as a table with the RS20 columns and the RS17 cautions, refuses a
+  query over 200 characters and the harmful intents of RS18, and drops the harmful repo descriptions of RS18.
+  The page has no relevance gate (no model runs in it) and says so. Prompt generation: by default it uses
+  plain keyword search with no key. Optionally the viewer pastes their OWN GitHub token with model access to
+  use GitHub AI for queries; the token is read from an input, kept only in the browser (localStorage, opt-in),
+  sent only to GitHub, and never written into the page — because a public static page cannot hold a secret.
+  On any AI error it falls back to keywords. The page states it is the basic version and the plugin is smarter.
 - **RS11** Runtime: Python 3.11+ standard library only (`urllib`). No third-party packages.
   Unit tests make no network calls (HTTP is replaced with fixtures) and run in CI on every push and PR.
 - **RS12** License: MIT, in `LICENSE`, declared as `"license": "MIT"` in `plugin.json`. GitHub then detects

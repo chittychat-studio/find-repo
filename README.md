@@ -38,6 +38,21 @@ Starting from scratch?: <yes / no>
 
 The plugin answers with a comparison table of up to 10 repos. Ask for "as a sheet" to get CSV for Excel or Google Sheets.
 
+## Web page (no install)
+
+A static page at `web/index.html` lets anyone type a project and see the top 10 repos in the browser — no
+Claude, no Python. Deploy it free on GitHub Pages:
+
+1. Settings → Pages → Source → **GitHub Actions**.
+2. Push to `main` (the `pages` workflow deploys `web/`), or run the **pages** workflow by hand.
+3. Open the URL the workflow prints.
+
+It calls the public GitHub search API from the browser (about 10 searches a minute, no token needed) and runs
+the same filters, ranking and license labels as the plugin. It uses basic keyword search; the Claude Code
+plugin writes smarter queries and runs a relevance check. **Optional:** paste your own free GitHub token with
+`models` access to let GitHub AI write the searches — it stays in your browser only. A public page can't hold
+a shared key, so there is no built-in AI without your own token.
+
 ## Install (Claude Code)
 
 ```

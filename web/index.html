@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Find Repo — top open-source GitHub repos for your project</title>
+<!--
+  Find Repo web page (SPEC RS22). Static: no backend, no build step, no embedded secret.
+  It calls the PUBLIC GitHub search API straight from the browser (unauthenticated: ~10
+  searches/minute). The browser version uses simple keyword search; the Claude Code plugin
+  writes smarter queries and runs the relevance check. Optional GitHub AI needs the viewer's
+  OWN token, kept only in their browser (localStorage) — never baked into this public page.
+-->
+<style>
+  :root{
+    --bg:#f6f8fa; --card:#fff; --ink:#1f2328; --muted:#59636e; --line:#d0d7de;
+    --accent:#0969da; --good:#1a7f37; --warn:#9a6700; --warnbg:#fff8c5; --goodbg:#dafbe1; --offbg:#eaeef2;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0d1117; --card:#161b22; --ink:#e6edf3; --muted:#9198a1; --line:#30363d;
+      --accent:#4493f8; --good:#3fb950; --warn:#d29922; --warnbg:#2d2206; --goodbg:#0f2417; --offbg:#21262d;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0d1117; --card:#161b22; --ink:#e6edf3; --muted:#9198a1; --line:#30363d;
+    --accent:#4493f8; --good:#3fb950; --warn:#d29922; --warnbg:#2d2206; --goodbg:#0f2417; --offbg:#21262d;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;}
+  .wrap{max-width:1040px;margin:0 auto;padding:24px 16px 64px;}
+  h1{font-size:26px;margin:0 0 4px}
+  .sub{color:var(--muted);margin:0 0 20px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px}
+  label{display:block;font-weight:600;margin:0 0 6px}
+  textarea,input,select{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;
+    background:var(--card);color:var(--ink);font:inherit}
+  textarea{min-height:72px;resize:vertical}
+  .row{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px}
+  .row>div{flex:1;min-width:150px}
+  button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:11px 20px;
+    font:inherit;font-weight:600;cursor:pointer;margin-top:14px}
+  button:disabled{opacity:.55;cursor:default}
+  .mut{color:var(--muted);font-size:13px}
+  details{margin-top:12px}
+  summary{cursor:pointer;font-weight:600}
+  table{width:100%;border-collapse:collapse;margin-top:8px;font-size:13.5px}
+  th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:var(--offbg);position:sticky;top:0}
+  td.n{text-align:right;white-space:nowrap}
+  .tag{display:inline-block;padding:1px 7px;border-radius:999px;font-size:12px;white-space:nowrap}
+  .t-good{background:var(--goodbg);color:var(--good)}
+  .t-warn{background:var(--warnbg);color:var(--warn)}
+  .scroll{overflow-x:auto}
+  .err{color:var(--warn);font-weight:600}
+  .note{font-size:13px;color:var(--muted);margin-top:14px}
+  a{color:var(--accent)}
+  code{background:var(--offbg);padding:1px 5px;border-radius:5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Find Repo</h1>
+  <p class="sub">Describe what you're building. Get the top open-source GitHub repos that fit, by stars.</p>
+
+  <div class="card">
+    <label for="q">What are you building?</label>
+    <textarea id="q" placeholder="e.g. a diet app for iPhone, starting from scratch"></textarea>
+    <div class="row">
+      <div>
+        <label for="platform" class="mut">Platform</label>
+        <select id="platform">
+          <option value="">Any / not sure</option>
+          <option value="web">Web</option>
+          <option value="ios">iPhone / iOS</option>
+          <option value="android">Android</option>
+          <option value="desktop">Desktop</option>
+        </select>
+      </div>
+      <div>
+        <label for="minstars" class="mut">Minimum stars</label>
+        <input id="minstars" type="number" value="50" min="0" step="10">
+      </div>
+      <div>
+        <label for="starters" class="mut">Starting from scratch?</label>
+        <select id="starters"><option value="yes">Yes — prefer starter templates</option>
+          <option value="no">No — just show by stars</option></select>
+      </div>
+    </div>
+    <button id="go">Find repos</button>
+    <span id="status" class="mut" style="margin-left:10px"></span>
+
+    <details>
+      <summary>Smarter queries with your own free GitHub AI token (optional)</summary>
+      <p class="note">This page is public, so it can't hold a secret key. Paste your <b>own</b> free
+        <a href="https://github.com/settings/tokens" target="_blank" rel="noopener">GitHub token</a>
+        with <code>models</code> access to let GitHub AI write the searches. It is stored only in this
+        browser (localStorage), sent only to GitHub, and never saved in the page. Leave it blank to use
+        plain keyword search (works for everyone, no token).</p>
+      <input id="token" type="password" placeholder="github_pat_... (optional, stays in your browser)">
+      <label class="mut" style="margin-top:8px"><input type="checkbox" id="remember" style="width:auto">
+        Remember in this browser</label>
+    </details>
+  </div>
+
+  <div id="out"></div>
+
+  <p class="note">The browser version does basic keyword search; the
+    <a href="https://github.com/chittychat-studio/find-repo" target="_blank" rel="noopener">Claude Code plugin</a>
+    writes better searches and runs a relevance check. Results are GitHub search matches, not a scan of every
+    repository. Stars measure popularity, not quality, and can be bought. "Completely free?" and "OK in a paid
+    product?" are read from the license only — a plain summary, not legal advice; some projects also sell a paid
+    hosted version or add-ons.</p>
+</div>
+
+<script>
+"use strict";
+// ---- license sets (mirror of scripts/scout.py; keep in sync) ----
+var OPEN = new Set(["0BSD","AFL-3.0","AGPL-3.0","Apache-2.0","Artistic-2.0","BSD-2-Clause","BSD-3-Clause",
+ "BSD-3-Clause-Clear","BSL-1.0","CC0-1.0","ECL-2.0","EPL-1.0","EPL-2.0","EUPL-1.1","EUPL-1.2","GPL-2.0",
+ "GPL-3.0","ISC","LGPL-2.1","LGPL-3.0","MIT","MIT-0","MPL-2.0","MS-PL","MS-RL","NCSA","OFL-1.1","OSL-3.0",
+ "PostgreSQL","Unlicense","UPL-1.0","Zlib"]);
+var PERMISSIVE=new Set(["0BSD","AFL-3.0","Apache-2.0","Artistic-2.0","BSD-2-Clause","BSD-3-Clause",
+ "BSD-3-Clause-Clear","BSL-1.0","CC0-1.0","ECL-2.0","ISC","MIT","MIT-0","MS-PL","NCSA","OFL-1.1","PostgreSQL",
+ "Unlicense","UPL-1.0","Zlib"]);
+var WEAK=new Set(["EPL-1.0","EPL-2.0","LGPL-2.1","LGPL-3.0","MPL-2.0","MS-RL"]);
+var STRONG=new Set(["EUPL-1.1","EUPL-1.2","GPL-2.0","GPL-3.0"]);
+var NETWORK=new Set(["AGPL-3.0","OSL-3.0"]);
+var STARTER_TOPICS=new Set(["template","starter","starter-kit","starter-template","boilerplate"]);
+var STARTER_MIN_SHARE=0.10, MAX_QUERIES=4, MAX_AGE_MONTHS=24;
+// harmful descriptions always dropped (RS18)
+var SVC="(whats ?app|instagram|facebook|snapchat|telegram|gmail|tiktok|email|wifi|someone'?s? account)";
+var HARM=[new RegExp("hack(ing|er)?\\s+(of\\s+|a\\s+|an\\s+|the\\s+)?"+SVC,"i"),
+ new RegExp(SVC+"\\s+(account\\s+)?(hack|hacking|hacker|cracker)","i"),/account takeover/i,
+ /stalkerware|spyware/i,/credential stealer|password stealer|stealer\b/i,/\bkeygen|crack(ed)?\b/i,
+ /\bddos\b/i,/game (cheat|hack)|aimbot|wallhack/i,/free (premium|robux|v-?bucks|coins) generator/i];
+var HARM_INTENT=[/\bhack (into|someone|my (ex|girlfriend|boyfriend|wife|husband|partner))/i,
+ /steal (passwords|accounts|credentials|data)/i,/spy on\b/i,/crack (paid|licensed) software/i,
+ /take down (a )?(website|server|service)/i];
+
+function lu(spdx){ if(PERMISSIVE.has(spdx))return"OK to use in a paid product";
+ if(WEAK.has(spdx))return"OK in a paid product, but changes to its own files must stay open";
+ if(STRONG.has(spdx))return"You must share your app's code if you give the app to others";
+ if(NETWORK.has(spdx))return"You must share your code, even for a website or online service";
+ return"No license: you may not reuse this code"; }
+function freeText(spdx){ var u=lu(spdx);
+ if(u.indexOf("OK to use")===0)return"Yes";
+ if(u.indexOf("OK in a paid")===0)return"Yes, but changes to its files must stay open";
+ if(u.indexOf("You must share")===0)return"Free to use, but you must share your code";
+ return"No: no license"; }
+function esc(s){var d=document.createElement("div");d.textContent=s==null?"":s;return d.innerHTML;}
+function clean(s){return (s||"").replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁦-⁩]/g," ").trim().slice(0,200);}
+
+var STOP=new Set("a an the my our your for to with and or of in on app apps application build building make making want really nice looking simple create please that helps people some something cool new project using use it".split(" "));
+var SYN={website:["landing page template","frontend framework"],web:["web app starter"],
+ game:["game engine","game framework"],diet:["calorie counter","nutrition tracker"],
+ chatbot:["chatbot framework","rag chatbot"],dashboard:["admin dashboard template"],
+ blog:["blog starter"],ecommerce:["ecommerce starter"],map:["maplibre","offline map tiles"],
+ ai:["ai agent framework"],powerpoint:["pptx generate","presentation generator"]};
+
+function keywordQueries(text, platform){
+  var words=text.toLowerCase().replace(/[^a-z0-9 +#.]/g," ").split(/\s+/).filter(function(w){return w&&!STOP.has(w);});
+  var core=words.slice(0,4).join(" ").trim();
+  var qs=[]; if(core) qs.push(core);
+  for(var i=0;i<words.length && qs.length<MAX_QUERIES;i++){ var ex=SYN[words[i]];
+    if(ex) for(var j=0;j<ex.length && qs.length<MAX_QUERIES;j++) if(qs.indexOf(ex[j])<0) qs.push(ex[j]); }
+  if(qs.length<2 && core) qs.push(core+" starter");
+  var ex = platform==="ios"?" -topic:macos":""; // keep iOS off Mac apps
+  return qs.slice(0,MAX_QUERIES).map(function(q){return (q+ex).trim();});
+}
+
+async function aiQueries(text, platform, token){
+  // Best-effort: GitHub Models with the viewer's own token. Falls back to keywords on any error.
+  var body={messages:[
+    {role:"system",content:"Turn the user's project description into 1-4 short GitHub code-search queries (1-3 keywords each). Prefer specific phrases over broad topic: tags. Reply ONLY with a JSON array of strings."},
+    {role:"user",content:text}], model:"openai/gpt-4o-mini", temperature:0.2};
+  var r=await fetch("https://models.github.ai/inference/chat/completions",{method:"POST",
+    headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify(body)});
+  if(!r.ok) throw new Error("ai "+r.status);
+  var j=await r.json(), c=j.choices&&j.choices[0]&&j.choices[0].message.content||"[]";
+  var arr=JSON.parse(c.replace(/```json|```/g,"").trim());
+  if(!Array.isArray(arr)||!arr.length) throw new Error("ai empty");
+  var ex=platform==="ios"?" -topic:macos":"";
+  return arr.map(function(q){return (String(q)+ex).trim();}).filter(Boolean).slice(0,MAX_QUERIES);
+}
+
+async function search(q){
+  var url="https://api.github.com/search/repositories?q="+encodeURIComponent(q+" fork:false archived:false is:public")
+    +"&sort=stars&order=desc&per_page=30";
+  var r=await fetch(url,{headers:{"Accept":"application/vnd.github+json"}});
+  if(r.status===403||r.status===429) throw new Error("GitHub rate limit reached (10 searches/minute without a token). Wait a minute and try again.");
+  if(r.status===422) throw new Error("GitHub rejected the search “"+q+"”. Use fewer words.");
+  if(!r.ok) throw new Error("GitHub search failed (HTTP "+r.status+").");
+  return (await r.json()).items||[];
+}
+
+function harmful(text){ for(var i=0;i<HARM_INTENT.length;i++) if(HARM_INTENT[i].test(text)) return true; return false; }
+function harmfulRepo(desc){ for(var i=0;i<HARM.length;i++) if(HARM[i].test(desc)) return true; return false; }
+
+function keep(items, minStars, platform, excluded){
+  var cutoff=Date.now()-MAX_AGE_MONTHS*30.44*864e5, out=[];
+  for(var i=0;i<items.length;i++){ var it=items[i], name=it.full_name; if(!name) continue;
+    if(it.fork||it.archived||it.disabled){excluded.fork++;continue;}
+    var spdx=it.license&&it.license.spdx_id;
+    if(!OPEN.has(spdx)){excluded.license++;continue;}
+    var pushed=it.pushed_at?Date.parse(it.pushed_at):0;
+    if(!pushed||pushed<cutoff){excluded.stale++;continue;}
+    if((it.stargazers_count||0)<minStars){excluded.low++;continue;}
+    var desc=clean(it.description);
+    if(harmfulRepo(desc)){excluded.harm++;continue;}
+    var topics=(it.topics||[]).map(function(t){return String(t).toLowerCase();});
+    var starter=!!it.is_template||topics.some(function(t){return STARTER_TOPICS.has(t);});
+    out.push({name:clean(name),stars:it.stargazers_count||0,spdx:spdx,pushed:(it.pushed_at||"").slice(0,10),
+      url:it.html_url||("https://github.com/"+name),desc:desc,starter:starter});
+  }
+  return out;
+}
+
+function balanced(lists, preferStarters){
+  function order(rows){ var floor=rows.reduce(function(m,r){return Math.max(m,r.stars);},0)*STARTER_MIN_SHARE;
+    return rows.slice().sort(function(a,b){
+      if(preferStarters){ var as=(a.starter&&a.stars>=floor)?0:1, bs=(b.starter&&b.stars>=floor)?0:1; if(as!==bs)return as-bs; }
+      return b.stars-a.stars || a.name.localeCompare(b.name); }); }
+  var ord=lists.map(order), out=[], max=Math.max.apply(null,ord.map(function(x){return x.length;}).concat([0]));
+  for(var i=0;i<max;i++){ var round=[]; for(var j=0;j<ord.length;j++) if(i<ord[j].length) round.push(ord[j][i]);
+    round.sort(function(a,b){return b.stars-a.stars||a.name.localeCompare(b.name);}); out=out.concat(round); }
+  return out;
+}
+
+function render(top, queries, excluded){
+  if(!top.length){ return '<div class="card"><p class="err">No repository matched.</p>'+
+    '<p class="mut">Searches: '+esc(queries.join("; "))+'. Try fewer or broader words, or lower the minimum stars.</p></div>'; }
+  var h='<div class="card"><div class="scroll"><table><thead><tr>'+
+    '<th>#</th><th>Repo</th><th>Stars</th><th>What it does</th><th>License</th>'+
+    '<th>OK in a paid product?</th><th>Completely free?</th><th>Starter?</th><th>Updated</th></tr></thead><tbody>';
+  top.forEach(function(r,i){
+    var free=freeText(r.spdx), paid=lu(r.spdx);
+    var freeTag=free==="Yes"?'t-good':'t-warn', paidTag=paid.indexOf("OK to use")===0?'t-good':'t-warn';
+    h+='<tr><td class="n">'+(i+1)+'</td>'+
+      '<td><a href="'+esc(r.url)+'" target="_blank" rel="noopener">'+esc(r.name)+'</a></td>'+
+      '<td class="n">'+r.stars.toLocaleString()+'</td>'+
+      '<td>'+esc(r.desc)+'</td>'+
+      '<td>'+esc(r.spdx)+'</td>'+
+      '<td><span class="tag '+paidTag+'">'+esc(paid)+'</span></td>'+
+      '<td><span class="tag '+freeTag+'">'+esc(free)+'</span></td>'+
+      '<td>'+(r.starter?'Yes':'No')+'</td>'+
+      '<td class="n">'+esc(r.pushed)+'</td></tr>';
+  });
+  h+='</tbody></table></div><p class="mut">Searches: '+esc(queries.join("; "))+
+    ' · Excluded — not open-source: '+excluded.license+', too old: '+excluded.stale+
+    ', too few stars: '+excluded.low+', forks/archived: '+excluded.fork+', harmful: '+excluded.harm+'</p></div>';
+  return h;
+}
+
+var TOKEN_KEY="findrepo_gh_token";
+document.getElementById("token").value=localStorage.getItem(TOKEN_KEY)||"";
+document.getElementById("remember").checked=!!localStorage.getItem(TOKEN_KEY);
+
+async function run(){
+  var text=document.getElementById("q").value.trim();
+  var platform=document.getElementById("platform").value;
+  var minStars=Math.max(0,parseInt(document.getElementById("minstars").value,10)||0);
+  var preferStarters=document.getElementById("starters").value==="yes";
+  var token=document.getElementById("token").value.trim();
+  var st=document.getElementById("status"), out=document.getElementById("out"), go=document.getElementById("go");
+  out.innerHTML="";
+  if(document.getElementById("remember").checked && token) localStorage.setItem(TOKEN_KEY,token);
+  else localStorage.removeItem(TOKEN_KEY);
+  if(!text){ st.textContent="Type what you're building first."; return; }
+  if(text.length>200){ st.textContent=""; out.innerHTML='<div class="card"><p class="err">Too long — use a short sentence (max 200 characters).</p></div>'; return; }
+  if(harmful(text)){ out.innerHTML='<div class="card"><p class="err">I can’t help find tools for that.</p>'+
+    '<p class="mut">For learning security on systems you own, try: "learn web security by hacking a practice app".</p></div>'; return; }
+
+  go.disabled=true; st.textContent="Working…";
+  try{
+    var queries;
+    if(token){ try{ st.textContent="Asking GitHub AI…"; queries=await aiQueries(text,platform,token); }
+      catch(e){ queries=keywordQueries(text,platform); } }
+    else queries=keywordQueries(text,platform);
+    if(!queries.length) throw new Error("Couldn't build a search. Try different words.");
+    var excluded={license:0,stale:0,low:0,fork:0,harm:0}, seen=new Set(), lists=[];
+    for(var i=0;i<queries.length;i++){ st.textContent="Searching ("+(i+1)+"/"+queries.length+")…";
+      var items=await search(queries[i]);
+      var fresh=items.filter(function(it){ if(!it.full_name||seen.has(it.full_name))return false; seen.add(it.full_name); return true; });
+      lists.push(keep(fresh,minStars,platform,excluded)); }
+    var top=balanced(lists,preferStarters).slice(0,10);
+    out.innerHTML=render(top,queries,excluded);
+    st.textContent="Done.";
+  }catch(e){ st.textContent=""; out.innerHTML='<div class="card"><p class="err">'+esc(e.message)+'</p></div>'; }
+  finally{ go.disabled=false; }
+}
+document.getElementById("go").addEventListener("click",run);
+document.getElementById("q").addEventListener("keydown",function(e){ if(e.key==="Enter"&&(e.metaKey||e.ctrlKey)) run(); });
+</script>
+</body>
+</html>
