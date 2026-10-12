@@ -39,6 +39,7 @@ USE_WEAK = "OK in a paid product, but changes to its own files must stay open"
 USE_SHARE = "You must share your app's code if you give the app to others"
 USE_NETWORK = "You must share your code, even for a website or online service"
 USE_NONE = "No license: you may not reuse this code"
+STARTER_MIN_SHARE = 0.10  # RS15: a starter jumps ahead only with >= 10% of its query's top stars
 STARTER_TOPICS = {"template", "starter", "starter-kit", "starter-template", "boilerplate"}  # RS15
 HINT_TEMPLATE = "On GitHub, click 'Use this template'"
 HINT_README = "Follow the Getting started / Installation section of its README"
@@ -104,7 +105,8 @@ def license_use(spdx):
 
 def _order(rows, prefer_starters):
     """RS5, RS15: one query's own order."""
-    return sorted(rows, key=lambda r: ((not r["starter"]) if prefer_starters else False,
+    floor = max((r["stars"] for r in rows), default=0) * STARTER_MIN_SHARE
+    return sorted(rows, key=lambda r: (not (prefer_starters and r["starter"] and r["stars"] >= floor),
                                        -r["stars"], -r["_pushed"], r["full_name"]))
 
 

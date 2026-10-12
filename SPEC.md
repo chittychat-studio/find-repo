@@ -61,6 +61,8 @@ Find Repo is a Claude Code plugin. Moved out of chittychat-studio/Governance-man
 - **RS15** Starter templates. A result is a `starter` when GitHub marks it `is_template`, or its topics include
   `template`, `starter`, `starter-kit`, `starter-template` or `boilerplate`. With `--prefer-starters`, inside
   each query's own list starters come before non-starters (each group by stars), and RS5 then runs as usual.
+  A starter moves ahead only if it has at least 10% of the stars of that query's most-starred match, so a tiny
+  template cannot outrank a widely used library (found live: a 65-star template beat a 12,992-star library).
   Without the flag, starters are only labelled. Every result has a `start_hint`: for `is_template`, "On GitHub,
   click 'Use this template'"; otherwise "Follow the Getting started / Installation section of its README".
   The plugin still only recommends (RX4).

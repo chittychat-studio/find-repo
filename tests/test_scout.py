@@ -106,12 +106,19 @@ def test_starter_detection_and_hint():
 
 def test_prefer_starters_within_each_query():
     """RS15: starters first inside a query; balanced rounds still apply across queries."""
-    q0 = [repo("lib/big", 50000), repo("tpl/small", 300, is_template=True)]
-    q1 = [repo("other/x", 1000)]
+    q0 = [repo("lib/big", 50000), repo("tpl/small", 6000, is_template=True)]
+    q1 = [repo("other/x", 7000)]
     res, _ = run([q0, q1], prefer_starters=True)
     assert [r["full_name"] for r in res["candidates"]] == ["other/x", "tpl/small", "lib/big"]
     res, _ = run([q0, q1])
     assert [r["full_name"] for r in res["candidates"]] == ["lib/big", "other/x", "tpl/small"]
+
+
+def test_tiny_starter_does_not_jump_a_popular_library():
+    """RS15: live regression, a 65-star template outranked a 12,992-star animation library."""
+    q = [repo("barbajs/barba", 12992), repo("tiny/tpl", 65, is_template=True), repo("ok/tpl", 1300, is_template=True)]
+    res, _ = run([q], prefer_starters=True)
+    assert [r["full_name"] for r in res["candidates"]] == ["ok/tpl", "barbajs/barba", "tiny/tpl"]
 
 
 def test_text_and_markdown_show_labels_and_key():
