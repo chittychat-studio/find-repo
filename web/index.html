@@ -14,7 +14,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" async crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Spectral:wght@600;700;800&display=swap">
 <style>
   :root{
     /* warm clay-orange accents on a half-white cream background */
@@ -51,7 +51,9 @@
   .right{min-height:0;display:flex;flex-direction:column}
 
   .brand{display:flex;align-items:baseline;gap:10px}
-  h1{font-size:31px;font-weight:800;margin:0;letter-spacing:-.02em;
+  /* serif display family for headings (matches the earthy, editorial reference); body stays Inter */
+  h1,.res-head h2,.group-h,.sheet h2{font-family:"Spectral",Georgia,"Times New Roman",serif}
+  h1{font-size:34px;font-weight:800;margin:0;letter-spacing:-.01em;
     background:linear-gradient(135deg,var(--accent-ink),var(--accent));-webkit-background-clip:text;
     background-clip:text;color:transparent}
   .by{font-size:12px;color:var(--muted)}
@@ -111,7 +113,7 @@
   .results{flex:1;overflow:auto;border-radius:16px;padding:4px;min-height:0;perspective:1200px}
   .results::-webkit-scrollbar{width:10px}.results::-webkit-scrollbar-thumb{background:var(--line);border-radius:9px}
   .res-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:2px 4px 12px}
-  .res-head h2{font-size:20px;font-weight:800;margin:0}
+  .res-head h2{font-size:24px;font-weight:800;margin:0;letter-spacing:-.01em}
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:12px}
   .rcard{position:relative;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;
     box-shadow:0 14px 30px -22px rgba(var(--shadow),.6);transform-style:preserve-3d;
@@ -147,7 +149,7 @@
       border-top:1px dashed var(--line);padding-top:8px}
     .rcard .desc{-webkit-line-clamp:4}
   }
-  .group-h{font-size:14px;font-weight:700;margin:16px 4px 8px;color:var(--accent-ink)}
+  .group-h{font-size:18px;font-weight:800;margin:18px 4px 8px;color:var(--accent-ink)}
   .group-h span{color:var(--muted);font-weight:500}
   .err{color:var(--warn);font-weight:600}
   .excl{font-size:11.5px;color:var(--muted);margin:14px 4px 4px}
@@ -173,9 +175,13 @@
   .modal.open{display:flex}
   .sheet{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;max-width:540px;width:100%;
     box-shadow:0 40px 80px -30px rgba(var(--shadow),.7);max-height:88vh;overflow:auto}
-  .sheet h2{margin:0 0 8px;font-size:19px;color:var(--accent-ink)}
+  .sheet h2{margin:0 0 8px;font-size:23px;font-weight:800;color:var(--accent-ink);letter-spacing:-.01em}
   .cmd{background:var(--offbg);border:1px solid var(--line);border-radius:10px;padding:12px;margin:10px 0;
     font:12.5px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre-wrap;overflow-x:auto}
+  .guide{margin:10px 0 0;padding-left:22px}
+  .guide li{margin:0 0 12px;line-height:1.55;font-size:14.5px}
+  .guide li::marker{color:var(--accent-ink);font-weight:700}
+  .guide .cmd{margin:6px 0 0}
   .x{float:right;background:none;border:0;font-size:20px;cursor:pointer;color:var(--muted);line-height:1}
   .cta-inline{margin-top:12px;background:linear-gradient(135deg,rgba(192,83,44,.1),transparent);
     border:1px solid var(--accent);border-radius:12px;padding:12px}
@@ -197,6 +203,7 @@
         <div class="nav">
           <button id="homeBtn" class="nav-btn" title="Back to the start">⌂ Home</button>
           <button id="tourBtn" class="nav-btn" title="Watch how it works">▶ Tour</button>
+          <button id="setupBtn" class="nav-btn" title="Step-by-step: use the plugin in Claude Code">⌘ Setup</button>
           <button id="theme" class="theme-toggle" title="Switch light / dark" aria-label="Switch light / dark"></button>
         </div></div>
       <p class="sub">Describe what you're building — get the top open-source GitHub repos that fit, by stars.</p>
@@ -254,14 +261,24 @@
 
 <div class="modal" id="pluginModal"><div class="sheet">
   <button class="x" data-close>&times;</button>
-  <h2>Use in Claude Code (full version)</h2>
-  <p class="mut">The plugin writes smarter searches with AI, runs a relevance check, reads a whole PRD, and shows
-    every suitable repo — not just 10. Free &amp; open-source (MIT).</p>
-  <pre class="cmd">/plugin marketplace add chittychat-studio/find-repo
-/plugin install find-repo@find-repo
-/find-repo:find &lt;what you are building&gt;</pre>
-  <p class="mut">Needs <a href="https://claude.com/claude-code" target="_blank" rel="noopener">Claude Code</a> and
-    Python 3.11+. Full guide:
+  <h2>Use Find Repo in Claude Code</h2>
+  <p class="mut">New to this? Do these once. The plugin writes smarter searches with AI, checks each result
+    actually fits, reads a whole PRD feature by feature, and shows every suitable repo — not just 10. Free &amp; open-source.</p>
+  <ol class="guide">
+    <li><b>Get Claude Code</b> — a free AI coding assistant that runs in your terminal. Install it from
+      <a href="https://claude.com/claude-code" target="_blank" rel="noopener">claude.com/claude-code</a> and sign in.</li>
+    <li><b>Check Python 3.11+</b> — in your terminal, run <code>python3 --version</code>. If it's missing: on Windows
+      install from python.org (tick <i>"Add python.exe to PATH"</i>); on a Mac run <code>brew install python</code>.</li>
+    <li><b>Open Claude Code</b> in any folder — type <code>claude</code> in your terminal and press Enter.</li>
+    <li><b>Add the plugin</b> — paste each line and press Enter:
+      <pre class="cmd">/plugin marketplace add chittychat-studio/find-repo
+/plugin install find-repo@find-repo</pre></li>
+    <li><b>Find repos</b> — describe what you're building in plain words:
+      <pre class="cmd">/find-repo:find a diet app for iPhone, starting from scratch</pre></li>
+    <li><b>Read the results</b> — you get a table: the repo, how popular it is (stars), whether it's free to use
+      in a paid product, and <i>why</i> it fits. Pick one and start building.</li>
+  </ol>
+  <p class="mut" style="margin-top:12px">Stuck? Full guide:
     <a href="https://github.com/chittychat-studio/find-repo" target="_blank" rel="noopener">github.com/chittychat-studio/find-repo</a>.</p>
 </div></div>
 
@@ -611,6 +628,7 @@ function openModal(id){ document.getElementById(id).classList.add("open"); if(id
 function closeModals(){ var m=document.querySelectorAll(".modal"); for(var i=0;i<m.length;i++) m[i].classList.remove("open"); }
 document.getElementById("howBtn").addEventListener("click",function(){ openModal("howModal"); });
 document.getElementById("pluginBtn").addEventListener("click",function(){ openModal("pluginModal"); });
+document.getElementById("setupBtn").addEventListener("click",function(){ openModal("pluginModal"); });
 document.getElementById("aboutBtn").addEventListener("click",function(){ openModal("aboutModal"); });
 document.querySelectorAll("[data-close]").forEach(function(b){ b.addEventListener("click",closeModals); });
 document.querySelectorAll(".modal").forEach(function(m){ m.addEventListener("click",function(e){ if(e.target===m) closeModals(); }); });
