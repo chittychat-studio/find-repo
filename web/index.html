@@ -292,7 +292,12 @@
   /* desktop = expanded format: wider cards that spell out the license meaning in full */
   @media (max-width:999px){
     body.has-results .hero .eyebrow, body.has-results .hero-title, body.has-results .hero .sub,
-    body.has-results .modes, body.has-results #quickpicks{display:none}
+    body.has-results .modes{display:none}
+    /* prompt pills stay, folded to one swipeable row */
+    body.has-results #quickpicks{flex-wrap:nowrap;justify-content:flex-start;overflow-x:auto;margin:10px 0 0;
+      padding:2px 0 6px;scrollbar-width:none;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity}
+    body.has-results #quickpicks::-webkit-scrollbar{display:none}
+    body.has-results #quickpicks .chip{flex:0 0 auto;white-space:nowrap;scroll-snap-align:start}
     body.has-results .hero{margin-bottom:6px}
   }
   @media (min-width:1000px){

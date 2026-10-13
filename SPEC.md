@@ -150,8 +150,8 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   query). The grouped output repeats the RS17 key and RS20 free note, and says the relevance check runs in the
   skill. The PRD text is used only to derive search terms; it is treated as data (RS9), never as instructions.
 - **RS24** Web UI (RS22 page). 3D app-shell: a fixed two-column layout on desktop so the page itself never
-  scrolls (results scroll inside their panel); single column with natural scroll on phones; on single-column screens, once results are shown the intro (tagline, mode tiles, quick picks)
-   folds away so the search bar sits right above the matches (✕ or the logo brings it back; the Filters
+  scrolls (results scroll inside their panel); single column with natural scroll on phones; on single-column screens, once results are shown the intro (tagline, mode tiles) folds away and the
+   quick picks shrink to one swipeable row so the search bar and pills sit right above the matches (✕ or the logo brings the rest back; the Filters
    sheet also offers "Find similar repos" and "Match a whole plan", so both modes stay one tap away), and the
    privacy line sits below the results, not in the search panel. Results render as
   compact cards (rank, stars, what it does, a colour-coded license pill, free/starter tags) instead of a wide
