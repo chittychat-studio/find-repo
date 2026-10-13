@@ -1,7 +1,7 @@
 // SPEC RS34 — web relevance gate. Cloudflare Pages Function: POST /api/relevance
 // Asks an LLM (Cloudflare Workers AI, then an OpenAI-compatible provider as fallback — RS34a) which candidate repos do NOT fit what the user is building.
 // The key lives only here (env.LLM_API_KEY, a Pages secret; Workers AI needs none) and is never sent to the browser (RS8).
-// Stores nothing and logs no request content (RS33). Fails open: any problem -> an error status, and the page
+// Stores no request content (RS33); failures are logged as codes only (RS34d). Fails open: any problem -> an error status, and the page
 // shows its normal keyword results with a note (never a blank page, never invented repos — RS7).
 
 const MAX_BODY = 16384, MAX_QUERY = 200, MAX_REPOS = 30, MAX_DESC = 160, TIMEOUT_MS = 7000;
@@ -164,14 +164,15 @@ export async function judgeChain(query, repos, env, fetchImpl = fetch, budgetMs 
     if (out.status === 200) return k === 0 ? { ...out, first: true } : out;
     fails.push(out);
   }
-  if (!fails.length) return { status: 504, error: "llm_timeout" };
+  if (!fails.length) return { status: 504, error: "llm_timeout", trail: ["budget"] };
+  const trail = fails.map(f => f.error);
   const limits = fails.filter(f => f.resetsInSec);
   if (limits.length === fails.length) {
     const busy = limits.filter(f => f.error === "llm_rate_limited");
     const pick = busy.length ? busy : limits;
-    return { status: 503, error: pick[0].error, resetsInSec: Math.min(...pick.map(f => f.resetsInSec)) };
+    return { status: 503, error: pick[0].error, resetsInSec: Math.min(...pick.map(f => f.resetsInSec)), trail };
   }
-  return fails.find(f => !f.resetsInSec);
+  return { ...fails.find(f => !f.resetsInSec), trail };
 }
 
 // RS34b: answers for the built-in example searches are cached at Cloudflare's edge for a day, so repeat visitors
@@ -210,9 +211,13 @@ export async function cachedJudge(query, repos, env, fetchImpl = fetch, cache = 
   return out;
 }
 
-const json = (status, obj) => new Response(JSON.stringify(obj), {
-  status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" },
-});
+const json = (status, obj, meta = {}) => {
+  const r = new Response(JSON.stringify(obj), {
+    status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" },
+  });
+  r.__code = obj && obj.error; r.__trail = meta.trail; r.__example = meta.example;   // RS34d log fields, never serialised
+  return r;
+};
 
 // RS34c: refuse cross-site callers, then (when configured) require a verified Cloudflare Turnstile token before any
 // model call. Fail closed on spend: if siteverify can't be reached, the AI isn't called.
@@ -236,7 +241,28 @@ export async function verifyTurnstile(request, env, fetchImpl = fetch) {
   } catch { return false; } finally { clearTimeout(timer); }
 }
 
+// RS34d: one record per failed check — codes and timings only. Never the query, repos, IP, token or provider text.
+const CODE = s => String(s == null ? "" : s).replace(/[^a-z0-9_:]/gi, "").slice(0, 40);
+export function logFailure(env, ev) {
+  const rec = { evt: "relevance_fail", code: CODE(ev.code), status: ev.status | 0,
+    trail: (ev.trail || []).slice(0, 4).map(CODE), ms: Math.max(0, Math.round(ev.ms || 0)), example: !!ev.example };
+  try { console.log(JSON.stringify(rec)); } catch {}
+  try {
+    if (env.RELEVANCE_LOG && typeof env.RELEVANCE_LOG.writeDataPoint === "function")
+      env.RELEVANCE_LOG.writeDataPoint({ indexes: [rec.code], blobs: [rec.code, rec.trail.join(">"), rec.example ? "example" : "typed"], doubles: [rec.status, rec.ms] });
+  } catch {}
+  return rec;
+}
+
 export async function onRequestPost({ request, env }, fetchImpl = fetch) {
+  const t0 = Date.now();
+  const res = await handlePost(request, env, fetchImpl);
+  if (res.status !== 200 && res.__code !== "not_configured")
+    logFailure(env, { code: res.__code, status: res.status, trail: res.__trail, ms: Date.now() - t0, example: res.__example });
+  return res;
+}
+
+async function handlePost(request, env, fetchImpl) {
   if (!env.LLM_API_KEY && !(env.AI && typeof env.AI.run === "function")) return json(503, { error: "not_configured" });
   if (!sameOrigin(request)) return json(403, { error: "bad_origin" });
   const ct = request.headers.get("Content-Type") || "";
@@ -248,8 +274,9 @@ export async function onRequestPost({ request, env }, fetchImpl = fetch) {
   if (bad) return json(400, { error: bad });
   if (!(await verifyTurnstile(request, env, fetchImpl))) return json(403, { error: "bot_check_failed" });
   const out = await cachedJudge(body.query, body.repos, env, fetchImpl, undefined, new URL(request.url).origin);
-  return out.status === 200 ? json(200, out.body)   // body only: internal flags (first, cached) never leave
-    : json(out.status, out.resetsInSec ? { error: out.error, resetsInSec: out.resetsInSec } : { error: out.error });
+  const meta = { trail: out.trail, example: EXAMPLE_SET.has(body.query) };
+  return out.status === 200 ? json(200, out.body)   // body only: internal flags (first, cached, trail) never leave
+    : json(out.status, out.resetsInSec ? { error: out.error, resetsInSec: out.resetsInSec } : { error: out.error }, meta);
 }
 
 // RS34c: the page asks which bot check to load (the site key is public by design; the secret never leaves here)

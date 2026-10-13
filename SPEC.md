@@ -326,7 +326,12 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   still returns specific codes (`llm_daily_limit` with `resetsInSec`, `llm_rate_limited`, `wai_timeout`,
   `wai_error_5028`, `bot_check_failed`, …; no provider message text, no secret) and the page records the outcome in a
   `data-gate` attribute on the results (`ok:<hidden>`, `off`, or the code) for diagnosis only. No live usage counter is
-  shown; the owner sees usage in the Cloudflare/provider dashboard — never invented repos (RS7). The function stores nothing and logs no request content. Input is capped (description
+  shown; the owner sees usage in the Cloudflare/provider dashboard — never invented repos (RS7). The function stores no request content.
+  **Failure log (RS34d):** when a check fails (any non-200 except `not_configured`), the function records one event:
+  outcome code, HTTP status, each provider's code in order, milliseconds taken, and whether the query was a built-in
+  example — never the search words, the repo list, the IP address, the bot-check token or any provider message text.
+  It prints that line to the Cloudflare log and, when the Analytics Engine binding `RELEVANCE_LOG` exists, writes it
+  there so it is kept (Cloudflare's retention applies). Successful checks are not logged. `PRIVACY.md` says so. Input is capped (description
   ≤200 chars, ≤30 repos, body ≤16 KB) and anything else is rejected with 400. The free LLM tiers limit requests for the
   whole site, so under heavy use more searches fall back. RS33 is updated in the same change: search words and the
   candidate list now pass through our function to the LLM providers named in RS34a and PRIVACY.md. The plugin (RS1, RS6) is unchanged; its

@@ -5,3 +5,8 @@ pages_build_output_dir = "web"
 # free allocation instead of billing; on Workers Paid, usage past the allocation is billed.
 [ai]
 binding = "AI"
+
+# RS34d: failed relevance checks are kept here as codes and timings only (no search words, no IP).
+[[analytics_engine_datasets]]
+binding = "RELEVANCE_LOG"
+dataset = "replore_relevance_failures"

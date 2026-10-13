@@ -60,7 +60,9 @@ It calls the public GitHub search API from the browser (about 10 searches a minu
 the same filters, ranking and license labels as the plugin. The searches are keyword-based; then a small server-side
 **relevance check** (`functions/api/relevance.js`, SPEC RS34) asks an AI which of the top 30 repos don't fit what you
 described, and leaves them out. If the check is unavailable or over its free limit, you get the plain keyword
-results. The page shows no note either way; the outcome is in the results' `data-gate` attribute for debugging. AI-written searches and the feature-by-feature PRD mode live in the plugin.
+results. The page shows no note either way; the outcome is in the results' `data-gate` attribute for debugging.
+Failed checks are logged as codes and timings only (SPEC RS34d) to the Cloudflare log and the Analytics Engine dataset
+`replore_relevance_failures`; query it in the Cloudflare dashboard or with the Analytics Engine SQL API. AI-written searches and the feature-by-feature PRD mode live in the plugin.
 
 **How the relevance check runs (maintainer, SPEC RS34a):** `wrangler.toml` binds Cloudflare Workers AI as `AI`, so
 the check works on deploy with no key (optional variable `WORKERS_AI_MODEL`, comma-separated; default `@cf/meta/llama-3.1-8b-instruct-fp8`, then `@cf/meta/llama-3.3-70b-instruct-fp8-fast` if Cloudflare has retired the first).
