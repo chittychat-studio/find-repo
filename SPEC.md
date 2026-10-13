@@ -321,7 +321,9 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   simply not set up — neither the `AI` binding nor a key, or no function on the host — the page behaves exactly as before, with no note). When the
   provider's limit is the cause, the note says which: the daily free allowance used up ("Today's free AI checks are
   used up … They reset in 5 hours 20 minutes" — from the provider's retry-after, else the next 00:00 UTC) or a short per-minute
-  limit ("The AI check is busy right now … Try again in a minute"). No live usage counter is shown (it would invite
+  limit ("The AI check is busy right now … Try again in a minute"). Any other failure ends the note with a short
+  error code (e.g. `wai_timeout`, `wai_error_5007`, `http_500`) so a visitor can report it; codes carry no provider
+  message text and no secret. No live usage counter is shown (it would invite
   draining the shared allowance and needs a second API); the owner sees usage in the Cloudflare/provider dashboard — never a blank page,
   never invented repos (RS7). The function stores nothing and logs no request content. Input is capped (description
   ≤200 chars, ≤30 repos, body ≤16 KB) and anything else is rejected with 400. The free LLM tiers limit requests for the

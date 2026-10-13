@@ -105,6 +105,8 @@ console.log("prd ok:", f.join(" | "));
   assert.match(g({ok:false,error:"llm_daily_limit",resetsIn:19200}), /gate-wait.*used up.*They reset in 5 hours 20 minutes\./);
   assert.match(g({ok:false,error:"llm_rate_limited",resetsIn:20}), /gate-wait.*busy right now.*Try again in a minute\./);
   assert.match(g({ok:false,error:"llm_error"}), /Couldn.t check relevance/);
+  assert.match(g({ok:false,error:"wai_error_5007"}), /\(code: wai_error_5007\)/);
+  assert.match(g({ok:false,error:"<img src=x>"}), /\(code: imgsrcx\)/);
   assert.ok(!/gate-wait/.test(g({ok:false,error:"llm_error"})));
   assert.strictEqual(g(null), "");
   console.log("limit note ok"); }

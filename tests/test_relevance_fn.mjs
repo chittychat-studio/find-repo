@@ -132,7 +132,7 @@ console.log("limit classification ok");
   { const AI = { run: async () => { throw new Error("3040: Capacity temporarily exceeded"); } };
     assert.strictEqual((await fn.judgeChain("q", repos, { AI })).error, "llm_rate_limited");
     const AI2 = { run: async () => { throw new Error("boom"); } };
-    assert.deepStrictEqual(await fn.judgeChain("q", repos, { ...env, AI: AI2 }, lim), { status: 502, error: "llm_error" }); }
+    assert.deepStrictEqual(await fn.judgeChain("q", repos, { ...env, AI: AI2 }, lim), { status: 502, error: "wai_error" }); }
   // Workers AI timeout and unparseable reply fail closed (no invented answer, RS7)
   { const AI = { run: () => new Promise(() => {}) };
     assert.strictEqual((await fn.judgeWorkersAI("q", repos, { AI }, 50)).status, 504);
@@ -251,3 +251,13 @@ console.log("bot check ok");
   const r = await fn.onRequestPost({ request: req(), env: { AI } }); const body = await r.json();
   assert.ok(!("first" in body) && !("cached" in body)); }
 console.log("second review regressions ok");
+
+// RS34 diagnostics: specific codes, never provider message text
+{ const thrower = m => ({ AI: { run: async () => { throw new Error(m); } } });
+  assert.strictEqual((await fn.judgeWorkersAI("q", repos, thrower("AiError: 5007: No such model @cf/x secret-ish text"))).error, "wai_error_5007");
+  assert.strictEqual((await fn.judgeWorkersAI("q", repos, thrower("weird failure"))).error, "wai_error");
+  assert.strictEqual((await fn.judgeWorkersAI("q", repos, { AI: { run: () => new Promise(() => {}) } }, 30)).error, "wai_timeout");
+  assert.strictEqual((await fn.judgeWorkersAI("q", repos, { AI: { run: async () => ({ response: "nope" }) } })).error, "wai_unparseable");
+  const r = await post({ query: "q", repos }, thrower("AiError: 5007: No such model @cf/x"));
+  const t = await r.text(); assert.ok(!t.includes("No such model")); }
+console.log("diagnostic codes ok");

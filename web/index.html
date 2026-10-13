@@ -305,6 +305,7 @@
   .rfilter:hover,.rsel:hover{border-color:var(--accent);color:var(--accent-ink)}
   .rsel{margin-left:auto}
   .gate-note{font-size:12.5px;margin:2px 4px 12px}
+  .gate-code{opacity:.7;font-size:11px}
   .ts-box:empty{display:none} .ts-box{margin:6px 0}
   .offtag{font-size:11.5px;font-weight:600;color:var(--warn);margin:0 0 6px}
   .rcard[data-off="1"]{opacity:.62}
@@ -931,7 +932,8 @@ function gateLine(g){ if(!g) return "";
     if(g.error==="llm_rate_limited") return '<p class="gate-note gate-wait mut">The AI check is busy right now \u2014 showing keyword matches, some may be off-topic. '+
       'Try again in '+fmtWait(g.resetsIn||60)+'.</p>';
     if(g.error==="bot_check_failed") return '<p class="gate-note mut">Couldn\u2019t confirm this browser, so showing keyword matches \u2014 some may be off-topic.</p>';
-    return '<p class="gate-note mut">Couldn\u2019t check relevance right now \u2014 showing keyword matches, some may be off-topic.</p>'; }
+    return '<p class="gate-note mut">Couldn\u2019t check relevance right now \u2014 showing keyword matches, some may be off-topic.'+
+      (g.error?' <span class="gate-code">(code: '+String(g.error).replace(/[^a-z0-9_]/gi,"").slice(0,40)+')</span>':'')+'</p>'; }
   if(!g.hidden) return '<p class="gate-note mut">🧠 AI checked these for fit.</p>';
   return '<p class="gate-note mut">🧠 AI hid '+g.hidden+' off-topic repo'+(g.hidden===1?'':'s')+'. '+
     '<button type="button" class="link-btn" id="showOff">Show them</button></p>'; }
@@ -987,9 +989,9 @@ async function relevanceGate(query, repos){
     if(!res.ok){ var er={}; try{ er=await res.json()||{}; }catch(_){}   // read the body once
       if(res.status===404||res.status===405||res.status===501||(res.status===503&&er.error==="not_configured"))
         return "off";   // check not set up (no key / no function): behave as before, no note
-      return {fail:true, error:er.error||"", resetsInSec:+er.resetsInSec||0}; }   // RS34: say why, incl. when it resets
-    var j=await res.json(); return Array.isArray(j.drop)?j.drop:{fail:true,error:""};
-  }catch(e){ return {fail:true,error:""}; } finally{ if(timer) clearTimeout(timer); } }
+      return {fail:true, error:er.error||("http_"+res.status), resetsInSec:+er.resetsInSec||0}; }   // RS34: say why, incl. when it resets
+    var j=await res.json(); return Array.isArray(j.drop)?j.drop:{fail:true,error:"bad_reply"};
+  }catch(e){ return {fail:true,error:e&&e.name==="AbortError"?"page_timeout":"network"}; } finally{ if(timer) clearTimeout(timer); } }
 
 // RS21: ready-made prompts the user can click to fill the box.
 var EXAMPLES=[

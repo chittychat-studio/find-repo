@@ -95,7 +95,7 @@ export async function judge(query, repos, env, fetchImpl = fetch, ms = TIMEOUT_M
         body: JSON.stringify(payload),
       });
     } catch (e) {
-      return { status: e && e.name === "AbortError" ? 504 : 502, error: "llm_unreachable" };
+      return e && e.name === "AbortError" ? { status: 504, error: "llm_timeout" } : { status: 502, error: "llm_unreachable" };
     }
     if (!res.ok) {
       const lim = await limitInfo(res);
@@ -121,15 +121,16 @@ export async function judgeWorkersAI(query, repos, env, ms = TIMEOUT_MS) {
       new Promise((_, rej) => { timer = setTimeout(() => rej(Object.assign(new Error("timeout"), { name: "AbortError" })), ms); }),
     ]);
   } catch (e) {
-    if (e && e.name === "AbortError") return { status: 504, error: "llm_unreachable" };
+    if (e && e.name === "AbortError") return { status: 504, error: "wai_timeout" };
     const msg = String((e && e.message) || "").slice(0, 2000);
     const lim = classifyLimit(WAI_CAPACITY.test(msg) ? 429 : 0, msg, null);
     if (lim) return { status: 503, error: lim.error, resetsInSec: lim.resetsInSec };
-    return { status: 502, error: "llm_error" };
+    const code = (msg.match(/\b(\d{4})\b/) || [])[1];   // Workers AI numeric error code only — never the message text
+    return { status: 502, error: code ? "wai_error_" + code : "wai_error" };
   } finally { clearTimeout(timer); }
   const r = out && out.response;
   const drop = parseDrops(typeof r === "string" ? r : JSON.stringify(r), repos.length);
-  if (!drop) return { status: 502, error: "llm_unparseable" };
+  if (!drop) return { status: 502, error: "wai_unparseable" };
   return { status: 200, body: { drop, checked: repos.length } };
 }
 
@@ -148,7 +149,7 @@ export async function judgeChain(query, repos, env, fetchImpl = fetch, budgetMs 
     if (out.status === 200) return k === 0 ? { ...out, first: true } : out;
     fails.push(out);
   }
-  if (!fails.length) return { status: 504, error: "llm_unreachable" };
+  if (!fails.length) return { status: 504, error: "llm_timeout" };
   const limits = fails.filter(f => f.resetsInSec);
   if (limits.length === fails.length) {
     const busy = limits.filter(f => f.error === "llm_rate_limited");
