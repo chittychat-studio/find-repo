@@ -101,6 +101,9 @@
   .go-btn .arr{font-size:18px;transition:transform .18s}
   .go-btn:hover .arr{transform:translateX(3px)}
   .go-btn:disabled{opacity:.6;cursor:default;transform:none}
+  .go-btn .spin{display:inline-block;width:15px;height:15px;border:2px solid rgba(255,255,255,.5);
+    border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
 
   /* two clean mode tiles (like the reference's cards) */
   .modes{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
@@ -938,6 +941,12 @@ function altQueries(meta, platform){
   var ex = platform==="ios"?" -topic:macos":"";
   return qs.slice(0,MAX_QUERIES).map(function(q){return (q+ex).trim();}); }
 
+// show the searching state right on the Find button (spinner + "Searching…"), restore when done
+function setGoBusy(on){ var go=document.getElementById("go"); if(!go) return;
+  if(on){ if(!go.dataset.label) go.dataset.label=go.innerHTML;
+    go.innerHTML='<span class="spin" aria-hidden="true"></span><span class="go-lbl">Searching…</span>'; go.disabled=true; }
+  else { if(go.dataset.label){ go.innerHTML=go.dataset.label; go.removeAttribute("data-label"); } go.disabled=false; }
+}
 async function run(){
   if(window.__busy) return;                 // ignore re-entry while a search is in flight (rapid quick-pick clicks)
   var text=document.getElementById("q").value.trim();
@@ -953,7 +962,7 @@ async function run(){
   if(text && harmful(text)){ out.innerHTML='<div class="panel"><p class="err">I can’t help find tools for that.</p>'+
     '<p class="mut">For learning security on systems you own, try: "learn web security by hacking a practice app".</p></div>'; return; }
 
-  window.__busy=true; go.disabled=true; st.textContent="Working…";
+  window.__busy=true; setGoBusy(true); st.textContent="";
   try{
     var queries, heading=null, seen={}, qtok;
     if(like){
@@ -979,7 +988,7 @@ async function run(){
     out.innerHTML=render(top,queries,excluded,ranked.length,qtok,heading);
     animateCards(out); initResultFilter(); st.textContent=""; saveResults();
   }catch(e){ st.textContent=""; out.innerHTML='<div class="panel"><p class="err">'+esc(e.message)+'</p></div>'; }
-  finally{ go.disabled=false; window.__busy=false; }
+  finally{ setGoBusy(false); window.__busy=false; }
 }
 document.getElementById("go").addEventListener("click",run);
 document.getElementById("prd").addEventListener("change",function(e){
@@ -992,10 +1001,10 @@ document.getElementById("prd").addEventListener("change",function(e){
     if(!features.length){ out.innerHTML='<div class="panel"><p class="err">Couldn’t find features in that file. Use bullet points or short requirement lines.</p></div>'; return; }
     var minStars=Math.max(0,parseInt(document.getElementById("minstars").value,10)||0);
     var platform=document.getElementById("platform").value, preferStarters=document.getElementById("starters").value==="yes";
-    go.disabled=true; out.innerHTML="";
+    setGoBusy(true); out.innerHTML="";
     try{ await runFeatures(features,minStars,platform,preferStarters,out,st); }
     catch(err){ st.textContent=""; out.innerHTML='<div class="panel"><p class="err">'+esc(err.message)+'</p></div>'; }
-    finally{ go.disabled=false; e.target.value=""; } };
+    finally{ setGoBusy(false); e.target.value=""; } };
   rd.onerror=function(){ out.innerHTML='<div class="panel"><p class="err">Could not read that file.</p></div>'; };
   rd.readAsText(f);
 });
