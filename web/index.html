@@ -677,7 +677,8 @@ function clean(s){return (s||"").replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-
 function kstars(n){return n>=1000?(n/1000).toFixed(n>=10000?0:1)+"k":""+n;}
 
 var STOP=new Set("a an the my our your for to with and or of in on app apps application build building make making want really nice looking simple create please that helps people some something cool new project using use it".split(" "));
-var SYN={website:["landing page template","frontend framework"],web:["web app starter"],
+var SYN={website:["landing page template","website template"],web:["web app starter"],   // RS16: specific phrases only, never a bare category
+ portfolio:["portfolio template","portfolio website"],
  game:["game engine","game framework"],diet:["calorie counter","nutrition tracker"],
  chatbot:["chatbot framework","rag chatbot"],dashboard:["admin dashboard template"],
  blog:["blog starter"],ecommerce:["ecommerce starter"],map:["maplibre","offline map tiles"],

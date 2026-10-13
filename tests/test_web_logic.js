@@ -16,6 +16,13 @@ new Function("document", "localStorage",
   " this.keep=keep; this.harmful=harmful; this.harmfulRepo=harmfulRepo; this.prdFeatures=prdFeatures;").call(s, document, global.localStorage || {getItem:()=>null,setItem(){},removeItem(){}});
 
 // RS16: iOS excludes macOS
+// RS16: expansions are specific on-topic phrases, never a bare category (live regression: "website" -> "frontend framework"
+// pulled Ionic/Expo/qiankun/Luigi/choo/san/argon into a portfolio search)
+{ const q = s.keywordQueries("portfolio website builder", "");
+  assert.deepStrictEqual(q, ["portfolio website builder", "portfolio template", "portfolio website", "landing page template"], q);
+  const bare = /^(frontend|backend|web|javascript|css|ui|mobile) (framework|library)s?$/;
+  ["website","web","portfolio","dashboard","blog","ecommerce","game","chatbot","map","diet","powerpoint"].forEach(w =>
+    s.keywordQueries(w, "").forEach(x => assert.ok(!bare.test(x), w + " expanded to bare category: " + x))); }
 assert.ok(s.keywordQueries("a diet app for iphone", "ios").every(q => q.includes("-topic:macos")));
 // RS14/RS20 labels
 assert.strictEqual(s.freeText("MIT"), "Yes");

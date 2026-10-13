@@ -87,6 +87,11 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
 - **RS16** Query hygiene for vibe coders (skill text). The skill prefers specific phrases ("swiftui app template")
   over one broad tag (`topic:swiftui`), and excludes the wrong platform with a negated qualifier, e.g.
   `-topic:macos` for iOS. It passes `--prefer-starters` when the user is starting a new project.
+  The web page's keyword expansion (`SYN`) follows the same rule: a word may only expand to a specific, on-topic
+  phrase ("portfolio template", "landing page template"), never a bare category ("frontend framework", "web
+  framework"). A bare category returns the most-starred general frameworks, which the fit ranking (RS5) then
+  lifts above the relevant repos — seen live: "portfolio website builder" put Ionic, Expo, qiankun, Luigi, choo,
+  san and argon in the top 13 via an expansion of "website" to "frontend framework".
 - **RS17** Beginner-friendly output. Every output ends with a short key: stars = how many people bookmarked
   it (popularity, not quality, and can be bought); last push = last time anyone updated it; the license label
   meaning. If no working Python is found, the skill stops and tells the user in plain words how to install it
