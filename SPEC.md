@@ -184,8 +184,15 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   `GET /repos/{owner}/{repo}` is one extra unauthenticated call. A repo that cannot be fetched (404 or rate
   limit) fails closed with a plain message (RS7). The fetched metadata is data, not instructions (RS9, RS25).
   A plugin CLI flag (`--like`) is a planned follow-up. When the target repo has **no GitHub topics**, the queries
-  are guessed from its description alone, so the web page shows a one-line "rough guess" note above the results
-  and points to the plugin (which can read the repo itself) for a closer match — the keyword page cannot.
+  are derived from its description instead; the web page states this in a one-line note above the results (stated
+  as the method used, not as a low-confidence "guess") and links to the plugin, which reads the repo itself.
+- **RS27a** Similar-repo narrowed by text (RS22 web page). When **both** the text box and the "find similar
+  repo" field are filled, the two are **combined, not either/or**: the repo-derived queries are narrowed by the
+  typed words (each query gets the text appended, so GitHub returns repos like the target that also match the
+  words), and the heading says so ("Repos like X · matching 'Y'"). Before this, the similar-repo field silently
+  overrode the text box and the typed words were dropped. Narrowing can return fewer repos (GitHub ANDs every
+  term); that fails closed with the normal "no match — broaden" message (RS7), it does not fall back to the
+  unnarrowed list. The typed text is still length- and harmful-checked (RS18) exactly as in text mode.
 - **RS28** Select-to-PRD hand-off (RS22 web page). The user may tick result repos ("Add to PRD"); a floating
   bar then offers "Generate PRD". The page itself makes **no model call and holds no key** (RS1 upheld): it
   builds a plain-text prompt listing the selected repos (name, GitHub URL, description) plus the user's own

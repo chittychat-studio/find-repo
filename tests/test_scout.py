@@ -605,6 +605,8 @@ def test_web_page_is_safe_static(monkeypatch):
     # RS30: a "Next steps" menu item opens a guidance modal (no model call, points to the plugin)
     assert 'id="nextBtn"' in html and 'id="nextModal"' in html and "Next steps" in html
     assert "Generate plan" in html and "Build it in Claude Code" in html
+    # RS27a: text + similar-repo are combined (text narrows the repo search), not an either/or that drops the text
+    assert "RS27a" in html and "· matching" in html
     # light/dark toggle (RS24)
     assert 'id="theme"' in html and "data-theme" in html and "findrepo_theme" in html
     # RS24 Tour: a current screenshot of the live page is committed and embedded (replaces the stale gif)

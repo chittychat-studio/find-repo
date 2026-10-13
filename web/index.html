@@ -1011,7 +1011,11 @@ async function run(){
           "<button type=\"button\" class=\"link-btn\" onclick=\"openModal('pluginModal')\">Use in Claude Code</button>";
       seen[clean(meta.full_name||target)]=null;  // exclude the original repo from the results (RS27)
       heading="Repos like "+(meta.full_name||target);
-      qtok=sigTokens(queries.join(" "));
+      if(text){  // combine: narrow the similar-repo search by the typed words (RS27a)
+        queries=queries.map(function(q){return (q+" "+text).trim();});
+        heading+=" · matching “"+text+"”";
+      }
+      qtok=sigTokens(queries.join(" ")+" "+text);  // highlight both the repo's topics and the typed words
     } else {
       queries=keywordQueries(text,platform); qtok=sigTokens(text);
     }
