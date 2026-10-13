@@ -437,7 +437,7 @@
       <div class="modes">
         <button class="mode-tile" id="likeTile" type="button" aria-haspopup="dialog">
           <span class="mt-ico">✨</span>
-          <span class="mt-txt"><b>Find similar repos</b><small>Paste a repo you already like</small></span>
+          <span class="mt-txt"><b>Find similar repos</b><small>A repo you like + a few words</small></span>
         </button>
         <label class="mode-tile" for="prd">
           <span class="mt-ico">📄</span>
@@ -508,7 +508,8 @@
 <div class="modal" id="likeModal"><div class="sheet">
   <button class="x" data-close>&times;</button>
   <h2>Find similar repos</h2>
-  <p class="mut">Paste a repo you already like — <code>owner/repo</code> or a GitHub link — and I'll find open-source repos like it.</p>
+  <p class="mut">Paste a repo you already like — <code>owner/repo</code> or a GitHub link — then type a few words in the
+    search box (e.g. “free ai call”) so I can narrow the similar repos to what you actually want.</p>
   <input id="like" type="text" placeholder="e.g. vercel/next.js" autocomplete="off" maxlength="120">
   <button id="likeGo" class="primary">Find similar →</button>
 </div></div>
@@ -783,6 +784,7 @@ var LEXICAL_NOTE='<p class="lex-note mut">🔍 This is <b>keyword search</b> —
 var RES_FILTERS=[["all","All"],["com","✅ Free for commercial use"],["starter","🧩 Starters"]];
 function filterBar(){ return '<div class="res-filter" role="group" aria-label="Filter results">'+
   RES_FILTERS.map(function(f,i){ return '<button type="button" class="rfilter'+(i===0?' on':'')+'" data-f="'+f[0]+'">'+f[1]+'</button>'; }).join("")+
+  '<button type="button" class="rfilter rclear" id="resClearBtn" data-f="all" title="Show all results" hidden>✕ Clear filter</button>'+
   '</div>'; }
 
 function render(top, queries, excluded, totalMatches, qtokens, heading, note){
@@ -819,6 +821,7 @@ function applyResultFilter(){
   var more=out.querySelector("#resMore");
   if(more){ if(matched>shown){ more.hidden=false; more.textContent="Show more ("+shown+" of "+matched+") ▾"; } else more.hidden=true; }
   var chips=out.querySelectorAll(".rfilter"); for(var j=0;j<chips.length;j++) chips[j].classList.toggle("on", chips[j].getAttribute("data-f")===f);
+  var cb=out.querySelector("#resClearBtn"); if(cb) cb.hidden=(f==="all");  // show "Clear filter" only when a filter is active
 }
 function initResultFilter(){ window.__resFilter="all"; window.__resLimit=10; applyResultFilter(); }
 
@@ -991,6 +994,10 @@ async function run(){
   var st=document.getElementById("status"), out=document.getElementById("out"), go=document.getElementById("go");
   stopDemo("heroDemo"); out.innerHTML=""; if(window.__resetPicks) window.__resetPicks();
   if(!text && !like){ st.textContent="Type what you're building, or paste a repo to find similar ones."; return; }
+  if(like && !text){   // similar-repo search needs words too, so results are narrowed to what you actually want (RS27a)
+    st.textContent="Add a few words too — what kind of repos like this? e.g. “free ai call”, then Find.";
+    var lq=document.getElementById("q"); if(lq){ lq.focus(); lq.scrollIntoView({block:"center"}); }
+    return; }
   if(text.length>200){ st.textContent=""; out.innerHTML='<div class="panel"><p class="err">Too long — use a short sentence (max 200 characters).</p></div>'; return; }
   if(text && harmful(text)){ out.innerHTML='<div class="panel"><p class="err">I can’t help find tools for that.</p>'+
     '<p class="mut">For learning security on systems you own, try: "learn web security by hacking a practice app".</p></div>'; return; }
@@ -1005,7 +1012,7 @@ async function run(){
       var meta=await repoMeta(target);
       queries=altQueries(meta,platform);
       if(!queries.length) throw new Error("That repo has no topics or description to search from.");
-      if(!(meta.topics||[]).length)   // no GitHub topics → we matched on description words; note is HTML (esc the repo name), with a plugin link
+      if(!(meta.topics||[]).length && !text)   // no topics AND no typed words → note explains we matched on description; with text, the words drive the search so the note is moot (RS27a)
         window.__likeNote="“"+esc(clean(meta.full_name||target))+"” has no GitHub topics, so we matched on its description. "+
           "For matches based on what the repo actually does, the plugin reads the repo itself. "+
           "<button type=\"button\" class=\"link-btn\" onclick=\"openModal('pluginModal')\">Use in Claude Code</button>";
