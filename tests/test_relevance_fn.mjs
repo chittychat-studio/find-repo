@@ -12,6 +12,7 @@ const fakeLLM = (content, status = 200) => async (url, init) => {
   return new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status });
 };
 const env = { LLM_API_KEY: "sk-test-SECRET" };
+const noTrail = o => { const { trail, ...rest } = o || {}; return rest; };   // RS34d trail is internal
 const post = (body, e = env, ct = "application/json") =>
   fn.onRequestPost({ request: new Request("https://x/api/relevance", { method: "POST", headers: { "Content-Type": ct }, body: typeof body === "string" ? body : JSON.stringify(body) }), env: e });
 
@@ -77,7 +78,9 @@ assert.strictEqual((await fn.onRequest()).status, 405);
 // the function file never logs request content (RS33)
 import { readFileSync } from "node:fs";
 const src = readFileSync(new URL("../functions/api/relevance.js", import.meta.url), "utf8");
-assert.ok(!/console\.(log|info|warn|error|debug)/.test(src), "must not log");
+// RS34d: the only logging is logFailure's single console.log (codes only)
+assert.strictEqual((src.match(/console\.(log|info|warn|error|debug)/g) || []).length, 1, "only logFailure may log");
+assert.ok(/export function logFailure[\s\S]{0,400}console\.log\(JSON\.stringify\(rec\)\)/.test(src));
 
 console.log("relevance function ok");
 
@@ -120,19 +123,19 @@ console.log("limit classification ok");
   assert.strictEqual((await fn.judgeChain("q", repos, env, fakeLLM(ok))).status, 200);
   // Workers AI only (no key) works; nothing configured -> not_configured
   assert.strictEqual((await fn.judgeChain("q", repos, { AI: ai(() => ({ response: ok })) })).status, 200);
-  assert.deepStrictEqual(await fn.judgeChain("q", repos, {}), { status: 503, error: "not_configured" });
+  assert.deepStrictEqual(noTrail(await fn.judgeChain("q", repos, {})), { status: 503, error: "not_configured" });
   // both out for the day -> daily limit with the soonest reset
   { const AI = { run: async () => { throw new Error("4006: you have used up your daily free allocation of 10,000 neurons"); } };
     const out = await fn.judgeChain("q", repos, { ...env, AI }, async () => new Response("tokens per day", { status: 429, headers: { "retry-after": "999999" } }));
     assert.strictEqual(out.error, "llm_daily_limit"); assert.ok(out.resetsInSec <= 86400); }
   // one busy, one used up -> "busy" (it will clear first)
   { const AI = { run: async () => { throw new Error("used up your daily free allocation of 10,000 neurons"); } };
-    assert.deepStrictEqual(await fn.judgeChain("q", repos, { ...env, AI }, busy), { status: 503, error: "llm_rate_limited", resetsInSec: 20 }); }
+    assert.deepStrictEqual(noTrail(await fn.judgeChain("q", repos, { ...env, AI }, busy)), { status: 503, error: "llm_rate_limited", resetsInSec: 20 }); }
   // Workers AI capacity error counts as busy; a plain error after a limit is a plain error (no reset note)
   { const AI = { run: async () => { throw new Error("3040: Capacity temporarily exceeded"); } };
     assert.strictEqual((await fn.judgeChain("q", repos, { AI })).error, "llm_rate_limited");
     const AI2 = { run: async () => { throw new Error("boom"); } };
-    assert.deepStrictEqual(await fn.judgeChain("q", repos, { ...env, AI: AI2 }, lim), { status: 502, error: "wai_error" }); }
+    assert.deepStrictEqual(noTrail(await fn.judgeChain("q", repos, { ...env, AI: AI2 }, lim)), { status: 502, error: "wai_error" }); }
   // Workers AI timeout and unparseable reply fail closed (no invented answer, RS7)
   { const AI = { run: () => new Promise(() => {}) };
     assert.strictEqual((await fn.judgeWorkersAI("q", repos, { AI }, 50)).status, 504);
@@ -277,3 +280,36 @@ console.log("diagnostic codes ok");
   seen.length = 0;
   await fn.judgeWorkersAI("q", repos, { AI, WORKERS_AI_MODEL: "@cf/a, @cf/b" }); assert.deepStrictEqual(seen, ["@cf/a"]); }
 console.log("model fallback ok");
+
+// RS34d failure log: one record per failed check, codes only — never the query, repos, IP, token or provider text
+{ const lines = [], orig = console.log; const points = [];
+  const LOG = { writeDataPoint: p => points.push(p) };
+  const secretQuery = "my secret startup idea about llamas";
+  const mk = (env, headers = {}) => fn.onRequestPost({ request: new Request("https://replore.pages.dev/api/relevance", { method: "POST",
+    headers: { "Content-Type": "application/json", "CF-Connecting-IP": "203.0.113.7", "CF-Turnstile-Token": "tok-XYZ", ...headers },
+    body: JSON.stringify({ query: secretQuery, repos }) }), env });
+  console.log = (...a) => lines.push(a.join(" "));
+  try {
+    const AI = { run: async () => { throw new Error("AiError: 5028: model @cf/meta/x deprecated, contact secret-ish"); } };
+    const r = await mk({ AI, RELEVANCE_LOG: LOG });
+    assert.strictEqual(r.status, 502);
+    await mk({});                                                        // not configured: not a failure, not logged
+    const ok = { run: async () => ({ response: '{"drop":[]}' }) };
+    await mk({ AI: ok, RELEVANCE_LOG: LOG });                            // success: not logged
+    await mk({ AI: ok }, { Origin: "https://evil.example" });            // abuse signal: logged
+  } finally { console.log = orig; }
+  assert.strictEqual(lines.length, 2, lines.join("\n"));
+  const rec = JSON.parse(lines[0]);
+  assert.deepStrictEqual(Object.keys(rec).sort(), ["code", "evt", "example", "ms", "status", "trail"]);
+  assert.strictEqual(rec.code, "wai_error_5028"); assert.deepStrictEqual(rec.trail, ["wai_error_5028"]); assert.strictEqual(rec.example, false);
+  assert.strictEqual(JSON.parse(lines[1]).code, "bad_origin");
+  const all = lines.join("\n") + JSON.stringify(points);
+  for (const leak of ["llamas", "secret", "React-Landing", "ionic", "203.0.113.7", "tok-XYZ", "deprecated", "SECRET"])
+    assert.ok(!all.includes(leak), "log leaked: " + leak);
+  assert.strictEqual(points.length, 1); assert.deepStrictEqual(points[0].indexes, ["wai_error_5028"]);
+  // a broken log binding never breaks the response
+  const bad = { writeDataPoint: () => { throw new Error("x"); } };
+  console.log = () => {};
+  try { assert.strictEqual((await mk({ AI: { run: async () => { throw new Error("boom"); } }, RELEVANCE_LOG: bad })).status, 502); }
+  finally { console.log = orig; } }
+console.log("failure log ok");

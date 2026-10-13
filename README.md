@@ -59,8 +59,11 @@ A static page at `web/index.html` powers it. It auto-deploys to [replore.pages.d
 It calls the public GitHub search API from the browser (about 10 searches a minute, no login, no key) and runs
 the same filters, ranking and license labels as the plugin. The searches are keyword-based; then a small server-side
 **relevance check** (`functions/api/relevance.js`, SPEC RS34) asks an AI which of the top 30 repos don't fit what you
-described, and hides them (with a "show them" link). If the check is unavailable or over its free limit, you get the
-keyword results with a note. AI-written searches and the feature-by-feature PRD mode live in the plugin.
+described, and moves them behind a "Show N more we left out" line at the bottom. If the check is unavailable or over its free limit, you get the plain keyword
+results. The page shows no note either way; the outcome is in the results' `data-gate` attribute for debugging.
+Failed checks are logged as codes and timings only (SPEC RS34d) to the Cloudflare log (Pages → your project → the
+deployment → Functions → Real-time logs; live only, not stored). To keep them, enable Workers Analytics Engine on the
+account, then uncomment the `[[analytics_engine_datasets]]` block in `wrangler.toml`. AI-written searches and the feature-by-feature PRD mode live in the plugin.
 
 **How the relevance check runs (maintainer, SPEC RS34a):** `wrangler.toml` binds Cloudflare Workers AI as `AI`, so
 the check works on deploy with no key (optional variable `WORKERS_AI_MODEL`, comma-separated; default `@cf/meta/llama-3.1-8b-instruct-fp8`, then `@cf/meta/llama-3.3-70b-instruct-fp8-fast` if Cloudflare has retired the first).

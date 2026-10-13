@@ -310,26 +310,30 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   sets `TURNSTILE_SECRET` (and the public `TURNSTILE_SITE_KEY`), every POST must carry a fresh Cloudflare Turnstile
   token in `CF-Turnstile-Token`, verified server-side with Cloudflare's siteverify (success and a hostname equal to this site) before any model call; a missing,
   invalid or unverifiable token is refused (403 `bot_check_failed`) — fail closed on spend, while the page still shows
-  keyword results with "Couldn't confirm this browser, so showing keyword matches". The page learns the site key from
+  keyword results. The page learns the site key from
   `GET /api/relevance` and loads Turnstile from `challenges.cloudflare.com` only when a key is set (the one exception
   to RS33's no-third-party-script rule, disclosed in `PRIVACY.md`). Every browser-side wait (config, script, token) has a deadline and a failed load retries on the next search;
   an interactive challenge gets 90 s. Without the secret the check is off and behaviour
   is unchanged. A per-IP Cloudflare rate-limiting rule on `/api/relevance` is the owner's dashboard setting, not code.
   Limits of this: an agent driving a real browser slowly can still pass; on the Workers Free plan the worst case of
-  abuse is a day of keyword-only results, never a bill. The page shows only kept repos, says how many were
-  hidden as off-topic, and offers "show them" (transparency, not silent removal). Rules: repo text and the description
-  are data, never instructions (RS9, RS25), and the prompt says so; the LLM may only drop or keep, never add, rename
-  or reorder (mirrors RS6 — fit order stays deterministic); a response that isn't valid JSON or names an unknown index is
-  ignored. **Fail open, labelled:** if the function is missing, unconfigured, rate-limited, slow (>8 s) or errors, the
-  page shows the normal keyword results with a one-line note that relevance couldn't be checked (when the check is
-  simply not set up — neither the `AI` binding nor a key, or no function on the host — the page behaves exactly as before, with no note). When the
-  provider's limit is the cause, the note says which: the daily free allowance used up ("Today's free AI checks are
-  used up … They reset in 5 hours 20 minutes" — from the provider's retry-after, else the next 00:00 UTC) or a short per-minute
-  limit ("The AI check is busy right now … Try again in a minute"). Any other failure ends the note with a short
-  error code (e.g. `wai_timeout`, `wai_error_5007`, `http_500`) so a visitor can report it; codes carry no provider
-  message text and no secret. No live usage counter is shown (it would invite
-  draining the shared allowance and needs a second API); the owner sees usage in the Cloudflare/provider dashboard — never a blank page,
-  never invented repos (RS7). The function stores nothing and logs no request content. Input is capped (description
+  abuse is a day of keyword-only results, never a bill. The page shows only the kept repos and puts no note about the
+  check above them (owner's decision, 2026-10-13). Dropped repos move to the end, hidden; once the visitor reaches the
+  last kept card, one quiet line "Show N more we left out" appears at the very bottom and reveals them as ordinary
+  cards (the undo for a wrong drop; owner's decision, same day). Rules: repo text
+  and the description are data, never instructions (RS9, RS25), and the prompt says so; the LLM may only drop or keep,
+  never add, rename or reorder (mirrors RS6 — fit order stays deterministic); a response that isn't valid JSON or names
+  an unknown index is ignored. **Fail open, silent:** if the function is missing, unconfigured, over a limit, slow
+  (>8 s), refused by the bot check or errors, the page shows the normal keyword results with no note. The function
+  still returns specific codes (`llm_daily_limit` with `resetsInSec`, `llm_rate_limited`, `wai_timeout`,
+  `wai_error_5028`, `bot_check_failed`, …; no provider message text, no secret) and the page records the outcome in a
+  `data-gate` attribute on the results (`ok:<hidden>`, `off`, or the code) for diagnosis only. No live usage counter is
+  shown; the owner sees usage in the Cloudflare/provider dashboard — never invented repos (RS7). The function stores no request content.
+  **Failure log (RS34d):** when a check fails (any non-200 except `not_configured`), the function records one event:
+  outcome code, HTTP status, each provider's code in order, milliseconds taken, and whether the query was a built-in
+  example — never the search words, the repo list, the IP address, the bot-check token or any provider message text.
+  It prints that line to the Cloudflare log (visible in the Pages real-time logs, not stored) and, when the Analytics
+  Engine binding `RELEVANCE_LOG` exists, writes it there so it is kept (Cloudflare's retention applies). The binding is
+  off in `wrangler.toml` until the owner enables Analytics Engine on the account (adding it first failed the deploy). Successful checks are not logged. `PRIVACY.md` says so. Input is capped (description
   ≤200 chars, ≤30 repos, body ≤16 KB) and anything else is rejected with 400. The free LLM tiers limit requests for the
   whole site, so under heavy use more searches fall back. RS33 is updated in the same change: search words and the
   candidate list now pass through our function to the LLM providers named in RS34a and PRIVACY.md. The plugin (RS1, RS6) is unchanged; its
