@@ -520,7 +520,7 @@ async function runFeatures(features, minStars, platform, preferStarters, out, st
   out.innerHTML=renderGrouped(groups,excluded,
     "From your PRD (read on your device, never uploaded). Browser mode covers the first "+features.length+
     " features; the Claude Code plugin reads them all.");
-  animateCards(out); st.textContent="Done.";
+  animateCards(out); st.textContent="Done."; saveResults();
 }
 
 async function run(){
@@ -546,7 +546,7 @@ async function run(){
       lists.push(keep(fresh,minStars,platform,excluded)); }
     var ranked=balanced(lists,preferStarters), top=ranked.slice(0,10);
     out.innerHTML=render(top,queries,excluded,ranked.length);
-    animateCards(out); st.textContent="Done.";
+    animateCards(out); st.textContent="Done."; saveResults();
   }catch(e){ st.textContent=""; out.innerHTML='<div class="panel"><p class="err">'+esc(e.message)+'</p></div>'; }
   finally{ go.disabled=false; }
 }
@@ -621,10 +621,29 @@ function showHome(){
   buildSteps(document.getElementById("heroSteps"));
   buildExamples(document.getElementById("examples"));
 }
-showHome();
-// Home: clear the box and return to the start; Tour: play the how-it-works walkthrough
+// remember the last results so a page refresh brings them back (cached locally, no new API call)
+var LAST="findrepo_last";
+function saveResults(){ try{ var out=document.getElementById("out");
+  localStorage.setItem(LAST, JSON.stringify({ html:out.innerHTML, q:document.getElementById("q").value,
+    platform:document.getElementById("platform").value, minstars:document.getElementById("minstars").value,
+    starters:document.getElementById("starters").value })); }catch(e){} }
+function clearSaved(){ try{ localStorage.removeItem(LAST); }catch(e){} }
+function restoreResults(){
+  var d; try{ d=JSON.parse(localStorage.getItem(LAST)||"null"); }catch(e){}
+  if(!d||!d.html) return false;
+  document.getElementById("out").innerHTML=d.html;
+  if(d.q!=null) document.getElementById("q").value=d.q;
+  if(d.platform!=null) document.getElementById("platform").value=d.platform;
+  if(d.minstars!=null) document.getElementById("minstars").value=d.minstars;
+  if(d.starters!=null) document.getElementById("starters").value=d.starters;
+  document.getElementById("status").textContent="Restored your last results — press Home to start over.";
+  animateCards(document.getElementById("out"));
+  return true;
+}
+if(!restoreResults()) showHome();
+// Home: clear the saved results and the box, return to the start; Tour: play the how-it-works walkthrough
 document.getElementById("homeBtn").addEventListener("click",function(){
-  document.getElementById("q").value=""; document.getElementById("status").textContent="";
+  clearSaved(); document.getElementById("q").value=""; document.getElementById("status").textContent="";
   showHome(); document.getElementById("q").focus();
 });
 document.getElementById("tourBtn").addEventListener("click",function(){ openModal("howModal"); });
