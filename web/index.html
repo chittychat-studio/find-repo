@@ -110,6 +110,8 @@
 
   /* two clean mode tiles (like the reference's cards) */
   .modes{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  .fm-modes{display:flex;flex-direction:column;gap:8px;margin:4px 0 14px}
+  .fm-modes .mode-tile{width:100%;min-width:0}
   .mode-tile{display:inline-flex;align-items:center;gap:12px;text-align:left;background:var(--card);
     border:1px solid var(--line);border-radius:16px;padding:13px 18px;cursor:pointer;font:inherit;color:var(--ink);
     flex:1 1 0;min-width:0;max-width:360px;transition:border-color .18s,transform .12s,box-shadow .18s}
@@ -509,6 +511,12 @@
 <div class="modal" id="filtersModal"><div class="sheet">
   <button class="x" data-close>&times;</button>
   <h2>Filters</h2>
+  <div class="fm-modes" aria-label="Other ways to search">
+    <button type="button" class="mode-tile" id="fmLike"><span class="mt-ico">✨</span>
+      <span class="mt-txt"><b>Find similar repos</b><small>A repo you like + a few words</small></span></button>
+    <label class="mode-tile" for="prd" id="fmPrd"><span class="mt-ico">📄</span>
+      <span class="mt-txt"><b>Match a whole plan</b><small>Upload a plan / PRD — read locally</small></span></label>
+  </div>
   <p class="mut">Narrow your search — all optional. These apply to your next search.</p>
   <div class="field"><label for="stackInput">Tech stack</label>
     <div class="ms" id="stackMS">
@@ -1297,6 +1305,9 @@ document.getElementById("pluginBtn").addEventListener("click",function(){ openMo
 // Filters chip and "Find similar repos" tile each open a popup window
 document.getElementById("optsBtn").addEventListener("click",function(){ openModal("filtersModal"); });
 document.getElementById("likeTile").addEventListener("click",function(){ openModal("likeModal"); });
+// RS24: the two search modes are also in Filters, so they stay reachable when the intro is folded away
+document.getElementById("fmLike").addEventListener("click",function(){ closeModals(); openModal("likeModal"); });
+document.getElementById("fmPrd").addEventListener("click",function(){ closeModals(); });   // the label opens the file picker
 // "Find similar →" in the modal runs the similar-repo search
 (function(){ var go=document.getElementById("likeGo"), like=document.getElementById("like");
   if(go) go.addEventListener("click",function(){ closeModals(); run(); });
