@@ -596,7 +596,7 @@ def test_web_page_is_safe_static(monkeypatch):
     # RS22: how-to-run-in-Claude-Code and the >10 edge-case CTA both point to the plugin
     assert "/plugin install replore@replore" in html and "/replore:find" in html
     assert "Use in Claude Code" in html and "PLUGIN_CTA" in html
-    assert "more match" in html  # the >10 banner
+    assert "passed the filters" in html  # the "want every suitable repo?" plugin banner
     # light/dark toggle (RS24)
     assert 'id="theme"' in html and "data-theme" in html and "findrepo_theme" in html
     # RS24 Tour: a current screenshot of the live page is committed and embedded (replaces the stale gif)
