@@ -103,8 +103,14 @@
   .rcard{position:relative;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;
     box-shadow:0 14px 30px -22px rgba(var(--shadow),.6);transform-style:preserve-3d;
     transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;will-change:transform}
-  .rcard:hover{transform:translateY(-4px);border-color:var(--accent);
-    box-shadow:0 22px 40px -22px rgba(192,83,44,.55)}
+  .rcard:hover{border-color:var(--accent);box-shadow:0 22px 44px -20px rgba(192,83,44,.5)}
+  .rcard::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+    background:linear-gradient(135deg,rgba(255,255,255,.14),transparent 42%);opacity:.6}
+  .rcard::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;
+    transition:opacity .25s;background:radial-gradient(220px circle at var(--mx,50%) var(--my,0%),
+      rgba(255,255,255,.16),transparent 60%)}
+  .rcard:hover::after{opacity:1}
+  .rcard>*{position:relative}
   .rcard .rank{position:absolute;top:-9px;left:12px;background:linear-gradient(135deg,var(--accent),var(--accent-ink));
     color:#fff;font-size:12px;font-weight:700;border-radius:999px;padding:2px 9px;box-shadow:0 6px 14px -6px rgba(192,83,44,.8)}
   .rcard .stars{position:absolute;top:12px;right:12px;font-weight:700;font-size:13px;color:var(--accent-ink)}
@@ -357,7 +363,7 @@ function cardHtml(r,i){
   var paidShort=paid.indexOf("OK to use")===0?"Paid-use OK":(paid.indexOf("OK in a paid")===0?"Paid OK*":"Share code");
   return '<article class="rcard">'+
     (i!=null?'<span class="rank">#'+(i+1)+'</span>':'')+
-    '<span class="stars">★ '+kstars(r.stars)+'</span>'+
+    '<span class="stars">★ <span class="cnt" data-v="'+r.stars+'">'+kstars(r.stars)+'</span></span>'+
     '<div class="name"><a href="'+esc(r.url)+'" target="_blank" rel="noopener">'+esc(r.name)+'</a></div>'+
     '<p class="desc">'+esc(r.desc||"—")+'</p>'+
     '<div class="tags">'+
@@ -372,9 +378,31 @@ function cardHtml(r,i){
 }
 function animateCards(container){
   var G=window.gsap, reduce=window.matchMedia&&matchMedia("(prefers-reduced-motion:reduce)").matches;
+  attachTilt(container, reduce);
   if(!G||reduce) return;
   G.from(container.querySelectorAll(".rcard"),{opacity:0,y:18,rotateX:-8,duration:.5,stagger:.04,
     ease:"power3.out",transformOrigin:"50% 100%"});
+  // star count-up
+  container.querySelectorAll(".cnt").forEach(function(elc){
+    var v=+elc.getAttribute("data-v")||0; if(v<1000) return;
+    var o={n:0}; G.to(o,{n:v,duration:.9,ease:"power1.out",delay:.1,
+      onUpdate:function(){ elc.textContent=kstars(Math.round(o.n)); },
+      onComplete:function(){ elc.textContent=kstars(v); }});
+  });
+}
+// pointer-reactive 3D tilt + glare (no library; skipped on touch / reduced motion)
+function attachTilt(container, reduce){
+  var hover=window.matchMedia&&matchMedia("(hover: hover)").matches;
+  if(reduce || !hover) return;
+  container.querySelectorAll(".rcard").forEach(function(card){
+    card.addEventListener("mousemove",function(e){
+      var b=card.getBoundingClientRect(), px=(e.clientX-b.left)/b.width, py=(e.clientY-b.top)/b.height;
+      card.style.transform="perspective(900px) rotateX("+((0.5-py)*6).toFixed(2)+"deg) rotateY("+((px-0.5)*7).toFixed(2)+"deg) translateY(-4px)";
+      card.style.setProperty("--mx",(px*100).toFixed(1)+"%");
+      card.style.setProperty("--my",(py*100).toFixed(1)+"%");
+    });
+    card.addEventListener("mouseleave",function(){ card.style.transform=""; });
+  });
 }
 
 var PLUGIN_CTA='<div class="cta-inline"><b>Need more than the top 10?</b> This page shows the top 10. '+

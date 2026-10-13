@@ -137,6 +137,8 @@ Relevance gate: stars measure popularity, not fit. The skill may only *drop* a s
   compact cards (rank, stars, what it does, a colour-coded license pill, free/starter tags) instead of a wide
   table. Motion comes from GSAP, loaded from cdnjs at a pinned version as the one external script; every GSAP
   use is guarded so the page works fully without it, and all motion is disabled under prefers-reduced-motion.
+  Cards are cursor-reactive (a pointer-driven 3D tilt with a light glare, skipped on touch and under reduced
+  motion) and the star counts tween up on reveal, all with the already-loaded GSAP and CSS (no extra library).
   An in-page animated "How it works" explainer (three steps, looping) stands in for a video and is also shown
   as the results panel's empty state; a short recorded GIF walkthrough is committed under `web/` and linked.
   A light/dark toggle sets `data-theme` on the root and remembers the choice in `localStorage` (a per-viewer

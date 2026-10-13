@@ -535,6 +535,8 @@ def test_web_page_is_safe_static(monkeypatch):
     assert 'id="theme"' in html and "data-theme" in html and "findrepo_theme" in html
     # RS24 recorded walkthrough GIF committed and embedded
     assert 'src="demo.gif"' in html and (ROOT / "web" / "demo.gif").exists()
+    # RS24 richness: cursor tilt + star count-up are native (no extra library)
+    assert "attachTilt" in html and 'class="cnt"' in html
     for t in ("portfolio website", "iPhone app", "trip planner", "practice app"):
         assert t in html
 
