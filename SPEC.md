@@ -173,8 +173,10 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   search intent, and say once that it did so. The skill's only actions remain running `scripts/scout.py` and
   presenting results (RX4). Defence-in-depth: a logging hook (`hooks/security_log.py`, declared in
   `hooks/hooks.json`, Python stdlib only — RS11) runs on `UserPromptSubmit`; it scans the submitted text for
-  prompt-injection and harmful-intent patterns and appends any match as one JSON line to a security log
-  (`$REPLORE_SECURITY_LOG`, default `~/.replore/security.log`). It only logs — it never blocks the user and
+  prompt-injection and harmful-intent patterns and appends any match as one JSON line to a security log.
+  **Off by default (opt-in):** it writes nothing unless the user sets `REPLORE_SECURITY_LOG` — to `1`/`on` for the
+  default `~/.replore/security.log`, or to a file path. Unset, it exits immediately without storing anything, so
+  the plugin never keeps any part of a user's prompts unless they chose to (RS33). When on, it only logs — it never blocks the user and
   never echoes the prompt back verbatim beyond a short truncated sample — so it is an audit trail, not a gate.
   The guarantee holds from the skill text alone; the hook records attempts for review.
 - **RS27** Similar-repo mode. Given an existing repo (owner/repo or a GitHub URL), find similar open-source
@@ -258,12 +260,12 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
 - **RS33** Privacy notice. `PRIVACY.md` (linked from README and the web page) and a one-line web notice under the
   search bar describe data handling exactly as built — no broader promise. Facts it must state: the maintainers run
   no server, database, account or analytics and receive no searches; searches go from the user's browser or computer
-  to the GitHub API (GitHub sees the words and IP); Google Fonts and cdnjs see the IP when the page loads; the page
-  host (Cloudflare Pages) serves the page but never receives searches (they are never put in the URL); the browser keeps
+  to the GitHub API (GitHub sees the words and IP); fonts and the animation library are served from the site itself
+  (no third-party font/CDN requests); the page host (Cloudflare Pages) serves the page but never receives searches (they are never put in the URL); the browser keeps
   the last search + results + filters + theme in localStorage until ✕/the logo clears them; an uploaded plan is read
   locally and only short feature phrases are sent to GitHub; "Open in Claude" sends the prompt to the user's own
-  claude.ai account; the plugin's RS25 hook may write a flagged prompt's first 200 characters to
-  `~/.replore/security.log` on the user's own machine and never transmits it; the user's AI agent provider handles
+  claude.ai account; the plugin's RS25 hook is off by default and, only if the user turns it on, writes a flagged
+  prompt's first 200 characters to a log on their own machine and never transmits it; the user's AI agent provider handles
   their conversation under its own terms. The notice says it is not legal advice and gives a dated version. Any change
   that adds a data flow must update the notice in the same commit.
 

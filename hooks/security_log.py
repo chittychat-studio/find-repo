@@ -11,7 +11,8 @@ without it.
 Python standard library only (RS11). Fail-safe: any error is swallowed and the hook exits 0,
 so a logging problem can never break the user's session.
 
-Log location: $REPLORE_SECURITY_LOG, else ~/.replore/security.log.
+OFF BY DEFAULT (opt-in, RS25/RS33): it stores nothing unless the user sets REPLORE_SECURITY_LOG —
+to 1/on/true for ~/.replore/security.log, or to a file path. Unset, it exits before reading the prompt.
 """
 import datetime as dt
 import json
@@ -50,13 +51,18 @@ def _scan(text):
 
 
 def _log_path():
-    p = os.environ.get("REPLORE_SECURITY_LOG")
-    if not p:
-        p = os.path.join(os.path.expanduser("~"), ".replore", "security.log")
+    """None when logging is off (the default); otherwise where to write."""
+    p = (os.environ.get("REPLORE_SECURITY_LOG") or "").strip()
+    if not p or p.lower() in ("0", "off", "false", "no"):
+        return None
+    if p.lower() in ("1", "on", "true", "yes"):
+        return os.path.join(os.path.expanduser("~"), ".replore", "security.log")
     return p
 
 
 def main():
+    if _log_path() is None:  # opt-in: not enabled, so don't even read the prompt
+        return 0
     try:
         raw = sys.stdin.read()
     except Exception:
@@ -85,7 +91,7 @@ def main():
     }
     try:
         path = _log_path()
-        os.makedirs(os.path.dirname(path), exist_ok=True)
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
         with open(path, "a", encoding="utf-8") as fh:
             fh.write(json.dumps(entry, ensure_ascii=False) + "\n")
     except Exception:
