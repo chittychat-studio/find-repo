@@ -507,11 +507,12 @@ def test_web_page_is_safe_static(monkeypatch):
     import re as _re
     assert not _re.search(r"gh[pousr]_[A-Za-z0-9]{20,}", html), "looks like a real token is embedded"
     assert not _re.search(r"github_pat_[A-Za-z0-9_]{20,}", html)
-    assert 'id="token"' not in html and "localStorage" not in html
+    assert 'id="token"' not in html and "findrepo_gh_token" not in html
     assert "models.github" not in html and "Authorization" not in html
-    # no third-party scripts/styles — nothing to leak to or break on
-    assert not _re.search(r'<script[^>]+src=', html), "no external script tags"
-    assert "cdn" not in html.lower() and "unpkg" not in html.lower()
+    # only external script allowed: GSAP from cdnjs, pinned to an exact version; page degrades without it
+    srcs = _re.findall(r'<script[^>]+src="([^"]+)"', html)
+    assert srcs == ["https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"], srcs
+    assert "unpkg" not in html.lower() and "jsdelivr" not in html.lower()
     # calls the public search API, sorted by stars, forks/archived excluded
     assert "api.github.com/search/repositories" in html
     assert "sort=stars" in html and "fork:false archived:false is:public" in html
@@ -519,8 +520,8 @@ def test_web_page_is_safe_static(monkeypatch):
     assert all(l in html for l in ("AGPL-3.0", "MPL-2.0", "MIT", "Unlicense"))
     assert "STARTER_MIN_SHARE" in html and "0.10" in html
     assert "max 200 characters" in html  # RS19 length guard
-    for col in ("OK in a paid product?", "Completely free?", "Starter?"):  # RS20 columns
-        assert col in html
+    # RS24 cards surface the license meaning, free answer and starter flag (short labels + full text in titles)
+    assert "OK to use in a paid product" in html and "Starter" in html and "Completely free?" in html
     # RS21 clickable example prompts fill the box
     assert 'id="examples"' in html and "EXAMPLES" in html and "click to fill" in html
     # RS23 PRD upload is client-side only (FileReader, never uploaded)
@@ -530,6 +531,10 @@ def test_web_page_is_safe_static(monkeypatch):
     assert "/plugin install find-repo@find-repo" in html and "/find-repo:find" in html
     assert "Use in Claude Code" in html and "PLUGIN_CTA" in html
     assert "more match" in html  # the >10 banner
+    # light/dark toggle (RS24)
+    assert 'id="theme"' in html and "data-theme" in html and "findrepo_theme" in html
+    # RS24 recorded walkthrough GIF committed and embedded
+    assert 'src="demo.gif"' in html and (ROOT / "web" / "demo.gif").exists()
     for t in ("portfolio website", "iPhone app", "trip planner", "practice app"):
         assert t in html
 

@@ -2,10 +2,14 @@
 const fs = require("fs"), path = require("path"), assert = require("assert");
 const html = fs.readFileSync(path.join(__dirname, "..", "web", "index.html"), "utf8");
 const code = html.match(/<script>([\s\S]*)<\/script>/)[1].replace('"use strict";', "");
-// fake DOM: elements support the few methods the page's load-time code calls (chip rendering, RS21)
-const el = () => ({value:"",checked:false,textContent:"",innerHTML:"",type:"",className:"",
-                   addEventListener(){}, appendChild(){}, focus(){}, querySelectorAll:()=>[], classList:{add(){},remove(){}}, style:{}});
-global.document = {getElementById: el, createElement: el};
+// fake DOM: elements support the methods the page's load-time code calls (chips, modals, theme, RS21-RS24)
+const el = () => ({value:"",checked:false,textContent:"",innerHTML:"",type:"",className:"",dataset:{},style:{},
+                   addEventListener(){}, appendChild(){}, focus(){}, querySelector:()=>el(), querySelectorAll:()=>[],
+                   classList:{add(){},remove(){},toggle(){}}, getAttribute:()=>null, setAttribute(){}, clientWidth:560});
+global.document = {getElementById: el, createElement: el, querySelectorAll:()=>[], addEventListener(){},
+                   documentElement: el()};
+global.matchMedia = () => ({matches:false});
+global.window = global;
 const s = {};
 new Function("document", "localStorage",
   code + "; this.keywordQueries=keywordQueries; this.balanced=balanced; this.lu=lu; this.freeText=freeText;" +
