@@ -176,8 +176,11 @@
   .sheet{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;max-width:540px;width:100%;
     box-shadow:0 40px 80px -30px rgba(var(--shadow),.7);max-height:88vh;overflow:auto}
   .sheet h2{margin:0 0 8px;font-size:23px;font-weight:800;color:var(--accent-ink);letter-spacing:-.01em}
-  .cmd{background:var(--offbg);border:1px solid var(--line);border-radius:10px;padding:12px;margin:10px 0;
+  .cmd{position:relative;background:var(--offbg);border:1px solid var(--line);border-radius:10px;padding:12px 60px 12px 12px;margin:10px 0;
     font:12.5px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre-wrap;overflow-x:auto}
+  .cmd .copy{position:absolute;top:8px;right:8px;background:var(--card);border:1px solid var(--line);border-radius:7px;
+    padding:3px 10px;font:inherit;font-size:11.5px;font-weight:700;color:var(--accent-ink);cursor:pointer;line-height:1.5}
+  .cmd .copy:hover{border-color:var(--accent)}
   .guide{margin:10px 0 0;padding-left:22px}
   .guide li{margin:0 0 12px;line-height:1.55;font-size:14.5px}
   .guide li::marker{color:var(--accent-ink);font-weight:700}
@@ -627,6 +630,21 @@ function openModal(id){ document.getElementById(id).classList.add("open"); if(id
 function closeModals(){ var m=document.querySelectorAll(".modal"); for(var i=0;i<m.length;i++) m[i].classList.remove("open"); }
 document.getElementById("pluginBtn").addEventListener("click",function(){ openModal("pluginModal"); });
 document.getElementById("setupBtn").addEventListener("click",function(){ openModal("pluginModal"); });
+// one-click copy on every command block (capture text before adding the button so the label isn't copied)
+(function(){
+  document.querySelectorAll(".cmd").forEach(function(pre){
+    if(pre.dataset.copyReady) return; pre.dataset.copyReady="1";
+    var text=pre.textContent;
+    var b=document.createElement("button"); b.type="button"; b.className="copy"; b.textContent="Copy";
+    b.addEventListener("click",function(e){ e.stopPropagation();
+      function ok(){ b.textContent="Copied!"; setTimeout(function(){ b.textContent="Copy"; },1400); }
+      if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(ok,ok); }
+      else { try{ var ta=document.createElement("textarea"); ta.value=text; ta.style.position="fixed"; ta.style.opacity="0";
+        document.body.appendChild(ta); ta.focus(); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); ok(); }catch(err){} }
+    });
+    pre.appendChild(b);
+  });
+})();
 document.getElementById("aboutBtn").addEventListener("click",function(){ openModal("aboutModal"); });
 document.querySelectorAll("[data-close]").forEach(function(b){ b.addEventListener("click",closeModals); });
 document.querySelectorAll(".modal").forEach(function(m){ m.addEventListener("click",function(e){ if(e.target===m) closeModals(); }); });
@@ -674,15 +692,16 @@ function showHome(){
   buildExamples(document.getElementById("examples"));
 }
 // remember the last results so a page refresh brings them back (cached locally, no new API call)
-var LAST="findrepo_last";
+var LAST="findrepo_last", CACHE_V="2";  // bump when saved markup changes, so stale caches are dropped
 function saveResults(){ try{ var out=document.getElementById("out");
-  localStorage.setItem(LAST, JSON.stringify({ html:out.innerHTML, q:document.getElementById("q").value,
+  localStorage.setItem(LAST, JSON.stringify({ v:CACHE_V, html:out.innerHTML, q:document.getElementById("q").value,
     platform:document.getElementById("platform").value, minstars:document.getElementById("minstars").value,
     starters:document.getElementById("starters").value })); }catch(e){} }
 function clearSaved(){ try{ localStorage.removeItem(LAST); }catch(e){} }
 function restoreResults(){
   var d; try{ d=JSON.parse(localStorage.getItem(LAST)||"null"); }catch(e){}
-  if(!d||!d.html) return false;
+  // only restore a current-version cache that actually holds result cards; else fall back to the landing view
+  if(!d || d.v!==CACHE_V || !d.html || d.html.indexOf("rcard")<0){ clearSaved(); return false; }
   document.getElementById("out").innerHTML=d.html;
   if(d.q!=null) document.getElementById("q").value=d.q;
   if(d.platform!=null) document.getElementById("platform").value=d.platform;
