@@ -390,7 +390,7 @@ def test_stdlib_only_and_no_model_calls():
     """RS1, RS11."""
     src = (ROOT / "scripts" / "scout.py").read_text()
     imports = set(re.findall(r"^\s*(?:import|from)\s+([a-zA-Z_]+)", src, re.M))
-    assert imports <= {"argparse", "csv", "datetime", "io", "json", "math", "os", "re", "sys", "urllib"}, imports
+    assert imports <= {"argparse", "csv", "datetime", "http", "io", "json", "math", "os", "re", "sys", "urllib"}, imports
     assert not re.search(r"anthropic|openai|claude", src, re.I)
 
 
@@ -595,20 +595,24 @@ def test_web_page_is_safe_static(monkeypatch):
     assert "never uploaded" in html
     # RS22: how-to-run-in-Claude-Code and the >10 edge-case CTA both point to the plugin
     assert "/plugin install replore@replore" in html and "/replore:find" in html
-    assert "Use in Claude Code" in html and "PLUGIN_CTA" in html
+    assert "Use the plugin" in html and "PLUGIN_CTA" in html
+    # RS31/RS32: the plugin modal has two tabs — Claude Code one-command, and any other agent via MCP / AGENTS.md
+    assert 'data-tab="cc"' in html and 'data-tab="other"' in html and "mcp_server.py" in html and "AGENTS.md" in html
     assert "passed the filters" in html  # the "want every suitable repo?" plugin banner
-    # RS29c: results-time disclosure that the page is keyword/lexical search, with a link to the plugin
-    assert "LEXICAL_NOTE" in html and "keyword search" in html
+    # RS29c (retired): the per-results keyword-search banner is gone
+    assert "LEXICAL_NOTE" not in html
     # RS29: the redundant "Paid-use OK"/"Completely free" filter chips are collapsed into one commercial-use chip
     assert "Free for commercial use" in html and "data-com=" in html
     assert 'data-paid=' not in html and 'data-free=' not in html
     # RS30: a "Next steps" menu item opens a guidance modal (no model call, points to the plugin)
     assert 'id="nextBtn"' in html and 'id="nextModal"' in html and "Next steps" in html
-    assert "Generate plan" in html and "Build it in Claude Code" in html
+    assert "Generate plan" in html and "Build it with your AI agent" in html
     # RS27a: similar-repo requires text and is narrowed by it (no silent drop); "find similar" alone is blocked
     assert "RS27a" in html and "· matching" in html and "Add a few words too" in html
     # RS29: a persistent "Clear filter" button appears when a non-All filter is active
     assert 'id="resClearBtn"' in html and "Clear filter" in html
+    # search-bar ✕ resets everything (text, similar repo, filters, picks, results) — shared with the logo
+    assert 'id="clearQ"' in html and "function resetAll" in html and 'addEventListener("click",resetAll)' in html
     # light/dark toggle (RS24)
     assert 'id="theme"' in html and "data-theme" in html and "findrepo_theme" in html
     # RS24 Tour: a current screenshot of the live page is committed and embedded (replaces the stale gif)
@@ -664,3 +668,26 @@ def test_workflow_all_group_options():
     assert "ALL: ${{ inputs.all }}" in wf and "GROUP: ${{ inputs.group }}" in wf
     assert '["--all"] if os.environ["ALL"]' in wf and '["--group"] if os.environ["GROUP"]' in wf
 
+
+
+def test_privacy_notice_matches_what_the_code_does():
+    """RS33: the published privacy claims stay true — CI fails if a data flow is added without updating them."""
+    html = (ROOT / "web" / "index.html").read_text()
+    priv = (ROOT / "PRIVACY.md").read_text()
+    readme = (ROOT / "README.md").read_text()
+    assert 'id="privacyModal"' in html and "PRIVACY.md" in html and "privacy-note" in html
+    assert "PRIVACY.md" in readme and "not legal advice" in priv and "Last updated" in priv
+    # "no cookies / no analytics / no tracking" must stay literally true
+    for banned in ("document.cookie", "sessionStorage", "indexedDB", "gtag(", "googletagmanager", "plausible",
+                   "sendBeacon", "posthog", "umami", "analytics.js"):
+        assert banned not in html, banned
+    # only these hosts are contacted; PRIVACY.md names each of them
+    hosts = set(re.findall(r"https://([a-z0-9.-]+)", html))
+    allowed = {"api.github.com", "github.com", "fonts.googleapis.com", "fonts.gstatic.com", "cdnjs.cloudflare.com",
+               "claude.ai", "claude.com", "replore.pages.dev"}
+    assert hosts <= allowed, hosts - allowed
+    for named in ("api.github.com", "Google Fonts", "cdnjs", "Cloudflare", "claude.ai", "security.log", "200 characters"):
+        assert named in priv, named
+    # the hook really writes only on a match, at most 200 chars, locally
+    hook = (ROOT / "hooks" / "security_log.py").read_text()
+    assert "if not hits:" in hook and "text[:200]" in hook and "urllib" not in hook

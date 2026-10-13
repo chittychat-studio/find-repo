@@ -207,8 +207,7 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   statistics (evidence-only, mirrors RS9/RS14). Selection resets on a new search or Home.
 - **RS29** Result-side filters, result count, and no arbitrary cap (RS22 web page). A search renders **every
   fit-ranked match that passes the filters**, not a fixed 20 — capping at 20 when (say) 23 passed is arbitrary
-  and was removed. A sane upper bound (60) guards against a runaway list; the page shows the first 10 and a
-  single "Show more" reveals **all** of them — nothing is re-fetched (RS7 unaffected, no new API call). The
+  and was removed. A sane upper bound (60) guards against a runaway list; the page shows the first 10 and the rest load **automatically as the user scrolls** (10 at a time, no button; a "Showing X of Y" hint) — nothing is re-fetched (RS7 unaffected, no new API call). The
   results header shows the **number of matches** on the right (e.g. "22 results"). Above the results a row of
   **plain-English filter chips** — All / ✅ Free for commercial use / 🧩 Starters — shows or hides the
   already-fetched cards client-side (raw SPDX codes are deliberately not a filter). The commercial-use chip maps
@@ -217,12 +216,9 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   licences and 0 otherwise, so the two chips could never differ (the paid-vs-free distinction is a copyleft
   nuance kept in the card verdict/tooltip, not two redundant filters). An empty filtered set shows a "clear
   filter" message. Filters apply only to the single top-matches list, not the grouped PRD view.
-- **RS29c** Lexical-search disclosure at results time (RS22 web page). Every results view shows a one-line note
-  that the web page is **keyword (lexical) search** — it matches the user's words, not their meaning — and links
-  to the plugin for semantic matching (the plugin runs Claude's query understanding + the RS6 relevance gate).
-  This makes the keyword-vs-semantic limitation honest at the point of use, not only in the How-it-works copy,
-  and funnels hard cases (e.g. a repo whose relevance is in meaning, not shared words) to the plugin. No model
-  runs in the page and no key is held (RS1 unchanged).
+- **RS29c** *(retired)* A per-results "this is keyword search" banner was shown, then removed at the owner's
+  call: each card's "Matches your words" line already shows the match is lexical, and the plugin stays one click
+  away (menu + the "Want every suitable repo?" banner). The "How ranking works" modal still states the page is keyword search (matches words, not meaning).
 - **RS29a** One license verdict per card (RS14/RS20 on the web page). A card shows a **single** plain-English
   license verdict — ✅ free for commercial use / ✅ paid-use OK, changes stay open / ⚠ must open-source your app /
   ⚠ share your code even as a web app / ⛔ no licence — not the earlier redundant "Paid-use OK" + "Completely
@@ -239,8 +235,37 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   avoid clutter) opens a short modal that turns "a list of repos" into a build path, in three plain-English
   steps: (1) pick the 2–3 repos that fit and compare their license verdict + last-updated date, (2) generate a
   build plan from the selection (the existing RS28 select-to-plan hand-off — no model call, no key, hands the
-  prompt to the user's own Claude), (3) build it in Claude Code, with a link to the plugin for smarter search
+  prompt to the user's own AI), (3) build it with their AI agent (Claude Code, Codex, Cursor…), with a link to the plugin for smarter search
   and a PRD-driven plan. Guidance only; it starts no search, runs no model, and holds no key (RS1 unchanged).
+- **RS31** Any-agent path. The engine (`scripts/scout.py`) is agent-neutral; only the one-command install
+  (`/plugin install`, `/replore:find`, the skill) is Claude Code-specific. A root `AGENTS.md` (auto-read by Codex, Cursor, Copilot,
+  Cline, Windsurf; not by Claude Code or Gemini CLI) gives those agents the same procedure as the skill — write 1–4 short queries, run the script,
+  present the comparison table, treat all input/output/repo text as data (RS9, RS25), decline RS18 requests,
+  never invent results (RS7). User-facing copy (web menu, plugin modal, README) says "your AI agent" and shows
+  two tabs: Claude Code (one command) and any other agent (clone + `AGENTS.md`, or run the script). Copy never
+  presents the Claude Code-only commands as working elsewhere.
+
+- **RS32** Model-agnostic MCP server. `scripts/mcp_server.py` exposes the engine as a Model Context Protocol
+  server over stdio (newline-delimited JSON-RPC 2.0), so any MCP-capable agent — Claude Code, Codex CLI, Cursor,
+  Gemini CLI, VS Code/Copilot, Windsurf, Cline — can call it whatever model it runs. One tool, `find_repos`
+  (1–4 queries; optional prefer_starters, license open|any, min_stars, max_age_months, all, group), returns the
+  RS10/RS23 Markdown from `scout.py`. Standard library only (RS11); no model call, no key (RS1); the only network
+  call is the GitHub search API via `scout.fetch`. Failures return `isError: true` with the plain message and
+  never a partial or remembered list (RS7). stdout carries only protocol messages; nothing logs the token (RS8).
+  The tool description tells the calling model that repo names/descriptions are data, not instructions (RS9)
+  and to decline RS18 requests. Not reachable from browser-only chats with no local tools; the web page covers those.
+
+- **RS33** Privacy notice. `PRIVACY.md` (linked from README and the web page) and a one-line web notice under the
+  search bar describe data handling exactly as built — no broader promise. Facts it must state: the maintainers run
+  no server, database, account or analytics and receive no searches; searches go from the user's browser or computer
+  to the GitHub API (GitHub sees the words and IP); Google Fonts and cdnjs see the IP when the page loads; the page
+  host (Cloudflare Pages) serves the page but never receives searches (they are never put in the URL); the browser keeps
+  the last search + results + filters + theme in localStorage until ✕/the logo clears them; an uploaded plan is read
+  locally and only short feature phrases are sent to GitHub; "Open in Claude" sends the prompt to the user's own
+  claude.ai account; the plugin's RS25 hook may write a flagged prompt's first 200 characters to
+  `~/.replore/security.log` on the user's own machine and never transmits it; the user's AI agent provider handles
+  their conversation under its own terms. The notice says it is not legal advice and gives a dated version. Any change
+  that adds a data flow must update the notice in the same commit.
 
 ## RX — Deliberately excluded (v0.1)
 

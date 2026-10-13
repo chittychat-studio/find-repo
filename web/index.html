@@ -8,7 +8,7 @@
   Replore web page (SPEC RS22). Static single file, no build step, no key or token.
   It calls the PUBLIC GitHub search API from the browser (unauthenticated: ~10 searches/minute).
   One external script only: GSAP (motion) from cdnjs, pinned; the page degrades gracefully without it.
-  The browser version uses keyword search; the Claude Code plugin writes smarter queries, runs a
+  The browser version uses keyword search; the plugin (Claude Code, or the script in any AI agent) writes smarter queries, runs a
   relevance check, and reads a whole PRD. There is no AI in this page (a public page can't hold a key).
 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" async crossorigin="anonymous" referrerpolicy="no-referrer"></script>
@@ -90,6 +90,10 @@
   .vb-chip{flex:0 0 auto;background:var(--offbg);border:1px solid var(--line);border-radius:999px;
     padding:9px 14px;font:inherit;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;white-space:nowrap;
     transition:border-color .18s,color .18s,background .18s}
+  .vb-x{flex:0 0 auto;width:26px;height:26px;border-radius:999px;border:0;background:var(--offbg);color:var(--muted);
+    font-size:13px;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
+    transition:background .18s,color .18s}
+  .vb-x:hover{background:var(--line);color:var(--ink)}
   .vb-chip:hover{border-color:var(--accent);color:var(--accent-ink)}
   .vb-chip.on{background:linear-gradient(135deg,var(--accent),var(--accent-ink));border-color:transparent;color:#fff}
   .go-btn{flex:0 0 auto;display:inline-flex;align-items:center;gap:7px;color:#fff;border:0;border-radius:999px;
@@ -294,18 +298,14 @@
   .group-h span{color:var(--muted);font-weight:500}
   .err{color:var(--warn);font-weight:600}
   .excl{font-size:11.5px;color:var(--muted);margin:14px 4px 4px}
-  .lex-note{font-size:12.5px;color:var(--muted);margin:2px 4px 12px;line-height:1.4}
-  .lex-note b{color:var(--ink);font-weight:700}
+  .privacy-note{text-align:center;font-size:12.5px;color:var(--muted);margin:10px auto 0;max-width:620px;line-height:1.45}
   /* result-side filter chips + show-more */
   .res-filter{display:flex;flex-wrap:wrap;gap:8px;margin:0 4px 14px}
   .rfilter{background:var(--offbg);border:1px solid var(--line);border-radius:999px;padding:7px 13px;font:inherit;
     font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;transition:border-color .18s,color .18s,background .18s}
   .rfilter:hover{border-color:var(--accent);color:var(--accent-ink)}
   .rfilter.on{background:linear-gradient(135deg,var(--accent),var(--accent-ink));border-color:transparent;color:#fff}
-  .res-more-wrap{display:flex;justify-content:center;margin:6px 0 2px}
-  .res-more{background:var(--offbg);border:1px solid var(--line);border-radius:999px;padding:10px 22px;font:inherit;
-    font-size:13.5px;font-weight:600;color:var(--accent-ink);cursor:pointer;transition:border-color .18s,transform .12s}
-  .res-more:hover{border-color:var(--accent);transform:translateY(-1px)}
+  .res-more-hint{text-align:center;color:var(--muted);font-size:12.5px;margin:10px 4px 2px;min-height:18px}
   .res-empty{text-align:center;color:var(--muted);font-size:14px;margin:18px 4px}
 
   /* empty-state explainer (the animated "how it works") */
@@ -319,7 +319,7 @@
   .demo-card{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
     gap:8px;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:26px 24px;
     box-shadow:0 20px 44px -24px rgba(var(--shadow),.6);opacity:0;transform:translateY(14px) scale(.97);
-    transition:opacity .55s ease,transform .55s cubic-bezier(.22,1,.36,1);pointer-events:none}
+    transition:opacity .35s ease,transform .35s cubic-bezier(.22,1,.36,1);pointer-events:none}
   .demo-card.on{opacity:1;transform:none}
   .demo-card .ico{font-size:44px;line-height:1}
   .demo-card .t{font-family:"Spectral",Georgia,serif;font-weight:800;font-size:20px}
@@ -359,6 +359,12 @@
   .cmd .copy{position:absolute;top:8px;right:8px;background:var(--card);border:1px solid var(--line);border-radius:7px;
     padding:3px 10px;font:inherit;font-size:11.5px;font-weight:700;color:var(--accent-ink);cursor:pointer;line-height:1.5}
   .cmd .copy:hover{border-color:var(--accent)}
+  .guide-h{margin:18px 0 2px;font-size:13px;font-weight:800;letter-spacing:.02em;text-transform:uppercase;color:var(--accent-ink)}
+  .tabs{display:flex;gap:4px;margin:16px 0 4px;border-bottom:1px solid var(--line)}
+  .tab{background:none;border:0;border-bottom:2px solid transparent;padding:8px 13px;margin-bottom:-1px;
+    font:inherit;font-weight:700;font-size:14px;color:var(--muted);cursor:pointer}
+  .tab:hover{color:var(--accent-ink)}
+  .tab.on{color:var(--accent-ink);border-bottom-color:var(--accent)}
   .guide{margin:10px 0 0;padding-left:22px}
   .guide li{margin:0 0 12px;line-height:1.55;font-size:14.5px}
   .guide li::marker{color:var(--accent-ink);font-weight:700}
@@ -374,6 +380,8 @@
     .chips{max-height:none}
     .hero-title{font-size:32px}
     .vibebar{gap:6px;padding:6px 6px 6px 16px}
+    .vb-x{position:relative}
+    .vb-x::after{content:"";position:absolute;inset:-9px}   /* ~44px tap target, same visual size */
     .vb-chip{padding:9px 11px;font-size:0}          /* collapse to just the ⚙ glyph, free up the input */
     .vb-chip::before{content:"⚙";font-size:15px}
     .go-btn{width:46px;padding:0;justify-content:center;font-size:0}  /* arrow-only, frees room for the text */
@@ -410,7 +418,7 @@
     </svg><h1>Replore</h1></div>
   <nav class="nav" id="nav">
     <button id="tourBtn" class="nav-btn" title="Watch how it works">▶ Tour</button>
-    <button id="pluginBtn" class="nav-btn" title="Step-by-step: use the plugin in Claude Code">⌘ Use in Claude Code</button>
+    <button id="pluginBtn" class="nav-btn" title="Use the plugin in Claude Code, Codex, Cursor or any AI agent">⌘ Use the plugin</button>
     <button id="aboutBtn" class="nav-btn" title="How results are ranked">ⓘ How ranking works</button>
     <button id="nextBtn" class="nav-btn" title="Found repos — what to do next">🧭 Next steps</button>
     <a id="starBtn" class="nav-btn nav-star" href="https://github.com/chittychat-studio/replore" target="_blank" rel="noopener" title="If Replore helped, a star on GitHub means a lot — thank you!">★ Like our work? Star us</a>
@@ -430,6 +438,7 @@
       <div class="vibebar">
         <span class="vb-ico" aria-hidden="true">✦</span>
         <textarea id="q" rows="1" placeholder="whats vibing?" aria-label="What are you building?"></textarea>
+        <button id="clearQ" class="vb-x" type="button" title="Clear search" aria-label="Clear search" hidden>✕</button>
         <button id="optsBtn" class="vb-chip" type="button" aria-haspopup="dialog" title="Narrow by platform, stack, stars">⚙ Filters</button>
         <button id="go" class="go-btn" title="Find repos">Find <span class="arr">→</span></button>
       </div>
@@ -447,6 +456,8 @@
       </div>
 
       <div id="quickpicks" class="quickpicks" aria-label="Quick examples to try"></div>
+      <p class="privacy-note">🔒 Your ideas stay yours — no account, no tracking, nothing sent to us. Searches go straight from
+        your browser to GitHub. <button type="button" class="link-btn" onclick="openModal('privacyModal')">Privacy</button></p>
 
       <div id="status" class="status"></div>
     </div>
@@ -469,8 +480,8 @@
   <button class="x" data-close>&times;</button>
   <h2>Turn your picks into a build plan</h2>
   <p class="mut">A build plan (a PRD — product requirements doc) your AI can code straight from. Replore doesn't
-    write it — your <b>own</b> Claude does, free and private. Copy the prompt below into Claude Code (with the
-    Replore plugin) or paste it into Claude. It lists the repos you selected.</p>
+    write it — your <b>own</b> AI does, free and private. Copy the prompt below into any AI agent (Claude Code,
+    Codex, Cursor…) or open it in Claude. It lists the repos you selected.</p>
   <div class="prd-prompt">
     <pre class="cmd" id="prdPrompt" data-copy-ready="1" style="margin:0;max-height:240px;overflow:auto;white-space:pre-wrap;padding-right:46px"></pre>
     <button id="prdCopy" class="copy" title="Copy prompt" aria-label="Copy prompt">⧉</button>
@@ -526,28 +537,52 @@
     Replore hands the picks to your <b>own</b> Claude (Copy, or Open in Claude), which writes a full build plan
     (a PRD) you can code straight from — free and private.</p>
   <p class="mut" style="margin-top:12px">For AI-written searches, a relevance check, and a whole PRD read feature
-    by feature, use the Claude Code plugin.</p>
+    by feature, use the plugin (Claude Code, Codex, Cursor or any AI agent).</p>
 </div></div>
 
 <div class="modal" id="pluginModal"><div class="sheet">
   <button class="x" data-close>&times;</button>
-  <h2>Use Replore in Claude Code</h2>
-  <p class="mut">New to this? Do these once. The plugin writes smarter searches with AI, checks each result
-    actually fits, reads a whole PRD feature by feature, and shows every suitable repo — not just 10. Free &amp; open-source.</p>
+  <h2>Use Replore in your AI agent</h2>
+  <p class="mut">The smart version has your AI write the searches, judge which results fit, and show every suitable
+    repo — not just this page's list. In Claude Code it also reads a whole PRD feature by feature. Free &amp;
+    open-source. Pick your agent:</p>
+
+  <div class="tabs" role="tablist" aria-label="Which AI agent">
+    <button type="button" class="tab on" data-tab="cc" role="tab" id="tab-cc" aria-controls="panel-cc" aria-selected="true">Claude Code</button>
+    <button type="button" class="tab" data-tab="other" role="tab" id="tab-other" aria-controls="panel-other" aria-selected="false" tabindex="-1">Codex, Cursor &amp; others</button>
+  </div>
+
+  <div class="tabpanel" data-panel="cc" role="tabpanel" id="panel-cc" aria-labelledby="tab-cc">
   <ol class="guide">
-    <li><b>Get Claude Code</b> — a free AI coding assistant that runs in your terminal. Install it from
-      <a href="https://claude.com/claude-code" target="_blank" rel="noopener">claude.com/claude-code</a> and sign in.</li>
-    <li><b>Check Python 3.11+</b> — in your terminal, run <code>python3 --version</code>. If it's missing: on Windows
-      install from python.org (tick <i>"Add python.exe to PATH"</i>); on a Mac run <code>brew install python</code>.</li>
-    <li><b>Open Claude Code</b> in any folder — type <code>claude</code> in your terminal and press Enter.</li>
-    <li><b>Add the plugin</b> — paste each line and press Enter:
+    <li><b>Get Claude Code</b> — a free AI coding assistant for your terminal:
+      <a href="https://claude.com/claude-code" target="_blank" rel="noopener">claude.com/claude-code</a>. Check
+      Python 3.11+ with <code>python3 --version</code> (Windows: python.org, tick <i>"Add python.exe to PATH"</i>; Mac: <code>brew install python</code>).</li>
+    <li><b>Add the plugin</b> — type <code>claude</code> in any folder, then paste:
       <pre class="cmd">/plugin marketplace add chittychat-studio/replore
 /plugin install replore@replore</pre></li>
-    <li><b>Find repos</b> — describe what you're building in plain words:
-      <pre class="cmd">/replore:find a diet app for iPhone, starting from scratch</pre></li>
-    <li><b>Read the results</b> — you get a table: the repo, how popular it is (stars), whether it's free to use
-      in a paid product, and <i>why</i> it fits. Pick one and start building.</li>
+    <li><b>Find repos</b> — <pre class="cmd">/replore:find a diet app for iPhone, starting from scratch</pre></li>
   </ol>
+  </div>
+
+  <div class="tabpanel" data-panel="other" role="tabpanel" id="panel-other" aria-labelledby="tab-other" hidden>
+  <p class="mut" style="margin:10px 0 0">Works with any model — Codex, Cursor, Gemini CLI, VS Code Copilot, Windsurf,
+    Cline — through MCP (Model Context Protocol), the open tool-connection standard all of them support.</p>
+  <ol class="guide">
+    <li><b>Get Replore</b> — needs Python 3.11+ and git (or on GitHub click <i>Code → Download ZIP</i> and unzip).
+      On Windows type <code>python</code> wherever it says <code>python3</code>.
+      <pre class="cmd">git clone https://github.com/chittychat-studio/replore</pre>
+      Then <code>cd replore</code> and run <code>pwd</code> (Windows: <code>cd</code>) — that prints the full path you need next.</li>
+    <li><b>Add Replore to your agent's MCP config file</b> — command <code>python3</code>, argument
+      <code>&lt;that path&gt;/scripts/mcp_server.py</code>. Add the <code>replore</code> entry inside the existing list;
+      don't replace the file. Then restart the agent. The exact file and snippet for each agent are in the
+      <a href="https://github.com/chittychat-studio/replore#use-in-any-other-ai-agent" target="_blank" rel="noopener">README</a>.</li>
+    <li><b>Ask your agent</b> — <i>"find repos for a diet app for iPhone"</i>. It calls Replore's
+      <code>find_repos</code> tool and shows the comparison table.</li>
+  </ol>
+  <p class="mut" style="margin-top:10px">No MCP? Open the cloned folder in your agent. Codex, Cursor, Copilot, Cline
+    and Windsurf read <code>AGENTS.md</code> automatically; with any other agent say <i>"follow AGENTS.md"</i>. It then
+    runs <code>scripts/scout.py</code> itself.</p>
+  </div>
   <p class="mut" style="margin-top:12px">Stuck? Full guide:
     <a href="https://github.com/chittychat-studio/replore" target="_blank" rel="noopener">github.com/chittychat-studio/replore</a>.</p>
 </div></div>
@@ -560,11 +595,32 @@
     <li><b>Pick the ones that fit</b> — tick <i>＋ Add to plan</i> on the 2–3 cards you like. Compare them:
       check the license verdict (can you use it in a paid product?) and the <i>updated</i> date before you commit to one.</li>
     <li><b>Get a build plan</b> — hit <i>Generate plan</i> on the bar that appears. Replore turns your picks plus
-      what you're building into a step-by-step prompt — no AI runs here, it hands the prompt to <b>your own</b> Claude.</li>
-    <li><b>Build it in Claude Code</b> — paste the plan (or open it in Claude) and start shipping. Want smarter
-      search and a feature-by-feature plan from a whole PRD? <button type="button" class="link-btn" onclick="openModal('pluginModal')">Use the plugin</button>.</li>
+      what you're building into a step-by-step prompt — no AI runs here, it hands the prompt to <b>your own</b> AI.</li>
+    <li><b>Build it with your AI agent</b> — paste the plan into Claude Code, Codex, Cursor or any agent and start
+      shipping. Want smarter search and a feature-by-feature plan from a whole PRD? <button type="button" class="link-btn" onclick="openModal('pluginModal')">Use the plugin</button>.</li>
   </ol>
   <p class="mut" style="margin-top:12px">Remember: stars are popularity, not quality, and a license is a plain summary, not legal advice.</p>
+</div></div>
+
+<div class="modal" id="privacyModal"><div class="sheet">
+  <button class="x" data-close>&times;</button>
+  <h2>Privacy</h2>
+  <p class="mut">Replore has no account, no server, no database and no analytics. The people who make it never receive
+    your ideas, searches or plans.</p>
+  <ul class="guide">
+    <li><b>Your search words</b> go from your browser straight to <b>GitHub</b> (with your IP address) to run the search.</li>
+    <li><b>When the page loads</b>, Cloudflare (hosting), Google Fonts and cdnjs see your IP address — not what you search.
+      Searches are never put in the page address.</li>
+    <li><b>On your device only:</b> your last search, results and filters, so a refresh brings them back. Tap <b>✕</b> in the
+      search bar or the Replore logo to delete them.</li>
+    <li><b>Uploaded plans</b> are read in your browser and never uploaded; only short feature phrases are searched on GitHub.</li>
+    <li><b>Open in Claude</b> sends the build-plan prompt to your own claude.ai account, only when you click it.</li>
+    <li>No cookies, ads or tracking pixels from Replore.</li>
+  </ul>
+  <p class="mut" style="margin-top:10px">The plugin and MCP server run on your computer; your AI provider handles your
+    conversation under its own terms. Full details, including the plugin's local safety log:
+    <a href="https://github.com/chittychat-studio/replore/blob/main/PRIVACY.md" target="_blank" rel="noopener">PRIVACY.md</a>.
+    This is a plain description of how Replore works, not legal advice.</p>
 </div></div>
 
 <div class="modal" id="aboutModal"><div class="sheet">
@@ -572,8 +628,9 @@
   <h2>About the results</h2>
   <p class="mut">Results are ranked by <b>fit</b> — how well a repo matches your words, how popular it is (stars),
     and how freely you can use its license — so the top pick is relevant <i>and</i> popular <i>and</i> free to use,
-    not just the most-starred. Each card says why it's relevant. The
-    <a href="https://github.com/chittychat-studio/replore" target="_blank" rel="noopener">Claude Code plugin</a>
+    not just the most-starred. Each card says why it's relevant. This page is <b>keyword search</b>: it matches
+    your words, not their meaning. The
+    <a href="https://github.com/chittychat-studio/replore" target="_blank" rel="noopener">plugin</a>
     goes further: it writes smarter searches with AI, runs a semantic relevance check, and reads a whole plan
     feature by feature. Results are GitHub search matches, not a scan of every repository. Stars measure
     popularity, not quality, and can be bought. "Completely free?" and "OK in a paid product?" are read from the
@@ -638,6 +695,7 @@ function keywordQueries(text, platform){
   return qs.slice(0,MAX_QUERIES).map(function(q){return (q+ex).trim();});
 }
 
+window.__runGen=0;   // search generation: resetAll() and each new search bump it (stale async results are dropped)
 async function search(q){
   // best-match (relevance) order seeds the fit ranking (RS2/RS5); stars are still in each result and weigh in RS5
   var url="https://api.github.com/search/repositories?q="+encodeURIComponent(q+" fork:false archived:false is:public")
@@ -772,13 +830,8 @@ function attachTilt(container, reduce){
 }
 
 var PLUGIN_CTA='<div class="cta-inline"><b>Want every suitable repo?</b> MORE_LINE'+
-  'Run the plugin in Claude Code for every match that passes the filters — and a build plan feature by feature. '+
+  'Run the plugin in your AI agent (Claude Code, Codex, Cursor…) for every match that passes the filters — and a build plan feature by feature. '+
   '<button class="link-btn" onclick="openModal(\'pluginModal\')">Show commands →</button></div>';
-
-// results-time honesty note: the web page is keyword (lexical) search; semantic matching lives in the plugin (RS22/RS29c)
-var LEXICAL_NOTE='<p class="lex-note mut">🔍 This is <b>keyword search</b> — it matches your words, not their meaning. '+
-  'For semantic matches that understand what you mean, '+
-  '<button type="button" class="link-btn" onclick="openModal(\'pluginModal\')">use the plugin</button>.</p>';
 
 // result-side filter chips (filter the already-fetched cards, no new API calls — RS29)
 var RES_FILTERS=[["all","All"],["com","✅ Free for commercial use"],["starter","🧩 Starters"]];
@@ -793,12 +846,11 @@ function render(top, queries, excluded, totalMatches, qtokens, heading, note){
   var more=(totalMatches||top.length)-top.length;   // >0 only if we hit the render cap (rare)
   var h='<div class="res-head"><h2>'+(heading?esc(heading):'Top matches')+'</h2>'+
       '<span class="res-count mut">'+top.length+' result'+(top.length===1?'':'s')+'</span></div>'+
-    LEXICAL_NOTE+
     (note?'<p class="res-note mut">'+note+'</p>':'')+  /* note is pre-built HTML: repo name already escaped, rest is our own markup */
     filterBar()+
     '<div class="grid">'+top.map(function(r,i){return cardHtml(r,i,qtokens);}).join("")+'</div>'+
     '<div id="resEmpty" class="res-empty" hidden>No results match this filter. <button type="button" class="link-btn" id="resClear">Clear filter</button></div>'+
-    '<div class="res-more-wrap"><button type="button" id="resMore" class="res-more" hidden>Show more ▾</button></div>'+
+    '<div id="resMore" class="res-more-hint" aria-live="polite" hidden></div>'+   /* scroll sentinel: auto-reveals more (RS29) */
     '<p class="excl">Searches: '+esc(queries.join("; "))+' · Excluded — not open-source: '+excluded.license+
     ', too old: '+excluded.stale+', too few stars: '+excluded.low+', forks/archived: '+excluded.fork+
     ', harmful: '+excluded.harm+'</p>';
@@ -819,11 +871,21 @@ function applyResultFilter(){
   }
   var empty=out.querySelector("#resEmpty"); if(empty) empty.hidden = matched>0;
   var more=out.querySelector("#resMore");
-  if(more){ if(matched>shown){ more.hidden=false; more.textContent="Show more ("+shown+" of "+matched+") ▾"; } else more.hidden=true; }
+  if(more){ if(matched>shown){ more.hidden=false; more.textContent="Showing "+shown+" of "+matched+" · scroll for more"; } else more.hidden=true; }
   var chips=out.querySelectorAll(".rfilter"); for(var j=0;j<chips.length;j++) chips[j].classList.toggle("on", chips[j].getAttribute("data-f")===f);
   var cb=out.querySelector("#resClearBtn"); if(cb) cb.hidden=(f==="all");  // show "Clear filter" only when a filter is active
 }
-function initResultFilter(){ window.__resFilter="all"; window.__resLimit=10; applyResultFilter(); }
+// infinite scroll: no button — when the sentinel nears the viewport, reveal 10 more (cards are already fetched; no API call)
+function checkMore(){ requestAnimationFrame(function(){ var s=document.querySelector("#out #resMore");
+  if(s && !s.hidden && s.getBoundingClientRect().top < window.innerHeight+400) revealMore(); }); }
+function revealMore(){ window.__resLimit=(window.__resLimit||10)+10; applyResultFilter(); checkMore(); }
+function watchMore(){ var s=document.querySelector("#out #resMore"); if(!s) return;
+  if(window.__moreObs) window.__moreObs.disconnect();
+  if(!("IntersectionObserver" in window)){ window.__resLimit=9999; applyResultFilter(); return; }   // old browsers: show all
+  window.__moreObs=new IntersectionObserver(function(es){
+    for(var i=0;i<es.length;i++) if(es[i].isIntersecting){ revealMore(); break; } },{rootMargin:"0px 0px 400px 0px"});
+  window.__moreObs.observe(s); }
+function initResultFilter(){ window.__resFilter="all"; window.__resLimit=10; applyResultFilter(); watchMore(); checkMore(); }
 
 // RS21: ready-made prompts the user can click to fill the box.
 var EXAMPLES=[
@@ -942,11 +1004,12 @@ function renderGrouped(groups, excluded, note){
   return h;
 }
 
-async function runFeatures(features, minStars, platform, preferStarters, out, st){
+async function runFeatures(features, minStars, platform, preferStarters, out, st, gen){
   var ex2=platform==="ios"?" -topic:macos":"", stack=(document.getElementById("stack").value||"").trim().slice(0,40);
   var excluded={license:0,stale:0,low:0,fork:0,harm:0}, seen={}, groups=[];
   for(var i=0;i<features.length;i++){ st.textContent="Searching feature "+(i+1)+"/"+features.length+"…";
     var items=await search((features[i]+(stack?" "+stack:"")+ex2).trim());
+    if(gen!==window.__runGen) return;   // reset or a newer search happened: drop these results
     var kept=keep(items,minStars,platform,excluded,seen);  // shared seen map (RS5 cross-query rel), not a Set
     var floor=kept.reduce(function(m,r){return Math.max(m,r.stars);},0)*STARTER_MIN_SHARE;
     kept.forEach(function(r){ r.fit=fitScore(r,preferStarters,floor); });
@@ -955,8 +1018,8 @@ async function runFeatures(features, minStars, platform, preferStarters, out, st
   }
   out.innerHTML=renderGrouped(groups,excluded,
     "From your PRD (read on your device, never uploaded). Browser mode covers the first "+features.length+
-    " features; the Claude Code plugin reads them all.");
-  animateCards(out); st.textContent=""; saveResults();
+    " features; the plugin reads them all.");
+  animateCards(out); st.textContent=""; saveResults(); syncClearQ();
 }
 
 // "Find similar ones": accept owner/repo or a GitHub URL, look up its topics/language, search those (RS27)
@@ -992,7 +1055,7 @@ async function run(){
   var stack=(document.getElementById("stack").value||"").trim().slice(0,80);
   var like=(document.getElementById("like").value||"").trim();
   var st=document.getElementById("status"), out=document.getElementById("out"), go=document.getElementById("go");
-  stopDemo("heroDemo"); out.innerHTML=""; if(window.__resetPicks) window.__resetPicks();
+  stopDemo("heroDemo"); out.innerHTML=""; if(window.__resetPicks) window.__resetPicks(); syncClearQ();
   if(!text && !like){ st.textContent="Type what you're building, or paste a repo to find similar ones."; return; }
   if(like && !text){   // similar-repo search needs words too, so results are narrowed to what you actually want (RS27a)
     st.textContent="Add a few words too — what kind of repos like this? e.g. “free ai call”, then Find.";
@@ -1003,6 +1066,7 @@ async function run(){
     '<p class="mut">For learning security on systems you own, try: "learn web security by hacking a practice app".</p></div>'; return; }
 
   window.__busy=true; setGoBusy(true); st.textContent=""; window.__likeNote="";
+  var gen=++window.__runGen;   // a reset or newer search bumps this; stale results are dropped
   try{
     var queries, heading=null, seen={}, qtok;
     if(like){
@@ -1010,12 +1074,13 @@ async function run(){
       if(!target) throw new Error("Enter a repo as owner/repo or a GitHub link, e.g. vercel/next.js.");
       st.textContent="Looking up "+target+"…";
       var meta=await repoMeta(target);
+      if(gen!==window.__runGen) return;
       queries=altQueries(meta,platform);
       if(!queries.length) throw new Error("That repo has no topics or description to search from.");
       if(!(meta.topics||[]).length && !text)   // no topics AND no typed words → note explains we matched on description; with text, the words drive the search so the note is moot (RS27a)
         window.__likeNote="“"+esc(clean(meta.full_name||target))+"” has no GitHub topics, so we matched on its description. "+
           "For matches based on what the repo actually does, the plugin reads the repo itself. "+
-          "<button type=\"button\" class=\"link-btn\" onclick=\"openModal('pluginModal')\">Use in Claude Code</button>";
+          "<button type=\"button\" class=\"link-btn\" onclick=\"openModal('pluginModal')\">Use the plugin</button>";
       seen[clean(meta.full_name||target)]=null;  // exclude the original repo from the results (RS27)
       heading="Repos like "+(meta.full_name||target);
       if(text){  // combine: narrow the similar-repo search by the typed words (RS27a)
@@ -1031,12 +1096,13 @@ async function run(){
     var excluded={license:0,stale:0,low:0,fork:0,harm:0}, lists=[];
     for(var i=0;i<queries.length;i++){ st.textContent="Searching ("+(i+1)+"/"+queries.length+")…";
       var items=await search(queries[i]);
+      if(gen!==window.__runGen) return;
       lists.push(keep(items,minStars,platform,excluded,seen)); }
     var ranked=rankByFit(lists,preferStarters), top=ranked.slice(0,60);  // sane upper bound; we no longer cap at 20
     out.innerHTML=render(top,queries,excluded,ranked.length,qtok,heading,window.__likeNote||"");
-    animateCards(out); initResultFilter(); st.textContent=""; saveResults();
-  }catch(e){ st.textContent=""; out.innerHTML='<div class="panel"><p class="err">'+esc(e.message)+'</p></div>'; }
-  finally{ setGoBusy(false); window.__busy=false; }
+    animateCards(out); initResultFilter(); st.textContent=""; saveResults(); syncClearQ();
+  }catch(e){ if(gen!==window.__runGen) return; st.textContent=""; out.innerHTML='<div class="panel"><p class="err">'+esc(e.message)+'</p></div>'; }
+  finally{ if(gen===window.__runGen){ setGoBusy(false); window.__busy=false; } }
 }
 document.getElementById("go").addEventListener("click",run);
 document.getElementById("prd").addEventListener("change",function(e){
@@ -1049,10 +1115,10 @@ document.getElementById("prd").addEventListener("change",function(e){
     if(!features.length){ out.innerHTML='<div class="panel"><p class="err">Couldn’t find features in that file. Use bullet points or short requirement lines.</p></div>'; return; }
     var minStars=Math.max(0,parseInt(document.getElementById("minstars").value,10)||0);
     var platform=document.getElementById("platform").value, preferStarters=document.getElementById("starters").value==="yes";
-    setGoBusy(true); out.innerHTML="";
-    try{ await runFeatures(features,minStars,platform,preferStarters,out,st); }
-    catch(err){ st.textContent=""; out.innerHTML='<div class="panel"><p class="err">'+esc(err.message)+'</p></div>'; }
-    finally{ setGoBusy(false); e.target.value=""; } };
+    setGoBusy(true); out.innerHTML=""; var gen=++window.__runGen;
+    try{ await runFeatures(features,minStars,platform,preferStarters,out,st,gen); }
+    catch(err){ if(gen===window.__runGen){ st.textContent=""; out.innerHTML='<div class="panel"><p class="err">'+esc(err.message)+'</p></div>'; } }
+    finally{ if(gen===window.__runGen) setGoBusy(false); e.target.value=""; } };
   rd.onerror=function(){ out.innerHTML='<div class="panel"><p class="err">Could not read that file.</p></div>'; };
   rd.readAsText(f);
 });
@@ -1095,6 +1161,20 @@ function closeModals(){ var any=false, m=document.querySelectorAll(".modal");
   });
 })();
 document.getElementById("pluginBtn").addEventListener("click",function(){ openModal("pluginModal"); });
+// plugin-modal tabs: Claude Code vs any other agent (ARIA tab pattern: click, ←/→/Home/End, roving tabindex)
+(function(){ var pm=document.getElementById("pluginModal"); if(!pm) return;
+  function tabs(){ return Array.prototype.slice.call(pm.querySelectorAll(".tab")); }
+  function select(t, focus){ var which=t.getAttribute("data-tab");
+    tabs().forEach(function(b){ var on=b===t; b.classList.toggle("on",on); b.setAttribute("aria-selected",on?"true":"false"); b.tabIndex=on?0:-1; });
+    pm.querySelectorAll(".tabpanel").forEach(function(p){ p.hidden = p.getAttribute("data-panel")!==which; });
+    if(focus) t.focus(); }
+  pm.addEventListener("click",function(e){ var t=e.target.closest&&e.target.closest(".tab"); if(t) select(t,false); });
+  pm.addEventListener("keydown",function(e){ var t=e.target.closest&&e.target.closest(".tab"); if(!t) return;
+    var all=tabs(), i=all.indexOf(t), n=all.length, j=null;
+    if(e.key==="ArrowRight") j=(i+1)%n; else if(e.key==="ArrowLeft") j=(i-1+n)%n;
+    else if(e.key==="Home") j=0; else if(e.key==="End") j=n-1;
+    if(j!==null){ e.preventDefault(); select(all[j],true); } });
+})();
 // Filters chip and "Find similar repos" tile each open a popup window
 document.getElementById("optsBtn").addEventListener("click",function(){ openModal("filtersModal"); });
 document.getElementById("likeTile").addEventListener("click",function(){ openModal("likeModal"); });
@@ -1151,9 +1231,8 @@ document.addEventListener("keydown",function(e){ if(e.key==="Escape") closeModal
   // result-filter chips + show-more + clear (delegated, survives re-render)
   out.addEventListener("click",function(e){ var t=e.target;
     var fb=t.closest&&t.closest(".rfilter");
-    if(fb){ window.__resFilter=fb.getAttribute("data-f"); window.__resLimit=10; applyResultFilter(); return; }
-    if(t.closest&&t.closest("#resMore")){ window.__resLimit=9999; applyResultFilter(); return; }
-    if(t.closest&&t.closest("#resClear")){ window.__resFilter="all"; window.__resLimit=10; applyResultFilter(); } });
+    if(fb){ window.__resFilter=fb.getAttribute("data-f"); window.__resLimit=10; applyResultFilter(); checkMore(); return; }
+    if(t.closest&&t.closest("#resClear")){ window.__resFilter="all"; window.__resLimit=10; applyResultFilter(); checkMore(); } });
   function buildPrompt(){
     var q=(document.getElementById("q").value||"").trim() || "my project";
     var list=picks.map(function(r,i){ return (i+1)+". "+r.name+" — "+r.url+(r.desc?"\n   "+r.desc:""); }).join("\n");
@@ -1224,7 +1303,7 @@ function buildDemo(host){
   function show(n){ cards[cur].classList.remove("on"); dots[cur].classList.remove("on");
     cur=(n+cards.length)%cards.length; cards[cur].classList.add("on"); dots[cur].classList.add("on"); }
   function stop(){ if(timer){ clearInterval(timer); timer=null; } }
-  function play(){ stop(); if(!reduce && cards.length>1) timer=setInterval(function(){ show(cur+1); },2600); }
+  function play(){ stop(); if(!reduce && cards.length>1) timer=setInterval(function(){ show(cur+1); },1500); }   // faster cadence (was 2600ms)
   host.__stopDemo=stop; host.__playDemo=play;   // let the view/modal clear this timer so it can't leak
   for(var i=0;i<dots.length;i++){ (function(d){ d.addEventListener("click",function(){ show(+d.getAttribute("data-i")); play(); }); })(dots[i]); }
   host.addEventListener("mouseenter",stop); host.addEventListener("mouseleave",play);
@@ -1242,7 +1321,7 @@ function showHome(){
   if(window.__resetPicks) window.__resetPicks();
 }
 // remember the last results so a page refresh brings them back (cached locally, no new API call)
-var LAST="findrepo_last", CACHE_V="3";  // bump when saved markup changes, so stale caches are dropped
+var LAST="findrepo_last", CACHE_V="4";  // bump when saved markup changes, so stale caches are dropped
 // strip any inline opacity/transform the animation left on cards, so the cache never stores invisible cards
 function cleanCards(root){ var c=root.querySelectorAll(".rcard"); for(var i=0;i<c.length;i++){ c[i].style.opacity=""; c[i].style.transform=""; } }
 function saveResults(){ try{ var out=document.getElementById("out"); cleanCards(out);
@@ -1261,17 +1340,34 @@ function restoreResults(){
   if(d.starters!=null) document.getElementById("starters").value=d.starters;
   if(d.stack!=null) setStack(d.stack);
   var out=document.getElementById("out"); cleanCards(out);   // ensure restored cards are visible even if an old cache baked in opacity:0
-  document.getElementById("status").textContent="Restored your last results — click the Replore logo (top-left) to start over.";
-  animateCards(out); initResultFilter();
+  document.getElementById("status").textContent="Restored your last results — tap ✕ in the search bar to start over.";
+  animateCards(out); initResultFilter(); syncClearQ();
   return true;
 }
 if(!restoreResults()) showHome();
 // Home: clicking the Replore logo clears results and returns to the start; Tour: the how-it-works walkthrough
-(function(){ var brand=document.getElementById("brandHome"); if(!brand) return;
-  function goHome(){ clearSaved(); document.getElementById("q").value=""; setStack("");
-    document.getElementById("status").textContent=""; showHome(); document.getElementById("q").focus(); }
-  brand.addEventListener("click",goHome);
-  brand.addEventListener("keydown",function(e){ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); goHome(); } });
+// full reset: text, similar-repo, every filter, picked repos, results and cached search (search-bar ✕ and logo)
+function resetAll(){
+  window.__runGen++; window.__busy=false; setGoBusy(false);   // abandon any in-flight search so it can't repaint later
+  clearSaved(); closeModals();
+  ["q","like"].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=""; });
+  ["platform","starters"].forEach(function(id){ var el=document.getElementById(id); if(!el) return;
+    var d=el.querySelector("option[selected]"); el.value = d ? d.value : (el.options[0]&&el.options[0].value); });
+  var ms=document.getElementById("minstars"); if(ms) ms.value=ms.defaultValue;
+  setStack(""); window.__resFilter="all"; window.__resLimit=10;
+  var si=document.getElementById("stackInput"); if(si) si.value="";
+  var sm=document.getElementById("stackMenu"); if(sm){ sm.hidden=true; sm.innerHTML=""; }
+  document.getElementById("status").textContent=""; showHome();
+  syncClearQ(); document.getElementById("q").focus();
+}
+function syncClearQ(){ var x=document.getElementById("clearQ"); if(!x) return;
+  x.hidden = !((document.getElementById("q").value||"").trim() || (document.getElementById("like").value||"").trim()
+    || document.querySelector("#out .rcard, #out .group-h, #out .err")); }   // results on screen also count
+(function(){ var brand=document.getElementById("brandHome"), x=document.getElementById("clearQ");
+  if(brand){ brand.addEventListener("click",resetAll);
+    brand.addEventListener("keydown",function(e){ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); resetAll(); } }); }
+  if(x) x.addEventListener("click",resetAll);
+  ["q","like"].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener("input",syncClearQ); });
 })();
 document.getElementById("tourBtn").addEventListener("click",function(){ openModal("howModal"); });
 
