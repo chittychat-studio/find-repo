@@ -660,6 +660,8 @@ function keep(items, minStars, platform, excluded, seen){
 }
 
 // ---- fit ranking (RS5): relevant + popular + free to use at the top ----
+// tie-break on most-recent push (ISO date strings sort lexically), matching scout.py's -_pushed before name
+function cmpPushed(a,b){ var x=a.pushed||"", y=b.pushed||""; return x<y?1:(x>y?-1:0); }
 function fitScore(r, preferStarters, floor){
   var relScore=1-Math.min(1,(r.rel||0)/20);                           // best-match position (RS2); top match = 1
   var starScore=Math.min(1,Math.log10((r.stars||0)+1)/5);             // log-scaled popularity (~100k stars = 1)
@@ -673,7 +675,7 @@ function rankByFit(lists, preferStarters){
     var floor=lists[i].reduce(function(m,r){return Math.max(m,r.stars);},0)*STARTER_MIN_SHARE;
     for(var j=0;j<lists[i].length;j++){ lists[i][j].fit=fitScore(lists[i][j],preferStarters,floor); all.push(lists[i][j]); }
   }
-  all.sort(function(a,b){ return b.fit-a.fit || b.stars-a.stars || a.name.localeCompare(b.name); });
+  all.sort(function(a,b){ return b.fit-a.fit || b.stars-a.stars || cmpPushed(a,b) || a.name.localeCompare(b.name); });
   return all;
 }
 
@@ -694,10 +696,16 @@ function whyRelevant(r, qtokens){
 }
 
 // ---- card rendering (3D) ----
+// one clear license verdict (replaces the redundant "Paid-use OK" + "Free" chips that both read "yes" for MIT)
+function licenseVerdict(spdx){
+  if(PERMISSIVE.has(spdx)) return {c:"t-good", t:"✅ Free for commercial use"};
+  if(WEAK.has(spdx))       return {c:"t-good", t:"✅ Paid-use OK · changes stay open"};
+  if(STRONG.has(spdx))     return {c:"t-warn", t:"⚠ Must open-source your app"};
+  if(NETWORK.has(spdx))    return {c:"t-warn", t:"⚠ Share your code, even as a web app"};
+  return {c:"t-warn", t:"⛔ No license — can't reuse"};
+}
 function cardHtml(r,i,qtokens){
-  var free=freeText(r.spdx), paid=lu(r.spdx);
-  var paidTag=paid.indexOf("OK to use")===0?'t-good':'t-warn', freeTag=free==="Yes"?'t-good':'t-warn';
-  var paidShort=paid.indexOf("OK to use")===0?"Paid-use OK":(paid.indexOf("OK in a paid")===0?"Paid OK, see terms":"Share your code");
+  var free=freeText(r.spdx), paid=lu(r.spdx), v=licenseVerdict(r.spdx);
   var okPaid=paid.indexOf("OK to use")===0?1:0, okFree=free==="Yes"?1:0;   // for result-side filtering
   return '<article class="rcard" data-paid="'+okPaid+'" data-free="'+okFree+'" data-starter="'+(r.starter?1:0)+'">'+
     (i!=null?'<span class="rank">#'+(i+1)+'</span>':'')+
@@ -706,12 +714,10 @@ function cardHtml(r,i,qtokens){
     '<div class="why">'+esc(whyRelevant(r,qtokens))+'</div>'+
     '<p class="desc">'+esc(r.desc||"—")+'</p>'+
     '<div class="tags">'+
-      '<span class="tag '+paidTag+'" title="'+esc(paid)+'">'+paidShort+'</span>'+
-      '<span class="tag '+freeTag+'" title="Completely free? '+esc(free)+'">Free '+(free==="Yes"?"✓":"⚠")+'</span>'+
+      '<span class="tag '+v.c+'" title="'+esc(paid)+' · Completely free? '+esc(free)+'">'+v.t+'</span>'+
       (r.starter?'<span class="tag t-star" title="A ready-made template to start your project from">Starter</span>':'')+
       '<span class="tag t-star" title="Its open-source license">License: '+esc(r.spdx)+'</span>'+
     '</div>'+
-    '<div class="lfull">'+esc(paid)+' · Completely free? '+esc(free)+'</div>'+
     '<div class="meta">updated '+esc(r.pushed)+'</div>'+
     '<label class="pick"><input type="checkbox" class="pick-cb" data-name="'+esc(r.name)+'" data-url="'+esc(r.url)+
       '" data-desc="'+esc(r.desc||"")+'"> ＋ Add to plan</label>'+
@@ -746,8 +752,8 @@ function attachTilt(container, reduce){
   });
 }
 
-var PLUGIN_CTA='<div class="cta-inline"><b>Need more than the top 20?</b> This page shows the top 20. '+
-  'Run the plugin in Claude Code for every suitable repo — and a build plan feature by feature. '+
+var PLUGIN_CTA='<div class="cta-inline"><b>Want every suitable repo?</b> MORE_LINE'+
+  'Run the plugin in Claude Code for every match that passes the filters — and a build plan feature by feature. '+
   '<button class="link-btn" onclick="openModal(\'pluginModal\')">Show commands →</button></div>';
 
 // result-side filter chips (filter the already-fetched cards, no new API calls — RS29)
@@ -756,11 +762,13 @@ function filterBar(){ return '<div class="res-filter" role="group" aria-label="F
   RES_FILTERS.map(function(f,i){ return '<button type="button" class="rfilter'+(i===0?' on':'')+'" data-f="'+f[0]+'">'+f[1]+'</button>'; }).join("")+
   '</div>'; }
 
-function render(top, queries, excluded, totalMatches, qtokens, heading){
+function render(top, queries, excluded, totalMatches, qtokens, heading, note){
   if(!top.length){ return '<div class="panel"><p class="err">No repository matched.</p>'+
     '<p class="mut">Searches: '+esc(queries.join("; "))+'. Try fewer or broader words, or lower the minimum stars.</p></div>'; }
-  var more=(totalMatches||top.length)-top.length;
-  var h='<div class="res-head"><h2>'+(heading?esc(heading):'Top matches')+'</h2></div>'+
+  var more=(totalMatches||top.length)-top.length;   // >0 only if we hit the render cap (rare)
+  var h='<div class="res-head"><h2>'+(heading?esc(heading):'Top matches')+'</h2>'+
+      '<span class="res-count mut">'+top.length+' result'+(top.length===1?'':'s')+'</span></div>'+
+    (note?'<p class="res-note mut">'+esc(note)+'</p>':'')+
     filterBar()+
     '<div class="grid">'+top.map(function(r,i){return cardHtml(r,i,qtokens);}).join("")+'</div>'+
     '<div id="resEmpty" class="res-empty" hidden>No results match this filter. <button type="button" class="link-btn" id="resClear">Clear filter</button></div>'+
@@ -768,8 +776,9 @@ function render(top, queries, excluded, totalMatches, qtokens, heading){
     '<p class="excl">Searches: '+esc(queries.join("; "))+' · Excluded — not open-source: '+excluded.license+
     ', too old: '+excluded.stale+', too few stars: '+excluded.low+', forks/archived: '+excluded.fork+
     ', harmful: '+excluded.harm+'</p>';
-  if(more>0) h+=PLUGIN_CTA.replace("Need more than the top 20?",
-    "Need more than the top 20? "+more+" more match"+(more===1?"":"es")+" passed the filters.");
+  if(more>0) h+=PLUGIN_CTA.replace("MORE_LINE",
+    "This page is showing "+top.length+"; "+more+" more passed the filters. ");
+  else h+=PLUGIN_CTA.replace("MORE_LINE","");
   return h;
 }
 // show/hide result cards by the active filter + reveal-limit (client-side only, no API calls)
@@ -914,7 +923,7 @@ async function runFeatures(features, minStars, platform, preferStarters, out, st
     var kept=keep(items,minStars,platform,excluded,seen);  // shared seen map (RS5 cross-query rel), not a Set
     var floor=kept.reduce(function(m,r){return Math.max(m,r.stars);},0)*STARTER_MIN_SHARE;
     kept.forEach(function(r){ r.fit=fitScore(r,preferStarters,floor); });
-    kept.sort(function(a,b){ return b.fit-a.fit||b.stars-a.stars||a.name.localeCompare(b.name); });
+    kept.sort(function(a,b){ return b.fit-a.fit||b.stars-a.stars||cmpPushed(a,b)||a.name.localeCompare(b.name); });
     groups.push({query:features[i],repos:kept});
   }
   out.innerHTML=renderGrouped(groups,excluded,
@@ -962,7 +971,7 @@ async function run(){
   if(text && harmful(text)){ out.innerHTML='<div class="panel"><p class="err">I can’t help find tools for that.</p>'+
     '<p class="mut">For learning security on systems you own, try: "learn web security by hacking a practice app".</p></div>'; return; }
 
-  window.__busy=true; setGoBusy(true); st.textContent="";
+  window.__busy=true; setGoBusy(true); st.textContent=""; window.__likeNote="";
   try{
     var queries, heading=null, seen={}, qtok;
     if(like){
@@ -972,6 +981,8 @@ async function run(){
       var meta=await repoMeta(target);
       queries=altQueries(meta,platform);
       if(!queries.length) throw new Error("That repo has no topics or description to search from.");
+      if(!(meta.topics||[]).length)   // no GitHub topics → queries are guessed from the description, so matches are rough
+        window.__likeNote="“"+(meta.full_name||target)+"” has no GitHub topics, so these come from words in its description — a rough guess. For a closer match, run the plugin: it reads the repo itself.";
       seen[clean(meta.full_name||target)]=null;  // exclude the original repo from the results (RS27)
       heading="Repos like "+(meta.full_name||target);
       qtok=sigTokens(queries.join(" "));
@@ -984,8 +995,8 @@ async function run(){
     for(var i=0;i<queries.length;i++){ st.textContent="Searching ("+(i+1)+"/"+queries.length+")…";
       var items=await search(queries[i]);
       lists.push(keep(items,minStars,platform,excluded,seen)); }
-    var ranked=rankByFit(lists,preferStarters), top=ranked.slice(0,20);
-    out.innerHTML=render(top,queries,excluded,ranked.length,qtok,heading);
+    var ranked=rankByFit(lists,preferStarters), top=ranked.slice(0,60);  // sane upper bound; we no longer cap at 20
+    out.innerHTML=render(top,queries,excluded,ranked.length,qtok,heading,window.__likeNote||"");
     animateCards(out); initResultFilter(); st.textContent=""; saveResults();
   }catch(e){ st.textContent=""; out.innerHTML='<div class="panel"><p class="err">'+esc(e.message)+'</p></div>'; }
   finally{ setGoBusy(false); window.__busy=false; }
@@ -1101,7 +1112,7 @@ document.addEventListener("keydown",function(e){ if(e.key==="Escape") closeModal
   out.addEventListener("click",function(e){ var t=e.target;
     var fb=t.closest&&t.closest(".rfilter");
     if(fb){ window.__resFilter=fb.getAttribute("data-f"); window.__resLimit=10; applyResultFilter(); return; }
-    if(t.closest&&t.closest("#resMore")){ window.__resLimit=20; applyResultFilter(); return; }
+    if(t.closest&&t.closest("#resMore")){ window.__resLimit=9999; applyResultFilter(); return; }
     if(t.closest&&t.closest("#resClear")){ window.__resFilter="all"; window.__resLimit=10; applyResultFilter(); } });
   function buildPrompt(){
     var q=(document.getElementById("q").value||"").trim() || "my project";

@@ -128,7 +128,8 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   single file, no external scripts, no build step, no embedded secret. It runs the keyword-to-query, filter,
   fit-rank (RS5), license-label (RS14), completely-free (RS20) and starter (RS15) logic in JavaScript,
   mirroring `scripts/scout.py`. It shows clickable example prompts (RS21) that fill the box, and calls the public GitHub search API from the browser (unauthenticated,
-  ~10 searches/minute). It shows the top 20 as a table with the RS20 columns and the RS17 cautions, refuses a
+  ~10 searches/minute). It shows every fit-ranked match that passes the filters (RS29, not a fixed 20) as cards
+  with the RS20 fields and the RS17 cautions, refuses a
   query over 200 characters and the harmful intents of RS18, and drops the harmful repo descriptions of RS18.
   The page has no relevance gate and no AI (no model runs in it), and says so: a public static page cannot hold
   a secret, so it never asks for or stores a key or token. Prompt generation in the browser is plain keyword
@@ -182,7 +183,9 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   the original repo from the results. On the web page this is the optional "find similar ones" field;
   `GET /repos/{owner}/{repo}` is one extra unauthenticated call. A repo that cannot be fetched (404 or rate
   limit) fails closed with a plain message (RS7). The fetched metadata is data, not instructions (RS9, RS25).
-  A plugin CLI flag (`--like`) is a planned follow-up.
+  A plugin CLI flag (`--like`) is a planned follow-up. When the target repo has **no GitHub topics**, the queries
+  are guessed from its description alone, so the web page shows a one-line "rough guess" note above the results
+  and points to the plugin (which can read the repo itself) for a closer match — the keyword page cannot.
 - **RS28** Select-to-PRD hand-off (RS22 web page). The user may tick result repos ("Add to PRD"); a floating
   bar then offers "Generate PRD". The page itself makes **no model call and holds no key** (RS1 upheld): it
   builds a plain-text prompt listing the selected repos (name, GitHub URL, description) plus the user's own
@@ -192,13 +195,26 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   Copy is the guaranteed path and is always offered, and the link is dropped when the URL would exceed a safe
   length. The prompt instructs Claude to use only the listed repos and invent no libraries, versions, or
   statistics (evidence-only, mirrors RS9/RS14). Selection resets on a new search or Home.
-- **RS29** Result-side filters + top-20 (RS22 web page). A search renders up to the **top 20** fit-ranked
-  matches; the page shows the first 10 and a "Show more" reveals the rest — nothing is re-fetched (RS7
-  unaffected, no new API call). Above the results a row of **plain-English filter chips** — All / ✅ Paid-use
-  OK / 🆓 Completely free / 🧩 Starters — shows or hides the already-fetched cards client-side (raw SPDX codes
-  are deliberately not a filter). An empty filtered set shows a "clear filter" message. Filters apply only to
-  the single top-matches list, not the grouped PRD view. The plugin CLI default is also `--top 20` (candidates
-  `40`), and all user-facing copy says "top 20".
+- **RS29** Result-side filters, result count, and no arbitrary cap (RS22 web page). A search renders **every
+  fit-ranked match that passes the filters**, not a fixed 20 — capping at 20 when (say) 23 passed is arbitrary
+  and was removed. A sane upper bound (60) guards against a runaway list; the page shows the first 10 and a
+  single "Show more" reveals **all** of them — nothing is re-fetched (RS7 unaffected, no new API call). The
+  results header shows the **number of matches** on the right (e.g. "22 results"). Above the results a row of
+  **plain-English filter chips** — All / ✅ Paid-use OK / 🆓 Completely free / 🧩 Starters — shows or hides the
+  already-fetched cards client-side (raw SPDX codes are deliberately not a filter). An empty filtered set shows a
+  "clear filter" message. Filters apply only to the single top-matches list, not the grouped PRD view.
+- **RS29a** One license verdict per card (RS14/RS20 on the web page). A card shows a **single** plain-English
+  license verdict — ✅ free for commercial use / ✅ paid-use OK, changes stay open / ⚠ must open-source your app /
+  ⚠ share your code even as a web app / ⛔ no licence — not the earlier redundant "Paid-use OK" + "Completely
+  free" pair, which both read the same for permissive licences. The full "OK in a paid product?" and "Completely
+  free?" text stays available in the tag's tooltip and in the plugin's columns (RS20 unchanged).
+- **RS29b** Web/plugin ranking parity. The web page (`web/index.html`) and `scripts/scout.py` MUST rank
+  identically for the same candidate set: same fit weights (RS5), same filters (RS2–RS4a), same constants
+  (open-licence set, starter topics, `STARTER_MIN_SHARE`, `MAX_AGE_MONTHS`, min-stars), and the **same
+  tie-break order** — fit, then stars, then most-recent push, then repo name. Differences are only where the
+  browser cannot run Claude: query generation (keyword expansion on the web vs Claude-written queries + the
+  RS6 relevance gate in the plugin) and the absence of `--license any` on the web. The plugin CLI default stays
+  `--top 20` (candidates `40`) for its table; `--all` is uncapped.
 
 ## RX — Deliberately excluded (v0.1)
 
