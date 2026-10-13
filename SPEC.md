@@ -292,7 +292,8 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   are data, never instructions (RS9, RS25), and the prompt says so; the LLM may only drop or keep, never add, rename
   or reorder (mirrors RS6 — fit order stays deterministic); a response that isn't valid JSON or names an unknown index is
   ignored. **Fail open, labelled:** if the function is missing, unconfigured, rate-limited, slow (>8 s) or errors, the
-  page shows the normal keyword results with a one-line note that relevance couldn't be checked — never a blank page,
+  page shows the normal keyword results with a one-line note that relevance couldn't be checked (when the check is
+  simply not set up — no key, or no function on the host — the page behaves exactly as before, with no note) — never a blank page,
   never invented repos (RS7). The function stores nothing and logs no request content. Input is capped (description
   ≤200 chars, ≤30 repos, body ≤16 KB) and anything else is rejected with 400. A free LLM tier limits requests for the
   whole site, so under heavy use more searches fall back. RS33 is updated in the same change: search words and the

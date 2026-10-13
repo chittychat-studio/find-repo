@@ -922,6 +922,8 @@ async function relevanceGate(query, repos){
   var ctl=window.AbortController?new AbortController():null, timer=ctl&&setTimeout(function(){ ctl.abort(); },8000);
   try{ var res=await fetch("/api/relevance",{method:"POST",headers:{"Content-Type":"application/json"},signal:ctl&&ctl.signal,
       body:JSON.stringify({query:String(query).slice(0,200),repos:repos.map(function(r){ return {name:r.name,description:(r.desc||"").slice(0,160),topics:r.topics||[]}; })})});
+    if(res.status===503||res.status===404||res.status===405||res.status===501){ var e=null; try{ e=(await res.json()).error; }catch(_){}
+      if(res.status!==503||e==="not_configured") return "off"; }   // check not set up (no key / no function): behave as before, no note
     if(!res.ok) return null; var j=await res.json(); return Array.isArray(j.drop)?j.drop:null;
   }catch(e){ return null; } finally{ if(timer) clearTimeout(timer); } }
 
@@ -1141,7 +1143,8 @@ async function run(){
     if(top.length){ st.textContent="Checking which repos fit…";   // RS34 relevance check on the top 30
       var drops=await relevanceGate(like?(text+" (similar to "+like+")"):text, top.slice(0,30));
       if(gen!==window.__runGen) return;
-      if(drops){ top=top.slice(0,30); drops.forEach(function(d){ var r=top[d.i]; if(r){ r.off=1; r.offWhy=d.why; } });
+      if(drops==="off"){ gate=null; }
+      else if(drops){ top=top.slice(0,30); drops.forEach(function(d){ var r=top[d.i]; if(r){ r.off=1; r.offWhy=d.why; } });
         gate={ok:true,hidden:drops.length}; } else gate={ok:false}; }
     out.innerHTML=render(top,queries,excluded,ranked.length,qtok,heading,window.__likeNote||"",gate);
     animateCards(out); initResultFilter(); st.textContent=""; saveResults(); syncClearQ();
