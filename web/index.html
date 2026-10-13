@@ -5,158 +5,259 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Find Repo — top open-source GitHub repos for your project</title>
 <!--
-  Find Repo web page (SPEC RS22). Static: no backend, no build step, no key, no login.
-  It calls the PUBLIC GitHub search API straight from the browser (unauthenticated: ~10
-  searches/minute). The browser version uses simple keyword search; the Claude Code plugin
-  writes smarter queries (with AI) and runs the relevance check.
+  Find Repo web page (SPEC RS22). Static single file, no build step, no key or token.
+  It calls the PUBLIC GitHub search API from the browser (unauthenticated: ~10 searches/minute).
+  One external script only: GSAP (motion) from cdnjs, pinned; the page degrades gracefully without it.
+  The browser version uses keyword search; the Claude Code plugin writes smarter queries, runs a
+  relevance check, and reads a whole PRD. There is no AI in this page (a public page can't hold a key).
 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" async crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
   :root{
-    /* warm "Claude" palette: clay-orange accents on a half-white cream background */
-    --bg:#f4f0e8; --card:#fdfcf9; --ink:#28261f; --muted:#6b6557; --line:#e4ddcf;
-    --accent:#cc7b5c; --accent-ink:#b4593a; --good:#3d7a4e; --warn:#9a6700;
-    --warnbg:#f7ecd0; --goodbg:#e4efe2; --offbg:#efe9dd;
+    /* warm clay-orange accents on a half-white cream background */
+    --bg:#f1ece2; --bg2:#f7f3ea; --card:#fdfcf9; --ink:#28261f; --muted:#6b6557; --line:#e4ddcf;
+    --accent:#c0532c; --accent-ink:#9c3d1c; --accent2:#d9743f; --good:#5f7a3c; --warn:#a06a1e;
+    --warnbg:#f3e8cb; --goodbg:#e7ecd6; --offbg:#efe9dd; --shadow:30,20,10;
   }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
-      --bg:#211f1b; --card:#2a2823; --ink:#efe9dd; --muted:#a8a192; --line:#3d3a33;
-      --accent:#d98f6f; --accent-ink:#e0a186; --good:#6cc080; --warn:#d6ac6a;
-      --warnbg:#3a2f16; --goodbg:#1f2c20; --offbg:#33302a;
+      --bg:#1b1915; --bg2:#231f1a; --card:#2a2823; --ink:#efe9dd; --muted:#a8a192; --line:#3d3a33;
+      --accent:#bf5629; --accent-ink:#d97740; --accent2:#9a4a22; --good:#a3bf7e; --warn:#d8a95c;
+      --warnbg:#342a15; --goodbg:#272f1c; --offbg:#33302a; --shadow:0,0,0;
     }
   }
   :root[data-theme="dark"]{
-    --bg:#211f1b; --card:#2a2823; --ink:#efe9dd; --muted:#a8a192; --line:#3d3a33;
-    --accent:#d98f6f; --accent-ink:#e0a186; --good:#6cc080; --warn:#d6ac6a;
-    --warnbg:#3a2f16; --goodbg:#1f2c20; --offbg:#33302a;
+    --bg:#1b1915; --bg2:#231f1a; --card:#2a2823; --ink:#efe9dd; --muted:#a8a192; --line:#3d3a33;
+    --accent:#bf5629; --accent-ink:#d97740; --accent2:#9a4a22; --good:#a3bf7e; --warn:#d8a95c;
+    --warnbg:#342a15; --goodbg:#272f1c; --offbg:#33302a; --shadow:0,0,0;
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--ink);
-    font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;}
-  .wrap{max-width:1040px;margin:0 auto;padding:24px 16px 64px;}
-  h1{font-size:26px;margin:0 0 4px;color:var(--accent-ink);letter-spacing:-.01em}
-  .sub{color:var(--muted);margin:0 0 20px}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px}
-  label{display:block;font-weight:600;margin:0 0 6px}
-  textarea,input,select{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;
-    background:var(--card);color:var(--ink);font:inherit}
-  textarea{min-height:72px;resize:vertical}
-  .row{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px}
-  .row>div{flex:1;min-width:150px}
-  button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:11px 20px;
-    font:inherit;font-weight:600;cursor:pointer;margin-top:14px}
-  button:disabled{opacity:.55;cursor:default}
+  html,body{height:100%}
+  body{margin:0;color:var(--ink);overflow:hidden;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+    background:radial-gradient(1200px 700px at 12% -8%,var(--bg2),transparent 60%),
+               radial-gradient(900px 600px at 110% 110%,rgba(192,83,44,.14),transparent 55%),var(--bg);
+    font:16px/1.58 "Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;letter-spacing:.005em;}
+  a{color:var(--accent-ink);text-decoration:none}
+  a:hover{text-decoration:underline}
+  code{background:var(--offbg);padding:1px 5px;border-radius:5px}
+
+  /* app shell: two columns, full height, page never scrolls on desktop */
+  .app{height:100vh;display:grid;grid-template-columns:minmax(360px,420px) 1fr;gap:20px;
+    padding:20px;max-width:1500px;margin:0 auto}
+  .left{display:flex;flex-direction:column;gap:14px;min-height:0}
+  .right{min-height:0;display:flex;flex-direction:column}
+
+  .brand{display:flex;align-items:baseline;gap:10px}
+  h1{font-size:31px;font-weight:800;margin:0;letter-spacing:-.02em;
+    background:linear-gradient(135deg,var(--accent-ink),var(--accent));-webkit-background-clip:text;
+    background-clip:text;color:transparent}
+  .by{font-size:12px;color:var(--muted)}
+  .theme-toggle{margin-left:auto;background:var(--offbg);border:1px solid var(--line);border-radius:999px;
+    width:34px;height:34px;cursor:pointer;font-size:15px;color:var(--ink);line-height:1;
+    transition:transform .14s,border-color .18s,background .18s}
+  .theme-toggle:hover{border-color:var(--accent);transform:rotate(-18deg) scale(1.06)}
+  .brand{width:100%}
+  .sub{color:var(--muted);margin:2px 0 0;font-size:14.5px}
+
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;
+    box-shadow:0 1px 0 rgba(255,255,255,.4) inset,0 18px 40px -24px rgba(var(--shadow),.55)}
+  .search{flex:1;display:flex;flex-direction:column;min-height:0;transform-style:preserve-3d}
+  label{display:block;font-weight:700;margin:0 0 6px;font-size:14.5px}
+  textarea,input,select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;
+    background:var(--bg2);color:var(--ink);font:inherit}
+  textarea{min-height:58px;resize:none}
+  textarea:focus,input:focus,select:focus{outline:none;border-color:var(--accent);
+    box-shadow:0 0 0 3px rgba(192,83,44,.18)}
+  .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+  .row>div{flex:1;min-width:120px}
   .mut{color:var(--muted);font-size:13px}
-  details{margin-top:12px}
-  summary{cursor:pointer;font-weight:600}
-  table{width:100%;border-collapse:collapse;margin-top:8px;font-size:13.5px}
-  th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
-  th{background:var(--offbg);position:sticky;top:0}
-  td.n{text-align:right;white-space:nowrap}
-  .tag{display:inline-block;padding:1px 7px;border-radius:999px;font-size:12px;white-space:nowrap}
+  button.primary{background:linear-gradient(135deg,var(--accent),var(--accent-ink));color:#fff;border:0;
+    border-radius:10px;padding:12px 18px;font:inherit;font-weight:700;cursor:pointer;width:100%;margin-top:14px;
+    box-shadow:0 10px 22px -10px rgba(192,83,44,.8);transition:transform .12s ease,box-shadow .18s ease}
+  button.primary:hover{transform:translateY(-2px);box-shadow:0 16px 30px -12px rgba(192,83,44,.9)}
+  button.primary:active{transform:translateY(0) scale(.99)}
+  button.primary:disabled{opacity:.6;cursor:default;transform:none}
+
+  .chips-label{font-size:12.5px;color:var(--muted);margin:12px 0 0}
+  .chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px;max-height:112px;overflow:auto}
+  .chip{background:var(--offbg);color:var(--ink);border:1px solid var(--line);border-radius:999px;font-weight:500;
+    padding:7px 12px;font:inherit;font-size:13px;cursor:pointer;
+    transition:background .18s,border-color .18s,color .18s,transform .12s,box-shadow .18s}
+  .chip:hover{border-color:var(--accent);color:var(--accent-ink);transform:translateY(-1px);
+    box-shadow:0 4px 12px -4px rgba(192,83,44,.4)}
+  .chip:active{transform:scale(.96)}
+  .chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .chip.selected{background:linear-gradient(135deg,var(--accent),var(--accent-ink));border-color:transparent;color:#fff}
+
+  .prd{margin-top:12px;border-top:1px dashed var(--line);padding-top:12px}
+  .foot{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+  .link-btn{background:none;border:0;color:var(--accent-ink);font:inherit;font-weight:600;cursor:pointer;padding:0}
+  .status{font-size:12.5px;color:var(--muted);min-height:1.2em;margin-top:8px}
+
+  /* results panel scrolls inside itself */
+  .results{flex:1;overflow:auto;border-radius:16px;padding:4px;min-height:0;perspective:1200px}
+  .results::-webkit-scrollbar{width:10px}.results::-webkit-scrollbar-thumb{background:var(--line);border-radius:9px}
+  .res-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:2px 4px 12px}
+  .res-head h2{font-size:20px;font-weight:800;margin:0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:12px}
+  .rcard{position:relative;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;
+    box-shadow:0 14px 30px -22px rgba(var(--shadow),.6);transform-style:preserve-3d;
+    transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;will-change:transform}
+  .rcard:hover{border-color:var(--accent);box-shadow:0 22px 44px -20px rgba(192,83,44,.5)}
+  .rcard::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+    background:linear-gradient(135deg,rgba(255,255,255,.14),transparent 42%);opacity:.6}
+  .rcard::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;
+    transition:opacity .25s;background:radial-gradient(220px circle at var(--mx,50%) var(--my,0%),
+      rgba(255,255,255,.16),transparent 60%)}
+  .rcard:hover::after{opacity:1}
+  .rcard>*{position:relative}
+  .rcard .rank{position:absolute;top:-9px;left:12px;background:linear-gradient(135deg,var(--accent),var(--accent-ink));
+    color:#fff;font-size:12px;font-weight:700;border-radius:999px;padding:2px 9px;box-shadow:0 6px 14px -6px rgba(192,83,44,.8)}
+  .rcard .stars{position:absolute;top:12px;right:12px;font-weight:800;font-size:14px;color:var(--accent-ink)}
+  .rcard .name{font-weight:800;font-size:16px;line-height:1.3;margin:10px 56px 5px 0;word-break:break-word}
+  .rcard .desc{font-size:13.5px;line-height:1.5;color:var(--muted);margin:0 0 11px;
+    display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;min-height:2.6em}
+  .rcard .tags{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  .tag{display:inline-block;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
   .t-good{background:var(--goodbg);color:var(--good)}
   .t-warn{background:var(--warnbg);color:var(--warn)}
-  .scroll{overflow-x:auto}
+  .t-star{background:var(--offbg);color:var(--accent-ink);font-weight:600}
+  .rcard .lfull{display:none}
+  .rcard .meta{font-size:11.5px;color:var(--muted);margin-top:8px}
+  /* desktop = expanded format: wider cards that spell out the license meaning in full */
+  @media (min-width:1000px){
+    .grid{grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+    .rcard{padding:16px}
+    .rcard .lfull{display:block;font-size:11.5px;color:var(--muted);margin-top:8px;
+      border-top:1px dashed var(--line);padding-top:8px}
+    .rcard .desc{-webkit-line-clamp:4}
+  }
+  .group-h{font-size:14px;font-weight:700;margin:16px 4px 8px;color:var(--accent-ink)}
+  .group-h span{color:var(--muted);font-weight:500}
   .err{color:var(--warn);font-weight:600}
-  .note{font-size:13px;color:var(--muted);margin-top:14px}
-  a{color:var(--accent-ink)}
-  code{background:var(--offbg);padding:1px 5px;border-radius:5px}
-  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
-  .chip{background:var(--offbg);color:var(--ink);border:1px solid var(--line);border-radius:999px;
-    padding:6px 12px;font:inherit;font-size:13px;cursor:pointer;margin:0;
-    transition:background .18s ease,border-color .18s ease,color .18s ease,transform .12s ease,box-shadow .18s ease;
-    opacity:0;animation:pill-in .32s ease forwards}
-  .chip:hover{border-color:var(--accent);color:var(--accent-ink);transform:translateY(-1px);
-    box-shadow:0 2px 8px rgba(180,89,58,.18)}
-  .chip:active{transform:translateY(0) scale(.97)}
-  .chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-  .chip.selected{background:var(--accent);border-color:var(--accent);color:#fff;
-    box-shadow:0 2px 10px rgba(180,89,58,.30)}
-  .chip.selected:hover{color:#fff;transform:translateY(-1px)}
-  @keyframes pill-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-  @media (prefers-reduced-motion:reduce){
-    .chip{animation:none;opacity:1;transition:none}
-    .chip:hover,.chip:active{transform:none}
+  .excl{font-size:11.5px;color:var(--muted);margin:14px 4px 4px}
+
+  /* empty-state explainer (the animated "how it works") */
+  .explain{height:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;
+    text-align:center;padding:22px}
+  .steps{display:flex;gap:10px;align-items:stretch;margin:18px 0 6px;max-width:560px;width:100%}
+  .step{flex:1;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 12px;
+    box-shadow:0 14px 30px -24px rgba(var(--shadow),.6);opacity:.55;transform:translateZ(0);
+    transition:opacity .4s,box-shadow .4s,border-color .4s}
+  .step.on{opacity:1;border-color:var(--accent);box-shadow:0 18px 34px -20px rgba(192,83,44,.55)}
+  .step .ico{font-size:26px}
+  .step .t{font-weight:700;font-size:13.5px;margin:6px 0 2px}
+  .step .d{font-size:12px;color:var(--muted)}
+  .track{position:relative;height:3px;background:var(--line);border-radius:3px;max-width:560px;width:100%;margin:6px 0 14px}
+  .track .dot{position:absolute;top:-3px;width:9px;height:9px;border-radius:50%;
+    background:linear-gradient(135deg,var(--accent),var(--accent-ink));box-shadow:0 0 0 4px rgba(192,83,44,.18)}
+
+  /* modal */
+  .modal{position:fixed;inset:0;background:rgba(20,15,10,.45);display:none;align-items:center;justify-content:center;
+    padding:18px;z-index:40;backdrop-filter:blur(3px)}
+  .modal.open{display:flex}
+  .sheet{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;max-width:540px;width:100%;
+    box-shadow:0 40px 80px -30px rgba(var(--shadow),.7);max-height:88vh;overflow:auto}
+  .sheet h2{margin:0 0 8px;font-size:19px;color:var(--accent-ink)}
+  .cmd{background:var(--offbg);border:1px solid var(--line);border-radius:10px;padding:12px;margin:10px 0;
+    font:12.5px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre-wrap;overflow-x:auto}
+  .x{float:right;background:none;border:0;font-size:20px;cursor:pointer;color:var(--muted);line-height:1}
+  .cta-inline{margin-top:12px;background:linear-gradient(135deg,rgba(192,83,44,.1),transparent);
+    border:1px solid var(--accent);border-radius:12px;padding:12px}
+
+  @media (max-width:900px){
+    body{overflow:auto}
+    .app{grid-template-columns:1fr;height:auto;min-height:100vh}
+    .chips{max-height:none}
+    .results{overflow:visible}
   }
-  .chips-label{font-size:13px;color:var(--muted);margin:12px 0 0}
-  .cta{border-color:var(--accent);background:linear-gradient(0deg,var(--card),var(--card))}
-  .cmd{background:var(--offbg);border:1px solid var(--line);border-radius:8px;padding:12px;margin:10px 0;
-    font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre-wrap;overflow-x:auto}
-  h2{font-size:19px;margin:0 0 6px;color:var(--accent-ink)}
-  @media (max-width:560px){
-    .wrap{padding:16px 14px 48px}
-    h1{font-size:22px}
-    table{font-size:12.5px}
-    th,td{padding:6px 7px}
-  }
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>Find Repo</h1>
-  <p class="sub">Describe what you're building. Get the top open-source GitHub repos that fit, by stars.</p>
-
-  <div class="card">
-    <label for="q">What are you building?</label>
-    <textarea id="q" placeholder="e.g. a diet app for iPhone, starting from scratch"></textarea>
-    <p class="chips-label">Try one (click to fill):</p>
-    <div id="examples" class="chips"></div>
-    <div class="row">
-      <div>
-        <label for="platform" class="mut">Platform</label>
-        <select id="platform">
-          <option value="">Any / not sure</option>
-          <option value="web">Web</option>
-          <option value="ios">iPhone / iOS</option>
-          <option value="android">Android</option>
-          <option value="desktop">Desktop</option>
-        </select>
-      </div>
-      <div>
-        <label for="minstars" class="mut">Minimum stars</label>
-        <input id="minstars" type="number" value="50" min="0" step="10">
-      </div>
-      <div>
-        <label for="starters" class="mut">Starting from scratch?</label>
-        <select id="starters"><option value="yes">Yes — prefer starter templates</option>
-          <option value="no">No — just show by stars</option></select>
-      </div>
+<main class="app">
+  <div class="left">
+    <div>
+      <div class="brand"><h1>Find Repo</h1><span class="by">open-source finder</span>
+        <button id="theme" class="theme-toggle" title="Switch light / dark" aria-label="Switch light / dark"></button></div>
+      <p class="sub">Describe what you're building — get the top open-source GitHub repos that fit, by stars.</p>
     </div>
-    <div class="row" style="align-items:flex-end">
-      <div><button id="go" style="width:100%">Find repos</button></div>
-      <div>
-        <label for="prd" class="mut">Have a PRD or spec? Upload it (stays in your browser)</label>
+
+    <div class="panel search">
+      <label for="q">What are you building?</label>
+      <textarea id="q" placeholder="e.g. a diet app for iPhone, starting from scratch"></textarea>
+      <p class="chips-label">Try one (click to fill):</p>
+      <div id="examples" class="chips"></div>
+      <div class="row">
+        <div><label for="platform" class="mut">Platform</label>
+          <select id="platform"><option value="">Any</option><option value="web">Web</option>
+            <option value="ios">iPhone / iOS</option><option value="android">Android</option>
+            <option value="desktop">Desktop</option></select></div>
+        <div><label for="minstars" class="mut">Min stars</label>
+          <input id="minstars" type="number" value="50" min="0" step="10"></div>
+        <div><label for="starters" class="mut">From scratch?</label>
+          <select id="starters"><option value="yes">Yes — starters first</option>
+            <option value="no">No — by stars</option></select></div>
+      </div>
+      <button id="go" class="primary">Find repos</button>
+      <div class="prd">
+        <label for="prd" class="mut">Have a PRD or spec? Upload it (read on your device, never uploaded)</label>
         <input id="prd" type="file" accept=".md,.markdown,.txt,.text,text/plain,text/markdown">
       </div>
+      <div id="status" class="status"></div>
     </div>
-    <span id="status" class="mut"></span>
-    <p class="note">No login, no key — this searches public GitHub straight from your browser. A PRD is read on
-      your device only (never uploaded); the browser runs a few searches (rate-limited) and groups the results.
-      For the full PRD — every feature, every suitable repo — use the
-      <a href="https://github.com/chittychat-studio/find-repo" target="_blank" rel="noopener">Claude Code plugin</a>.</p>
+
+    <div class="foot">
+      <button class="link-btn" id="howBtn">▶ How it works</button>
+      <button class="link-btn" id="pluginBtn">⌘ Use in Claude Code</button>
+      <button class="link-btn" id="aboutBtn">ⓘ About results</button>
+    </div>
   </div>
 
-  <div id="out"></div>
+  <div class="right">
+    <div id="out" class="results"></div>
+  </div>
+</main>
 
-  <div class="card">
-    <h2>Use in Claude Code (full version)</h2>
-    <p class="mut">This page shows the top 10 from basic keyword search. The Claude Code plugin writes smarter
-      searches with AI, runs a relevance check, reads a whole PRD feature by feature, and shows every suitable
-      repo — not just 10. It's free and open-source (MIT).</p>
-    <pre class="cmd">/plugin marketplace add chittychat-studio/find-repo
+<!-- modals -->
+<div class="modal" id="howModal"><div class="sheet">
+  <button class="x" data-close>&times;</button>
+  <h2>How Find Repo works</h2>
+  <p class="mut">Three steps, right in your browser — no account, no key.</p>
+  <div id="howSteps"></div>
+  <img src="demo.gif" alt="Find Repo walkthrough: describe a project, search GitHub, see ranked results"
+    loading="lazy" style="width:100%;border:1px solid var(--line);border-radius:12px;margin:12px 0 4px">
+  <p class="mut" style="margin:0">A 5-second walkthrough of a real search.</p>
+  <p class="mut" style="margin-top:12px">For AI-written searches, a relevance check, and a whole PRD read feature
+    by feature, use the Claude Code plugin.</p>
+</div></div>
+
+<div class="modal" id="pluginModal"><div class="sheet">
+  <button class="x" data-close>&times;</button>
+  <h2>Use in Claude Code (full version)</h2>
+  <p class="mut">The plugin writes smarter searches with AI, runs a relevance check, reads a whole PRD, and shows
+    every suitable repo — not just 10. Free &amp; open-source (MIT).</p>
+  <pre class="cmd">/plugin marketplace add chittychat-studio/find-repo
 /plugin install find-repo@find-repo
 /find-repo:find &lt;what you are building&gt;</pre>
-    <p class="mut">Then, for a PRD, attach or paste it and ask for the repos. Needs
-      <a href="https://claude.com/claude-code" target="_blank" rel="noopener">Claude Code</a> and Python 3.11+.
-      Full guide: <a href="https://github.com/chittychat-studio/find-repo" target="_blank" rel="noopener">github.com/chittychat-studio/find-repo</a>.</p>
-  </div>
+  <p class="mut">Needs <a href="https://claude.com/claude-code" target="_blank" rel="noopener">Claude Code</a> and
+    Python 3.11+. Full guide:
+    <a href="https://github.com/chittychat-studio/find-repo" target="_blank" rel="noopener">github.com/chittychat-studio/find-repo</a>.</p>
+</div></div>
 
-  <p class="note">The browser version does basic keyword search; the
+<div class="modal" id="aboutModal"><div class="sheet">
+  <button class="x" data-close>&times;</button>
+  <h2>About the results</h2>
+  <p class="mut">The browser version does basic keyword search; the
     <a href="https://github.com/chittychat-studio/find-repo" target="_blank" rel="noopener">Claude Code plugin</a>
     writes better searches and runs a relevance check. Results are GitHub search matches, not a scan of every
     repository. Stars measure popularity, not quality, and can be bought. "Completely free?" and "OK in a paid
     product?" are read from the license only — a plain summary, not legal advice; some projects also sell a paid
     hosted version or add-ons.</p>
-</div>
+</div></div>
 
 <script>
 "use strict";
@@ -195,6 +296,7 @@ function freeText(spdx){ var u=lu(spdx);
  return"No: no license"; }
 function esc(s){var d=document.createElement("div");d.textContent=s==null?"":s;return d.innerHTML;}
 function clean(s){return (s||"").replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁦-⁩]/g," ").trim().slice(0,200);}
+function kstars(n){return n>=1000?(n/1000).toFixed(n>=10000?0:1)+"k":""+n;}
 
 var STOP=new Set("a an the my our your for to with and or of in on app apps application build building make making want really nice looking simple create please that helps people some something cool new project using use it".split(" "));
 var SYN={website:["landing page template","frontend framework"],web:["web app starter"],
@@ -257,36 +359,68 @@ function balanced(lists, preferStarters){
   return out;
 }
 
-var PLUGIN_CTA='<div class="card cta"><b>Need more than the top 10?</b> This page shows the top 10. '+
-  'For every suitable repo — and a PRD read feature by feature — run the plugin in Claude Code:'+
-  '<pre class="cmd">/plugin marketplace add chittychat-studio/find-repo\n'+
-  '/plugin install find-repo@find-repo\n'+
-  '/find-repo:find &lt;what you are building&gt;</pre>'+
-  '<a href="https://github.com/chittychat-studio/find-repo" target="_blank" rel="noopener">Plugin details &amp; install guide →</a></div>';
+// ---- card rendering (3D) ----
+function cardHtml(r,i){
+  var free=freeText(r.spdx), paid=lu(r.spdx);
+  var paidTag=paid.indexOf("OK to use")===0?'t-good':'t-warn', freeTag=free==="Yes"?'t-good':'t-warn';
+  var paidShort=paid.indexOf("OK to use")===0?"Paid-use OK":(paid.indexOf("OK in a paid")===0?"Paid OK*":"Share code");
+  return '<article class="rcard">'+
+    (i!=null?'<span class="rank">#'+(i+1)+'</span>':'')+
+    '<span class="stars">★ <span class="cnt" data-v="'+r.stars+'">'+kstars(r.stars)+'</span></span>'+
+    '<div class="name"><a href="'+esc(r.url)+'" target="_blank" rel="noopener">'+esc(r.name)+'</a></div>'+
+    '<p class="desc">'+esc(r.desc||"—")+'</p>'+
+    '<div class="tags">'+
+      '<span class="tag '+paidTag+'" title="'+esc(paid)+'">'+paidShort+'</span>'+
+      '<span class="tag '+freeTag+'" title="Completely free? '+esc(free)+'">Free '+(free==="Yes"?"✓":"⚠")+'</span>'+
+      (r.starter?'<span class="tag t-star">Starter</span>':'')+
+      '<span class="tag t-star">'+esc(r.spdx)+'</span>'+
+    '</div>'+
+    '<div class="lfull">'+esc(paid)+' · Completely free? '+esc(free)+'</div>'+
+    '<div class="meta">updated '+esc(r.pushed)+'</div>'+
+  '</article>';
+}
+function animateCards(container){
+  var G=window.gsap, reduce=window.matchMedia&&matchMedia("(prefers-reduced-motion:reduce)").matches;
+  attachTilt(container, reduce);
+  if(!G||reduce) return;
+  G.from(container.querySelectorAll(".rcard"),{opacity:0,y:18,rotateX:-8,duration:.5,stagger:.04,
+    ease:"power3.out",transformOrigin:"50% 100%"});
+  // star count-up
+  container.querySelectorAll(".cnt").forEach(function(elc){
+    var v=+elc.getAttribute("data-v")||0; if(v<1000) return;
+    var o={n:0}; G.to(o,{n:v,duration:.9,ease:"power1.out",delay:.1,
+      onUpdate:function(){ elc.textContent=kstars(Math.round(o.n)); },
+      onComplete:function(){ elc.textContent=kstars(v); }});
+  });
+}
+// pointer-reactive 3D tilt + glare (no library; skipped on touch / reduced motion)
+function attachTilt(container, reduce){
+  var hover=window.matchMedia&&matchMedia("(hover: hover)").matches;
+  if(reduce || !hover) return;
+  container.querySelectorAll(".rcard").forEach(function(card){
+    card.addEventListener("mousemove",function(e){
+      var b=card.getBoundingClientRect(), px=(e.clientX-b.left)/b.width, py=(e.clientY-b.top)/b.height;
+      card.style.transform="perspective(900px) rotateX("+((0.5-py)*6).toFixed(2)+"deg) rotateY("+((px-0.5)*7).toFixed(2)+"deg) translateY(-4px)";
+      card.style.setProperty("--mx",(px*100).toFixed(1)+"%");
+      card.style.setProperty("--my",(py*100).toFixed(1)+"%");
+    });
+    card.addEventListener("mouseleave",function(){ card.style.transform=""; });
+  });
+}
+
+var PLUGIN_CTA='<div class="cta-inline"><b>Need more than the top 10?</b> This page shows the top 10. '+
+  'Run the plugin in Claude Code for every suitable repo — and a PRD read feature by feature. '+
+  '<button class="link-btn" onclick="openModal(\'pluginModal\')">Show commands →</button></div>';
 
 function render(top, queries, excluded, totalMatches){
-  if(!top.length){ return '<div class="card"><p class="err">No repository matched.</p>'+
+  if(!top.length){ return '<div class="panel"><p class="err">No repository matched.</p>'+
     '<p class="mut">Searches: '+esc(queries.join("; "))+'. Try fewer or broader words, or lower the minimum stars.</p></div>'; }
   var more=(totalMatches||top.length)-top.length;
-  var h='<div class="card"><div class="scroll"><table><thead><tr>'+
-    '<th>#</th><th>Repo</th><th>Stars</th><th>What it does</th><th>License</th>'+
-    '<th>OK in a paid product?</th><th>Completely free?</th><th>Starter?</th><th>Updated</th></tr></thead><tbody>';
-  top.forEach(function(r,i){
-    var free=freeText(r.spdx), paid=lu(r.spdx);
-    var freeTag=free==="Yes"?'t-good':'t-warn', paidTag=paid.indexOf("OK to use")===0?'t-good':'t-warn';
-    h+='<tr><td class="n">'+(i+1)+'</td>'+
-      '<td><a href="'+esc(r.url)+'" target="_blank" rel="noopener">'+esc(r.name)+'</a></td>'+
-      '<td class="n">'+r.stars.toLocaleString()+'</td>'+
-      '<td>'+esc(r.desc)+'</td>'+
-      '<td>'+esc(r.spdx)+'</td>'+
-      '<td><span class="tag '+paidTag+'">'+esc(paid)+'</span></td>'+
-      '<td><span class="tag '+freeTag+'">'+esc(free)+'</span></td>'+
-      '<td>'+(r.starter?'Yes':'No')+'</td>'+
-      '<td class="n">'+esc(r.pushed)+'</td></tr>';
-  });
-  h+='</tbody></table></div><p class="mut">Searches: '+esc(queries.join("; "))+
-    ' · Excluded — not open-source: '+excluded.license+', too old: '+excluded.stale+
-    ', too few stars: '+excluded.low+', forks/archived: '+excluded.fork+', harmful: '+excluded.harm+'</p></div>';
+  var h='<div class="res-head"><h2>Top '+top.length+' matches</h2><span class="mut">ranked by stars</span></div>'+
+    '<div class="grid">'+top.map(function(r,i){return cardHtml(r,i);}).join("")+'</div>'+
+    '<p class="excl">Searches: '+esc(queries.join("; "))+' · Excluded — not open-source: '+excluded.license+
+    ', too old: '+excluded.stale+', too few stars: '+excluded.low+', forks/archived: '+excluded.fork+
+    ', harmful: '+excluded.harm+'</p>';
   if(more>0) h+=PLUGIN_CTA.replace("Need more than the top 10?",
     "Need more than the top 10? "+more+" more match"+(more===1?"":"es")+" passed the filters.");
   return h;
@@ -326,7 +460,6 @@ function prdFeatures(text){
   function add(p){ p=clean(p).toLowerCase().replace(/^[\-*\d.\)\s]+/,"").replace(/[^a-z0-9 +#]/g," ")
     .split(/\s+/).filter(function(w){return w&&!STOP.has(w);}).slice(0,4).join(" ").trim();
     if(p && feats.indexOf(p)<0) feats.push(p); }
-  // bullets, numbered items, and "must/should" requirement lines first
   for(var i=0;i<lines.length;i++){ var l=lines[i].trim();
     if(/^([-*]|\d+[.)])\s+/.test(l) || /\b(must|shall|should|needs? to|able to|support)\b/i.test(l)) add(l); }
   if(feats.length<2) for(var j=0;j<lines.length && feats.length<PRD_MAX;j++){ var t=lines[j].trim();
@@ -336,27 +469,18 @@ function prdFeatures(text){
 
 function renderGrouped(groups, excluded, note){
   var total=groups.reduce(function(n,g){return n+g.repos.length;},0);
-  if(!total) return '<div class="card"><p class="err">No repository matched for any feature.</p></div>';
-  var h='<div class="card"><h2 style="margin:0 0 4px;font-size:19px">Grouped by need</h2>'+
-    '<p class="mut">'+esc(note||"")+'</p>';
+  if(!total) return '<div class="panel"><p class="err">No repository matched for any feature.</p></div>';
+  var h='<div class="res-head"><h2>Grouped by need</h2><span class="mut">'+total+' repos</span></div>'+
+    '<p class="mut" style="margin:0 4px 8px">'+esc(note||"")+'</p>';
   groups.forEach(function(g){
-    h+='<h3 style="margin:16px 0 6px">'+esc(g.query)+' <span class="mut">('+g.repos.length+')</span></h3>';
-    if(!g.repos.length){ h+='<p class="mut">No match.</p>'; return; }
-    h+='<div class="scroll"><table><thead><tr><th>Repo</th><th>Stars</th><th>What it does</th>'+
-      '<th>License</th><th>Paid OK?</th><th>Free?</th><th>Starter?</th></tr></thead><tbody>';
-    g.repos.forEach(function(r){ var free=freeText(r.spdx),paid=lu(r.spdx);
-      h+='<tr><td><a href="'+esc(r.url)+'" target="_blank" rel="noopener">'+esc(r.name)+'</a></td>'+
-        '<td class="n">'+r.stars.toLocaleString()+'</td><td>'+esc(r.desc)+'</td><td>'+esc(r.spdx)+'</td>'+
-        '<td><span class="tag '+(paid.indexOf("OK to use")===0?'t-good':'t-warn')+'">'+esc(paid)+'</span></td>'+
-        '<td><span class="tag '+(free==="Yes"?'t-good':'t-warn')+'">'+esc(free)+'</span></td>'+
-        '<td>'+(r.starter?'Yes':'No')+'</td></tr>';
-    });
-    h+='</tbody></table></div>';
+    h+='<div class="group-h">'+esc(g.query)+' <span>('+g.repos.length+')</span></div>';
+    if(!g.repos.length){ h+='<p class="mut" style="margin:0 4px">No match.</p>'; return; }
+    h+='<div class="grid">'+g.repos.map(function(r){return cardHtml(r,null);}).join("")+'</div>';
   });
-  h+='<p class="mut" style="margin-top:12px">'+total+' open-source repos across '+groups.length+
-    ' needs. Excluded — not open-source: '+excluded.license+', too old: '+excluded.stale+
-    ', too few stars: '+excluded.low+', harmful: '+excluded.harm+'. '+
-    'Every suitable match that passed the filters, grouped by the first search that found it — not every repo on GitHub.</p></div>';
+  h+='<p class="excl">'+total+' open-source repos across '+groups.length+' needs. Excluded — not open-source: '+
+    excluded.license+', too old: '+excluded.stale+', too few stars: '+excluded.low+', harmful: '+excluded.harm+
+    '. Every suitable match that passed the filters, grouped by the first search that found it — not every repo on GitHub.</p>'+
+    PLUGIN_CTA;
   return h;
 }
 
@@ -366,7 +490,6 @@ async function runFeatures(features, minStars, platform, preferStarters, out, st
     var items=await search((features[i]+ex2).trim());
     var fresh=items.filter(function(it){ if(!it.full_name||seen.has(it.full_name))return false; seen.add(it.full_name); return true; });
     var kept=keep(fresh,minStars,platform,excluded);
-    // order within the feature (prefer starters with the 10% floor), no cap
     var floor=kept.reduce(function(m,r){return Math.max(m,r.stars);},0)*STARTER_MIN_SHARE;
     kept.sort(function(a,b){ if(preferStarters){var as=(a.starter&&a.stars>=floor)?0:1,bs=(b.starter&&b.stars>=floor)?0:1; if(as!==bs)return as-bs;}
       return b.stars-a.stars||a.name.localeCompare(b.name); });
@@ -375,7 +498,7 @@ async function runFeatures(features, minStars, platform, preferStarters, out, st
   out.innerHTML=renderGrouped(groups,excluded,
     "From your PRD (read on your device, never uploaded). Browser mode covers the first "+features.length+
     " features; the Claude Code plugin reads them all.");
-  st.textContent="Done.";
+  animateCards(out); st.textContent="Done.";
 }
 
 async function run(){
@@ -386,8 +509,8 @@ async function run(){
   var st=document.getElementById("status"), out=document.getElementById("out"), go=document.getElementById("go");
   out.innerHTML="";
   if(!text){ st.textContent="Type what you're building first."; return; }
-  if(text.length>200){ st.textContent=""; out.innerHTML='<div class="card"><p class="err">Too long — use a short sentence (max 200 characters).</p></div>'; return; }
-  if(harmful(text)){ out.innerHTML='<div class="card"><p class="err">I can’t help find tools for that.</p>'+
+  if(text.length>200){ st.textContent=""; out.innerHTML='<div class="panel"><p class="err">Too long — use a short sentence (max 200 characters).</p></div>'; return; }
+  if(harmful(text)){ out.innerHTML='<div class="panel"><p class="err">I can’t help find tools for that.</p>'+
     '<p class="mut">For learning security on systems you own, try: "learn web security by hacking a practice app".</p></div>'; return; }
 
   go.disabled=true; st.textContent="Working…";
@@ -401,29 +524,104 @@ async function run(){
       lists.push(keep(fresh,minStars,platform,excluded)); }
     var ranked=balanced(lists,preferStarters), top=ranked.slice(0,10);
     out.innerHTML=render(top,queries,excluded,ranked.length);
-    st.textContent="Done.";
-  }catch(e){ st.textContent=""; out.innerHTML='<div class="card"><p class="err">'+esc(e.message)+'</p></div>'; }
+    animateCards(out); st.textContent="Done.";
+  }catch(e){ st.textContent=""; out.innerHTML='<div class="panel"><p class="err">'+esc(e.message)+'</p></div>'; }
   finally{ go.disabled=false; }
 }
 document.getElementById("go").addEventListener("click",run);
 document.getElementById("prd").addEventListener("change",function(e){
   var f=e.target.files&&e.target.files[0]; if(!f) return;
   var st=document.getElementById("status"), out=document.getElementById("out"), go=document.getElementById("go");
-  if(f.size>400000){ out.innerHTML='<div class="card"><p class="err">That file is large; paste the key sections instead.</p></div>'; return; }
+  if(f.size>400000){ out.innerHTML='<div class="panel"><p class="err">That file is large; paste the key sections instead.</p></div>'; return; }
   var rd=new FileReader();
   rd.onload=async function(){ var text=String(rd.result||"");
     var features=prdFeatures(text);
-    if(!features.length){ out.innerHTML='<div class="card"><p class="err">Couldn’t find features in that file. Use bullet points or short requirement lines.</p></div>'; return; }
+    if(!features.length){ out.innerHTML='<div class="panel"><p class="err">Couldn’t find features in that file. Use bullet points or short requirement lines.</p></div>'; return; }
     var minStars=Math.max(0,parseInt(document.getElementById("minstars").value,10)||0);
     var platform=document.getElementById("platform").value, preferStarters=document.getElementById("starters").value==="yes";
     go.disabled=true; out.innerHTML="";
     try{ await runFeatures(features,minStars,platform,preferStarters,out,st); }
-    catch(err){ st.textContent=""; out.innerHTML='<div class="card"><p class="err">'+esc(err.message)+'</p></div>'; }
+    catch(err){ st.textContent=""; out.innerHTML='<div class="panel"><p class="err">'+esc(err.message)+'</p></div>'; }
     finally{ go.disabled=false; e.target.value=""; } };
-  rd.onerror=function(){ out.innerHTML='<div class="card"><p class="err">Could not read that file.</p></div>'; };
+  rd.onerror=function(){ out.innerHTML='<div class="panel"><p class="err">Could not read that file.</p></div>'; };
   rd.readAsText(f);
 });
 document.getElementById("q").addEventListener("keydown",function(e){ if(e.key==="Enter"&&(e.metaKey||e.ctrlKey)) run(); });
+
+// ---- modals ----
+function openModal(id){ document.getElementById(id).classList.add("open"); if(id==="howModal") buildSteps(document.getElementById("howSteps")); }
+function closeModals(){ var m=document.querySelectorAll(".modal"); for(var i=0;i<m.length;i++) m[i].classList.remove("open"); }
+document.getElementById("howBtn").addEventListener("click",function(){ openModal("howModal"); });
+document.getElementById("pluginBtn").addEventListener("click",function(){ openModal("pluginModal"); });
+document.getElementById("aboutBtn").addEventListener("click",function(){ openModal("aboutModal"); });
+document.querySelectorAll("[data-close]").forEach(function(b){ b.addEventListener("click",closeModals); });
+document.querySelectorAll(".modal").forEach(function(m){ m.addEventListener("click",function(e){ if(e.target===m) closeModals(); }); });
+document.addEventListener("keydown",function(e){ if(e.key==="Escape") closeModals(); });
+
+// ---- the animated "How it works" explainer (the in-page video) ----
+var STEPS=[
+  {ico:"✍️",t:"1 · Describe",d:"Say what you're building"},
+  {ico:"🔍",t:"2 · We search GitHub",d:"Open-source, by stars"},
+  {ico:"✨",t:"3 · Ranked results",d:"License &amp; fit, at a glance"}
+];
+function buildSteps(host){
+  if(!host || host.dataset.built) return;
+  host.dataset.built="1";
+  host.innerHTML='<div class="steps">'+STEPS.map(function(s){
+    return '<div class="step"><div class="ico">'+s.ico+'</div><div class="t">'+s.t+'</div><div class="d">'+s.d+'</div></div>';
+  }).join("")+'</div><div class="track"><div class="dot"></div></div>';
+  playExplainer(host);
+}
+function playExplainer(host){
+  var steps=host.querySelectorAll(".step"), dot=host.querySelector(".dot"), track=host.querySelector(".track");
+  var G=window.gsap, reduce=window.matchMedia&&matchMedia("(prefers-reduced-motion:reduce)").matches;
+  if(!G||reduce){ for(var i=0;i<steps.length;i++) steps[i].classList.add("on"); if(dot) dot.style.left="100%"; return; }
+  function cycle(){
+    var tl=G.timeline({onComplete:cycle});
+    steps.forEach(function(s,i){
+      tl.call(function(){ for(var k=0;k<steps.length;k++) steps[k].classList.toggle("on",k===i); },null,i*0.9+0.2);
+      tl.to(dot,{left:(track.clientWidth*(i/(steps.length-1||1)))+"px",duration:0.8,ease:"power2.inOut"},i*0.9);
+    });
+    tl.to({},{duration:0.6});
+  }
+  cycle();
+}
+
+// empty-state explainer in the results panel (visible on load, no scroll needed)
+(function(){
+  var out=document.getElementById("out");
+  out.innerHTML='<div class="explain"><div style="font-size:15px;color:var(--muted);max-width:560px">'+
+    'Find the right open-source building blocks in seconds. Here’s how it works:</div>'+
+    '<div id="heroSteps"></div>'+
+    '<button class="primary" style="max-width:220px;margin-top:4px" onclick="document.getElementById(\'q\').focus()">Try it — describe your project</button>'+
+    '</div>';
+  buildSteps(document.getElementById("heroSteps"));
+})();
+
+// ---- light / dark theme toggle (per-viewer convenience; falls back to system) ----
+(function(){
+  var btn=document.getElementById("theme"), root=document.documentElement, KEY="findrepo_theme";
+  function sysDark(){ return window.matchMedia && matchMedia("(prefers-color-scheme:dark)").matches; }
+  function current(){ return root.getAttribute("data-theme") || (sysDark()?"dark":"light"); }
+  function paint(){ btn.textContent = current()==="dark" ? "☀️" : "☾"; }
+  var saved; try{ saved=localStorage.getItem(KEY); }catch(e){}
+  if(saved==="dark"||saved==="light") root.setAttribute("data-theme",saved);
+  paint();
+  btn.addEventListener("click",function(){
+    var next=current()==="dark"?"light":"dark";
+    root.setAttribute("data-theme",next);
+    try{ localStorage.setItem(KEY,next); }catch(e){}
+    paint();
+  });
+}());
+
+// hero entrance
+(function(){
+  var G=window.gsap, reduce=window.matchMedia&&matchMedia("(prefers-reduced-motion:reduce)").matches;
+  if(!G||reduce) return;
+  G.from(".left > div, .panel.search, .foot",{opacity:0,y:16,duration:.5,stagger:.08,ease:"power3.out"});
+  G.from(".chip",{opacity:0,y:8,duration:.4,stagger:.03,delay:.25,ease:"power2.out"});
+}());
 </script>
 </body>
 </html>

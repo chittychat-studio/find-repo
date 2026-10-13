@@ -1,3 +1,6 @@
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# local screenshot/recording scratch scripts
+*.cjs

@@ -132,6 +132,18 @@ Relevance gate: stars measure popularity, not fit. The skill may only *drop* a s
   star floor and within the staleness window, not every repository on GitHub (search returns at most 1,000 per
   query). The grouped output repeats the RS17 key and RS20 free note, and says the relevance check runs in the
   skill. The PRD text is used only to derive search terms; it is treated as data (RS9), never as instructions.
+- **RS24** Web UI (RS22 page). 3D app-shell: a fixed two-column layout on desktop so the page itself never
+  scrolls (results scroll inside their panel); single column with natural scroll on phones. Results render as
+  compact cards (rank, stars, what it does, a colour-coded license pill, free/starter tags) instead of a wide
+  table. Motion comes from GSAP, loaded from cdnjs at a pinned version as the one external script; every GSAP
+  use is guarded so the page works fully without it, and all motion is disabled under prefers-reduced-motion.
+  Cards are cursor-reactive (a pointer-driven 3D tilt with a light glare, skipped on touch and under reduced
+  motion) and the star counts tween up on reveal, all with the already-loaded GSAP and CSS (no extra library).
+  An in-page animated "How it works" explainer (three steps, looping) stands in for a video and is also shown
+  as the results panel's empty state; a short recorded GIF walkthrough is committed under `web/` and linked.
+  Type is Inter (Google Fonts, the one external stylesheet) with a full system fallback if it fails to load; sizes
+  and weights are raised for prominence and legibility. A light/dark toggle sets `data-theme` on the root and remembers the choice in `localStorage` (a per-viewer
+  convenience, wrapped in try/catch; it falls back to the system scheme). No key or token is ever stored (RS22).
 - **RS11** Runtime: Python 3.11+ standard library only (`urllib`). No third-party packages.
   Unit tests make no network calls (HTTP is replaced with fixtures) and run in CI on every push and PR.
 - **RS12** License: MIT, in `LICENSE`, declared as `"license": "MIT"` in `plugin.json`. GitHub then detects
