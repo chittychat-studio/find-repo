@@ -513,6 +513,9 @@ def test_web_page_is_safe_static(monkeypatch):
     srcs = _re.findall(r'<script[^>]+src="([^"]+)"', html)
     assert srcs == ["https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"], srcs
     assert "unpkg" not in html.lower() and "jsdelivr" not in html.lower()
+    # any external stylesheet must be Google Fonts (Inter), degrades to system
+    sheets = _re.findall(r'<link[^>]+rel="stylesheet"[^>]+href="([^"]+)"', html)
+    assert all(h.startswith("https://fonts.googleapis.com/") for h in sheets), sheets
     # calls the public search API, sorted by stars, forks/archived excluded
     assert "api.github.com/search/repositories" in html
     assert "sort=stars" in html and "fork:false archived:false is:public" in html

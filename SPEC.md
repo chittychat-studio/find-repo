@@ -141,7 +141,8 @@ Relevance gate: stars measure popularity, not fit. The skill may only *drop* a s
   motion) and the star counts tween up on reveal, all with the already-loaded GSAP and CSS (no extra library).
   An in-page animated "How it works" explainer (three steps, looping) stands in for a video and is also shown
   as the results panel's empty state; a short recorded GIF walkthrough is committed under `web/` and linked.
-  A light/dark toggle sets `data-theme` on the root and remembers the choice in `localStorage` (a per-viewer
+  Type is Inter (Google Fonts, the one external stylesheet) with a full system fallback if it fails to load; sizes
+  and weights are raised for prominence and legibility. A light/dark toggle sets `data-theme` on the root and remembers the choice in `localStorage` (a per-viewer
   convenience, wrapped in try/catch; it falls back to the system scheme). No key or token is ever stored (RS22).
 - **RS11** Runtime: Python 3.11+ standard library only (`urllib`). No third-party packages.
   Unit tests make no network calls (HTTP is replaced with fixtures) and run in CI on every push and PR.
