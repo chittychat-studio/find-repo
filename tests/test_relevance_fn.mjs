@@ -101,19 +101,23 @@ console.log("limit classification ok");
   const ai = (impl) => ({ run: async (model, input) => { ai.last = { model, input }; return impl(); } });
   const lim = async () => new Response("tokens per day exceeded", { status: 429 });
   const busy = async () => new Response("tokens per minute", { status: 429, headers: { "retry-after": "20" } });
-  // primary works -> Workers AI never called
-  { let called = false; const AI = { run: async () => { called = true; return { response: ok }; } };
-    const out = await fn.judgeChain("q", repos, { ...env, AI }, fakeLLM(ok));
-    assert.strictEqual(out.status, 200); assert.strictEqual(called, false); }
-  // primary over its daily limit -> Workers AI answers, same prompt
-  { const AI = ai(() => ({ response: ok }));
-    const out = await fn.judgeChain("portfolio site", repos, { ...env, AI }, lim);
-    assert.deepStrictEqual(out.body, { drop: [{ i: 1, why: "mobile" }], checked: 3 });
+  // Workers AI first: when it answers, the keyed provider is never called (no key needed, no Groq quota spent)
+  { let called = false; const groq = async () => { called = true; return fakeLLM(ok)(); };
+    const out = await fn.judgeChain("portfolio site", repos, { ...env, AI: ai(() => ({ response: ok })) }, groq);
+    assert.deepStrictEqual(out.body, { drop: [{ i: 1, why: "mobile" }], checked: 3 }); assert.strictEqual(called, false);
     assert.strictEqual(ai.last.model, "@cf/meta/llama-3.1-8b-instruct");
     assert.match(ai.last.input.messages[0].content, /untrusted data/); }
-  // primary errors -> fallback; Workers AI may return an object when it parses JSON itself
-  { const out = await fn.judgeChain("q", repos, { ...env, AI: ai(() => ({ response: { drop: [] } })) }, fakeLLM("x", 500));
+  // Workers AI out of its daily allocation -> Groq answers
+  { const AI = { run: async () => { throw new Error("4006: you have used up your daily free allocation of 10,000 neurons"); } };
+    const out = await fn.judgeChain("q", repos, { ...env, AI }, fakeLLM(ok));
+    assert.strictEqual(out.status, 200); assert.strictEqual(fakeLLM.last.init.headers.Authorization, "Bearer sk-test-SECRET"); }
+  // Workers AI errors -> fallback; Workers AI may return an object when it parses JSON itself
+  { const AI = { run: async () => { throw new Error("boom"); } };
+    assert.strictEqual((await fn.judgeChain("q", repos, { ...env, AI }, fakeLLM('{"drop":[]}'))).status, 200);
+    const out = await fn.judgeChain("q", repos, { AI: ai(() => ({ response: { drop: [] } })) });
     assert.deepStrictEqual(out.body, { drop: [], checked: 3 }); }
+  // key only (no binding) still works
+  assert.strictEqual((await fn.judgeChain("q", repos, env, fakeLLM(ok))).status, 200);
   // Workers AI only (no key) works; nothing configured -> not_configured
   assert.strictEqual((await fn.judgeChain("q", repos, { AI: ai(() => ({ response: ok })) })).status, 200);
   assert.deepStrictEqual(await fn.judgeChain("q", repos, {}), { status: 503, error: "not_configured" });

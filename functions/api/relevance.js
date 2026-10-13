@@ -1,5 +1,5 @@
 // SPEC RS34 — web relevance gate. Cloudflare Pages Function: POST /api/relevance
-// Asks an LLM (OpenAI-compatible provider, then Workers AI as fallback — RS34a) which candidate repos do NOT fit what the user is building.
+// Asks an LLM (Cloudflare Workers AI, then an OpenAI-compatible provider as fallback — RS34a) which candidate repos do NOT fit what the user is building.
 // The key lives only here (env.LLM_API_KEY, a Pages secret; Workers AI needs none) and is never sent to the browser (RS8).
 // Stores nothing and logs no request content (RS33). Fails open: any problem -> an error status, and the page
 // shows its normal keyword results with a note (never a blank page, never invented repos — RS7).
@@ -106,7 +106,7 @@ export async function judge(query, repos, env, fetchImpl = fetch, ms = TIMEOUT_M
   return { status: 200, body: { drop, checked: repos.length } };
 }
 
-// RS34a: Cloudflare Workers AI through the Pages AI binding (no key). Same prompt and parse rules as judge().
+// RS34a: Cloudflare Workers AI through the Pages AI binding (no key) — tried first. Same prompt and parse rules as judge().
 const WAI_CAPACITY = /capacity|too many requests|rate limit/i;
 export async function judgeWorkersAI(query, repos, env, ms = TIMEOUT_MS) {
   const model = env.WORKERS_AI_MODEL || "@cf/meta/llama-3.1-8b-instruct";
@@ -133,8 +133,8 @@ export async function judgeWorkersAI(query, repos, env, ms = TIMEOUT_MS) {
 // provider failed: "busy" if any hit a short limit, else "used up" with the soonest reset.
 export async function judgeChain(query, repos, env, fetchImpl = fetch, budgetMs = TIMEOUT_MS) {
   const steps = [];
-  if (env.LLM_API_KEY) steps.push(ms => judge(query, repos, env, fetchImpl, ms));
   if (env.AI && typeof env.AI.run === "function") steps.push(ms => judgeWorkersAI(query, repos, env, ms));
+  if (env.LLM_API_KEY) steps.push(ms => judge(query, repos, env, fetchImpl, ms));
   if (!steps.length) return { status: 503, error: "not_configured" };
   const end = Date.now() + budgetMs, fails = [];
   for (const step of steps) {
