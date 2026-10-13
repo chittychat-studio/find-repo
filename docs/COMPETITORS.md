@@ -1,9 +1,9 @@
-# Competitor analysis — Find Repo
+# Competitor analysis — Replore
 
 _Last updated: 2026-10-13. Compiled from web research; where a detail came from a third-party
 aggregator rather than the vendor's own site it is flagged. No figures were invented._
 
-**What Find Repo is:** a free, open-source Claude Code plugin (+ a static web page) that turns a
+**What Replore is:** a free, open-source Claude Code plugin (+ a static web page) that turns a
 plain-text or PRD description into the top open-source GitHub repos, ranked by a composite **fit**
 score of **relevance + stars + license-freedom**, with plain-English license verdicts
 ("OK to use in a paid product", "completely free?"), a one-line "why relevant" per repo, starter
@@ -12,11 +12,11 @@ Target user: vibe coders / non-expert builders.
 
 ## Closest competitors (most → least relevant)
 
-| # | Tool | What it is | Overlap | Where Find Repo differs |
+| # | Tool | What it is | Overlap | Where Replore differs |
 |---|------|-----------|---------|--------------------------|
 | 1 | **Libraries.io** — libraries.io | Indexes packages across ~32 package managers; browse by language, license, keyword | Discovery with license + popularity metadata — the closest "many-signals" match | A registry catalog, not prompt → ranked-fit; no composite score, no plain-English paid-use verdict, no PRD, not a plugin |
 | 2 | **LibHunt** — libhunt.com | Tracks library mentions to surface popular projects + "alternatives to X" | Popularity-driven discovery and alternatives | Curated topic pages, not free-text intent; no commercial-use license labels, no fit score |
-| 3 | **GitHub search / topics / Explore** | Native search with `topic:`/`language:`/`stars:>N` + star sort | The data source Find Repo sits on; already free and star-sortable | Needs query syntax (not vibe-coder free text); no relevance+license composite; no plain-English license; no PRD narrative. **The key free baseline.** |
+| 3 | **GitHub search / topics / Explore** | Native search with `topic:`/`language:`/`stars:>N` + star sort | The data source Replore sits on; already free and star-sortable | Needs query syntax (not vibe-coder free text); no relevance+license composite; no plain-English license; no PRD narrative. **The key free baseline.** |
 | 4 | **Perplexity** (+ general LLM chat) — perplexity.ai | Cited answer engine; "what library should I use for X?" | Directly substitutes the core job | Not GitHub-structured; no real popularity ranking; no systematic commercial-use license classification; non-deterministic; not in the build workflow |
 | 5 | **Phind** — phind.com | AI answer engine for developers, cited, VS Code extension | Devs ask "what tool for X" and get cited answers | Optimized for coding Q&A/doc lookup, not a ranked license-scored shortlist; no fit score; no PRD pass |
 | 6 | **ChatGPT deep-research / custom GPTs** — openai.com | Can analyze a repo you picked, or a GPT over a catalog | Closest "AI over GitHub" | Analyzes a repo you already chose; no verified prompt → license-scored shortlist GPT found (GPT Store not browsable) |

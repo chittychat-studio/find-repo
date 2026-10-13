@@ -1,4 +1,4 @@
-"""Find Repo unit tests. No network: fetch is replaced with fixtures (RS2-RS11)."""
+"""Replore unit tests. No network: fetch is replaced with fixtures (RS2-RS11)."""
 import datetime as dt
 import io
 import json
@@ -593,7 +593,7 @@ def test_web_page_is_safe_static(monkeypatch):
     assert 'id="prd"' in html and "FileReader" in html and "prdFeatures" in html
     assert "never uploaded" in html
     # RS22: how-to-run-in-Claude-Code and the >10 edge-case CTA both point to the plugin
-    assert "/plugin install find-repo@find-repo" in html and "/find-repo:find" in html
+    assert "/plugin install replore@replore" in html and "/replore:find" in html
     assert "Use in Claude Code" in html and "PLUGIN_CTA" in html
     assert "more match" in html  # the >10 banner
     # light/dark toggle (RS24)

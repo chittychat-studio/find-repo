@@ -1,5 +1,5 @@
 {
-  "description": "Goal-based evals for Find Repo's fit ranking (RS5). The product promise: a vibe coder gets the repo they actually want at #1 — relevant AND popular AND free to use — not just the most-starred keyword hit. Each case lists candidate repos with rel (position in GitHub best-match results, 0 = top), stars and SPDX license, and names the repo that SHOULD rank #1. These express the GOAL and tolerate weight tweaks; exact orderings are locked separately in tests/.",
+  "description": "Goal-based evals for Replore's fit ranking (RS5). The product promise: a vibe coder gets the repo they actually want at #1 — relevant AND popular AND free to use — not just the most-starred keyword hit. Each case lists candidate repos with rel (position in GitHub best-match results, 0 = top), stars and SPDX license, and names the repo that SHOULD rank #1. These express the GOAL and tolerate weight tweaks; exact orderings are locked separately in tests/.",
   "threshold": 1.0,
   "cases": [
     {

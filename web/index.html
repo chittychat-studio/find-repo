@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Find Repo — top open-source GitHub repos for your project</title>
+<title>Replore — top open-source GitHub repos for your project</title>
 <!--
-  Find Repo web page (SPEC RS22). Static single file, no build step, no key or token.
+  Replore web page (SPEC RS22). Static single file, no build step, no key or token.
   It calls the PUBLIC GitHub search API from the browser (unauthenticated: ~10 searches/minute).
   One external script only: GSAP (motion) from cdnjs, pinned; the page degrades gracefully without it.
   The browser version uses keyword search; the Claude Code plugin writes smarter queries, runs a
@@ -36,7 +36,7 @@
   }
   *{box-sizing:border-box}
   html,body{height:100%}
-  body{margin:0;color:var(--ink);overflow:hidden;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  body{margin:0;color:var(--ink);overflow:hidden;display:flex;flex-direction:column;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
     background:radial-gradient(1200px 700px at 12% -8%,var(--bg2),transparent 60%),
                radial-gradient(900px 600px at 110% 110%,rgba(192,83,44,.14),transparent 55%),var(--bg);
     font:16px/1.58 "Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;letter-spacing:.005em;}
@@ -44,9 +44,16 @@
   a:hover{text-decoration:underline}
   code{background:var(--offbg);padding:1px 5px;border-radius:5px}
 
-  /* app shell: two columns, full height, page never scrolls on desktop */
-  .app{height:100vh;display:grid;grid-template-columns:minmax(360px,420px) 1fr;gap:20px;
-    padding:20px;max-width:1500px;margin:0 auto}
+  /* full-width top bar: brand left, menu centered, theme right */
+  .topbar{flex:0 0 auto;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:14px;
+    width:100%;max-width:1500px;margin:0 auto;padding:16px 20px 0}
+  .topbar .brand{width:auto;flex-wrap:nowrap;justify-self:start}
+  .topbar .nav{justify-self:center;margin-left:0}
+  .topbar #theme{justify-self:end}
+
+  /* app shell: two columns, fills the rest, page never scrolls on desktop */
+  .app{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:minmax(360px,420px) 1fr;gap:20px;
+    padding:16px 20px 20px;max-width:1500px;margin:0 auto;width:100%}
   .left{display:flex;flex-direction:column;gap:14px;min-height:0;overflow:auto;padding-right:4px}
   .right{min-height:0;display:flex;flex-direction:column}
 
@@ -193,7 +200,9 @@
 
   @media (max-width:900px){
     body{overflow:auto}
-    .app{grid-template-columns:1fr;height:auto;min-height:100vh}
+    .app{grid-template-columns:1fr;flex:0 0 auto;min-height:0}
+    .topbar{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}
+    .topbar .nav{justify-self:auto}
     .chips{max-height:none}
     .results{overflow:visible}
   }
@@ -201,23 +210,23 @@
 </style>
 </head>
 <body>
+<header class="topbar">
+  <div class="brand"><svg class="logo" width="30" height="30" viewBox="0 0 32 32" aria-hidden="true">
+      <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="var(--accent)"/><stop offset="1" stop-color="var(--accent-ink)"/></linearGradient></defs>
+      <path d="M5 7h22l-7.5 9.5v7l-7 3.5v-10z" fill="none" stroke="url(#lg)" stroke-width="2.3" stroke-linejoin="round" stroke-linecap="round"/>
+      <path d="M16 20.5 L17.3 23.7 L20.5 25 L17.3 26.3 L16 29.5 L14.7 26.3 L11.5 25 L14.7 23.7 Z" fill="url(#lg)"/>
+    </svg><h1>Replore</h1><span class="by">open-source finder</span></div>
+  <div class="nav">
+    <button id="homeBtn" class="nav-btn" title="Back to the start">⌂ Home</button>
+    <button id="tourBtn" class="nav-btn" title="Watch how it works">▶ Tour</button>
+    <button id="setupBtn" class="nav-btn" title="Step-by-step: use the plugin in Claude Code">⌘ Setup</button>
+  </div>
+  <button id="theme" class="theme-toggle" title="Switch light / dark" aria-label="Switch light / dark"></button>
+</header>
 <main class="app">
   <div class="left">
-    <div>
-      <div class="brand"><svg class="logo" width="30" height="30" viewBox="0 0 32 32" aria-hidden="true">
-          <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stop-color="var(--accent)"/><stop offset="1" stop-color="var(--accent-ink)"/></linearGradient></defs>
-          <path d="M5 7h22l-7.5 9.5v7l-7 3.5v-10z" fill="none" stroke="url(#lg)" stroke-width="2.3" stroke-linejoin="round" stroke-linecap="round"/>
-          <path d="M16 20.5 L17.3 23.7 L20.5 25 L17.3 26.3 L16 29.5 L14.7 26.3 L11.5 25 L14.7 23.7 Z" fill="url(#lg)"/>
-        </svg><h1>Find Repo</h1><span class="by">open-source finder</span>
-        <div class="nav">
-          <button id="homeBtn" class="nav-btn" title="Back to the start">⌂ Home</button>
-          <button id="tourBtn" class="nav-btn" title="Watch how it works">▶ Tour</button>
-          <button id="setupBtn" class="nav-btn" title="Step-by-step: use the plugin in Claude Code">⌘ Setup</button>
-          <button id="theme" class="theme-toggle" title="Switch light / dark" aria-label="Switch light / dark"></button>
-        </div></div>
-      <p class="sub">Describe what you're building — get the open-source GitHub repos that fit: relevant, popular and free to use.</p>
-    </div>
+    <p class="sub">Tell me what you're building. I'll find the open-source repos that actually fit — popular, free to use, and still maintained — so you can stop scrolling GitHub and start shipping.</p>
 
     <div class="panel search">
       <label for="q">What are you building?</label>
@@ -225,8 +234,10 @@
       <select id="example-pick" class="example-pick" aria-label="Pick an example project to fill in and search">
         <option value="">↩ Or pick an example…</option>
       </select>
-      <div class="stack-field"><label for="stack" class="mut">Main language or tech (optional)</label>
-        <input id="stack" type="text" placeholder="e.g. Python, React, Django, HTML" autocomplete="off" maxlength="40"></div>
+      <div class="stack-field"><label for="stack" class="mut">Tech stack (optional)</label>
+        <input id="stack" type="text" placeholder="e.g. Python, React, Django, HTML" autocomplete="off" maxlength="80"></div>
+      <div class="stack-field"><label for="like" class="mut">Already like a repo? Find similar ones (optional)</label>
+        <input id="like" type="text" placeholder="e.g. vercel/next.js or a GitHub link" autocomplete="off" maxlength="120"></div>
       <div class="row">
         <div><label for="platform" class="mut">Platform</label>
           <select id="platform"><option value="">Any</option><option value="web">Web</option>
@@ -260,10 +271,10 @@
 <!-- modals -->
 <div class="modal" id="howModal"><div class="sheet">
   <button class="x" data-close>&times;</button>
-  <h2>How Find Repo works</h2>
+  <h2>How Replore works</h2>
   <p class="mut">Three steps, right in your browser — no account, no key.</p>
   <div id="howSteps"></div>
-  <img src="demo.gif" alt="Find Repo walkthrough: describe a project, search GitHub, see ranked results"
+  <img src="demo.gif" alt="Replore walkthrough: describe a project, search GitHub, see ranked results"
     loading="lazy" style="width:100%;border:1px solid var(--line);border-radius:12px;margin:12px 0 4px">
   <p class="mut" style="margin:0">A 5-second walkthrough of a real search.</p>
   <p class="mut" style="margin-top:12px">For AI-written searches, a relevance check, and a whole PRD read feature
@@ -272,7 +283,7 @@
 
 <div class="modal" id="pluginModal"><div class="sheet">
   <button class="x" data-close>&times;</button>
-  <h2>Use Find Repo in Claude Code</h2>
+  <h2>Use Replore in Claude Code</h2>
   <p class="mut">New to this? Do these once. The plugin writes smarter searches with AI, checks each result
     actually fits, reads a whole PRD feature by feature, and shows every suitable repo — not just 10. Free &amp; open-source.</p>
   <ol class="guide">
@@ -283,9 +294,9 @@
     <li><b>Open Claude Code</b> in any folder — type <code>claude</code> in your terminal and press Enter.</li>
     <li><b>Add the plugin</b> — paste each line and press Enter:
       <pre class="cmd">/plugin marketplace add chittychat-studio/find-repo
-/plugin install find-repo@find-repo</pre></li>
+/plugin install replore@replore</pre></li>
     <li><b>Find repos</b> — describe what you're building in plain words:
-      <pre class="cmd">/find-repo:find a diet app for iPhone, starting from scratch</pre></li>
+      <pre class="cmd">/replore:find a diet app for iPhone, starting from scratch</pre></li>
     <li><b>Read the results</b> — you get a table: the repo, how popular it is (stars), whether it's free to use
       in a paid product, and <i>why</i> it fits. Pick one and start building.</li>
   </ol>
@@ -492,11 +503,11 @@ var PLUGIN_CTA='<div class="cta-inline"><b>Need more than the top 10?</b> This p
   'Run the plugin in Claude Code for every suitable repo — and a PRD read feature by feature. '+
   '<button class="link-btn" onclick="openModal(\'pluginModal\')">Show commands →</button></div>';
 
-function render(top, queries, excluded, totalMatches, qtokens){
+function render(top, queries, excluded, totalMatches, qtokens, heading){
   if(!top.length){ return '<div class="panel"><p class="err">No repository matched.</p>'+
     '<p class="mut">Searches: '+esc(queries.join("; "))+'. Try fewer or broader words, or lower the minimum stars.</p></div>'; }
   var more=(totalMatches||top.length)-top.length;
-  var h='<div class="res-head"><h2>Top '+top.length+' matches</h2><span class="mut">best fit · relevant, popular, free</span></div>'+
+  var h='<div class="res-head"><h2>'+(heading?esc(heading):'Top '+top.length+' matches')+'</h2><span class="mut">best fit · relevant, popular, free</span></div>'+
     '<div class="grid">'+top.map(function(r,i){return cardHtml(r,i,qtokens);}).join("")+'</div>'+
     '<p class="excl">Searches: '+esc(queries.join("; "))+' · Excluded — not open-source: '+excluded.license+
     ', too old: '+excluded.stale+', too few stars: '+excluded.low+', forks/archived: '+excluded.fork+
@@ -590,30 +601,62 @@ async function runFeatures(features, minStars, platform, preferStarters, out, st
   animateCards(out); st.textContent="Done."; saveResults();
 }
 
+// "Find similar ones": accept owner/repo or a GitHub URL, look up its topics/language, search those (RS27)
+function parseRepo(s){ s=(s||"").trim(); if(!s) return null;
+  var m=s.match(/github\.com\/([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)/i); if(m) return m[1].replace(/\.git$/,"");
+  m=s.match(/^([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)$/); return m?m[1].replace(/\.git$/,""):null; }
+async function repoMeta(full){
+  var r=await fetch("https://api.github.com/repos/"+full,{headers:{"Accept":"application/vnd.github+json"}});
+  if(r.status===404) throw new Error("Couldn't find “"+full+"” on GitHub. Use owner/repo, e.g. vercel/next.js.");
+  if(r.status===403||r.status===429) throw new Error("GitHub rate limit reached (10/min without a token). Wait a minute.");
+  if(!r.ok) throw new Error("GitHub lookup failed (HTTP "+r.status+").");
+  return await r.json(); }
+function altQueries(meta, platform){
+  var qs=(meta.topics||[]).slice(0,3);
+  if(qs.length<2){ var extra=keywordQueries((meta.description||meta.name||"")+" "+(meta.language||""), platform);
+    for(var i=0;i<extra.length && qs.length<MAX_QUERIES;i++) if(qs.indexOf(extra[i])<0) qs.push(extra[i]); }
+  if(!qs.length && meta.language) qs.push(meta.language);
+  var ex = platform==="ios"?" -topic:macos":"";
+  return qs.slice(0,MAX_QUERIES).map(function(q){return (q+ex).trim();}); }
+
 async function run(){
   var text=document.getElementById("q").value.trim();
   var platform=document.getElementById("platform").value;
   var minStars=Math.max(0,parseInt(document.getElementById("minstars").value,10)||0);
   var preferStarters=document.getElementById("starters").value==="yes";
-  var stack=(document.getElementById("stack").value||"").trim().slice(0,40);
+  var stack=(document.getElementById("stack").value||"").trim().slice(0,80);
+  var like=(document.getElementById("like").value||"").trim();
   var st=document.getElementById("status"), out=document.getElementById("out"), go=document.getElementById("go");
   out.innerHTML="";
-  if(!text){ st.textContent="Type what you're building first."; return; }
+  if(!text && !like){ st.textContent="Type what you're building, or paste a repo to find similar ones."; return; }
   if(text.length>200){ st.textContent=""; out.innerHTML='<div class="panel"><p class="err">Too long — use a short sentence (max 200 characters).</p></div>'; return; }
-  if(harmful(text)){ out.innerHTML='<div class="panel"><p class="err">I can’t help find tools for that.</p>'+
+  if(text && harmful(text)){ out.innerHTML='<div class="panel"><p class="err">I can’t help find tools for that.</p>'+
     '<p class="mut">For learning security on systems you own, try: "learn web security by hacking a practice app".</p></div>'; return; }
 
   go.disabled=true; st.textContent="Working…";
   try{
-    var queries=keywordQueries(text,platform);
-    if(stack) queries=queries.map(function(q){return (q+" "+stack).trim();});  // narrow to the user's language/tech
+    var queries, heading=null, seen={}, qtok;
+    if(like){
+      var target=parseRepo(like);
+      if(!target) throw new Error("Enter a repo as owner/repo or a GitHub link, e.g. vercel/next.js.");
+      st.textContent="Looking up "+target+"…";
+      var meta=await repoMeta(target);
+      queries=altQueries(meta,platform);
+      if(!queries.length) throw new Error("That repo has no topics or description to search from.");
+      seen[clean(meta.full_name||target)]=null;  // exclude the original repo from the results (RS27)
+      heading="Repos like "+(meta.full_name||target);
+      qtok=sigTokens(queries.join(" "));
+    } else {
+      queries=keywordQueries(text,platform); qtok=sigTokens(text);
+    }
+    if(stack) queries=queries.map(function(q){return (q+" "+stack).trim();});  // narrow to the chosen language/tech
     if(!queries.length) throw new Error("Couldn't build a search. Try different words.");
-    var excluded={license:0,stale:0,low:0,fork:0,harm:0}, seen={}, lists=[];
+    var excluded={license:0,stale:0,low:0,fork:0,harm:0}, lists=[];
     for(var i=0;i<queries.length;i++){ st.textContent="Searching ("+(i+1)+"/"+queries.length+")…";
       var items=await search(queries[i]);
       lists.push(keep(items,minStars,platform,excluded,seen)); }
     var ranked=rankByFit(lists,preferStarters), top=ranked.slice(0,10);
-    out.innerHTML=render(top,queries,excluded,ranked.length,sigTokens(text));
+    out.innerHTML=render(top,queries,excluded,ranked.length,qtok,heading);
     animateCards(out); st.textContent="Done."; saveResults();
   }catch(e){ st.textContent=""; out.innerHTML='<div class="panel"><p class="err">'+esc(e.message)+'</p></div>'; }
   finally{ go.disabled=false; }
@@ -755,7 +798,7 @@ document.getElementById("tourBtn").addEventListener("click",function(){ openModa
 (function(){
   var G=window.gsap, reduce=window.matchMedia&&matchMedia("(prefers-reduced-motion:reduce)").matches;
   if(!G||reduce) return;
-  G.from(".left > div, .panel.search, .foot",{opacity:0,y:16,duration:.5,stagger:.08,ease:"power3.out"});
+  G.from(".topbar, .sub, .panel.search, .foot",{opacity:0,y:16,duration:.5,stagger:.08,ease:"power3.out"});
   G.from(".chip",{opacity:0,y:8,duration:.4,stagger:.03,delay:.25,ease:"power2.out"});
 }());
 </script>

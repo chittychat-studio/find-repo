@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Goal-based eval suite for Find Repo's fit ranking (SPEC RS5).
+"""Goal-based eval suite for Replore's fit ranking (SPEC RS5).
 
 Unit tests (tests/) lock exact orderings; these evals measure the *product goal*:
 does a vibe coder get the repo they actually want at #1 — relevant AND popular AND
@@ -40,7 +40,7 @@ def main():
     data = json.loads((Path(__file__).parent / "fit_cases.json").read_text())
     cases, threshold = data["cases"], data.get("threshold", 1.0)
     passed = 0
-    print(f"Find Repo — fit-ranking eval ({len(cases)} goal cases)\n")
+    print(f"Replore — fit-ranking eval ({len(cases)} goal cases)\n")
     for c in cases:
         ranked = _rank(c["candidates"], c.get("prefer_starters", False))
         top = ranked[0]["full_name"]
