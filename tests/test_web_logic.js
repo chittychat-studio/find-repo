@@ -12,7 +12,7 @@ global.matchMedia = () => ({matches:false});
 global.window = global;
 const s = {};
 new Function("document", "localStorage",
-  code + "; this.keywordQueries=keywordQueries; this.rankByFit=rankByFit; this.fitScore=fitScore; this.lu=lu; this.freeText=freeText;" +
+  code + "; this.keywordQueries=keywordQueries; this.rankByFit=rankByFit; this.fitScore=fitScore; this.whyRelevant=whyRelevant; this.lu=lu; this.freeText=freeText;" +
   " this.keep=keep; this.harmful=harmful; this.harmfulRepo=harmfulRepo; this.prdFeatures=prdFeatures;").call(s, document, global.localStorage || {getItem:()=>null,setItem(){},removeItem(){}});
 
 // RS16: iOS excludes macOS
@@ -48,6 +48,11 @@ assert.strictEqual(s.rankByFit([rel], false)[0].name, "tiny/exact", "relevance s
 const lic = [{name:"a/permissive",stars:1000,spdx:"MIT",starter:false,rel:0},
              {name:"a/copyleft",stars:1000,spdx:"AGPL-3.0",starter:false,rel:0}];
 assert.strictEqual(s.rankByFit([lic], false)[0].name, "a/permissive", "free-to-use should break the tie");
+// RS5/RS24: every card explains why the repo is relevant, honestly (keyword match, not AI)
+const w1 = s.whyRelevant({name:"me/rag-chat", desc:"A RAG chatbot over your PDFs", rel:0}, ["rag","chatbot","pdfs"]);
+assert.ok(w1.startsWith("Matches your words") && w1.includes("rag"), w1);
+assert.strictEqual(s.whyRelevant({name:"x/y", desc:"unrelated", rel:1}, ["zzz"]), "Top match for your search");
+assert.strictEqual(s.whyRelevant({name:"x/y", desc:"unrelated", rel:9}, ["zzz"]), "Related to your search");
 console.log("web logic ok");
 
 // RS23: PRD feature extraction (client-side, capped for the rate limit)
