@@ -265,11 +265,15 @@
   .prd-count{font-size:13.5px;font-weight:700}
   .prd-bar .primary{width:auto;margin:0;padding:10px 18px}
   .prd-bar .link-btn{font-size:13px}
-  .prd-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-  .prd-actions .primary{width:auto;margin:0}
-  .btn-secondary{display:inline-flex;align-items:center;background:var(--offbg);border:1px solid var(--line);
-    border-radius:10px;padding:12px 16px;font-weight:700;color:var(--accent-ink);text-decoration:none}
-  .btn-secondary:hover{border-color:var(--accent);text-decoration:none}
+  /* PRD prompt box with a small corner copy icon */
+  .prd-prompt{position:relative;margin:10px 0}
+  .prd-prompt .copy{position:absolute;top:8px;right:8px;background:var(--card);border:1px solid var(--line);
+    border-radius:8px;padding:5px 9px;font-size:14px;line-height:1;color:var(--accent-ink);cursor:pointer}
+  .prd-prompt .copy:hover{border-color:var(--accent)}
+  .primary-cta{display:block;text-align:center;margin-top:12px;color:#fff;text-decoration:none;border-radius:10px;
+    padding:13px 18px;font-weight:700;background:linear-gradient(135deg,var(--accent),var(--accent-ink));
+    box-shadow:0 10px 22px -10px rgba(192,83,44,.8);transition:transform .12s,box-shadow .18s}
+  .primary-cta:hover{transform:translateY(-1px);box-shadow:0 16px 30px -12px rgba(192,83,44,.9);text-decoration:none}
   @media (max-width:700px){ .prd-bar{left:12px;right:12px;transform:none;justify-content:space-between} }
   /* desktop = expanded format: wider cards that spell out the license meaning in full */
   @media (min-width:1000px){
@@ -443,11 +447,11 @@
   <button class="x" data-close>&times;</button>
   <h2>Generate a PRD from your picks</h2>
   <p class="mut">Replore doesn't write the PRD — your <b>own</b> Claude does, free and private. Copy this into Claude Code (with the Replore plugin) or paste it into Claude. It lists the repos you selected.</p>
-  <pre class="cmd" id="prdPrompt" data-copy-ready="1" style="max-height:260px;overflow:auto;white-space:pre-wrap"></pre>
-  <div class="prd-actions">
-    <button id="prdCopy" class="primary">Copy prompt</button>
-    <a id="prdOpen" class="btn-secondary" href="#" target="_blank" rel="noopener">Open in Claude ↗</a>
+  <div class="prd-prompt">
+    <pre class="cmd" id="prdPrompt" data-copy-ready="1" style="margin:0;max-height:240px;overflow:auto;white-space:pre-wrap;padding-right:46px"></pre>
+    <button id="prdCopy" class="copy" title="Copy prompt" aria-label="Copy prompt">⧉</button>
   </div>
+  <a id="prdOpen" class="primary-cta" href="#" target="_blank" rel="noopener">Open in Claude ↗</a>
   <p class="mut" style="margin-top:10px"><b>Open in Claude</b> starts a new chat on your own claude.ai account with the prompt prefilled (unofficial link — if it doesn't fill, use Copy). New to the plugin? <button class="link-btn" onclick="openModal('pluginModal')">See setup</button>.</p>
 </div></div>
 
@@ -1028,7 +1032,7 @@ document.addEventListener("keydown",function(e){ if(e.key==="Escape") closeModal
       else { openLink.removeAttribute("hidden"); openLink.href=url; } }
     openModal("prdModal"); });
   if(copyBtn) copyBtn.addEventListener("click",function(){ var text=pre?pre.textContent:"";
-    function ok(){ copyBtn.textContent="Copied!"; setTimeout(function(){ copyBtn.textContent="Copy prompt"; },1400); }
+    function ok(){ copyBtn.textContent="✓"; setTimeout(function(){ copyBtn.textContent="⧉"; },1400); }
     if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(ok,ok); }
     else { try{ var ta=document.createElement("textarea"); ta.value=text; ta.style.position="fixed"; ta.style.opacity="0";
       document.body.appendChild(ta); ta.focus(); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); ok(); }catch(err){} } });
