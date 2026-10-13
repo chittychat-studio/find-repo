@@ -599,8 +599,11 @@ def test_web_page_is_safe_static(monkeypatch):
     assert "more match" in html  # the >10 banner
     # light/dark toggle (RS24)
     assert 'id="theme"' in html and "data-theme" in html and "findrepo_theme" in html
-    # RS24 recorded walkthrough GIF committed and embedded
-    assert 'src="demo.gif"' in html and (ROOT / "web" / "demo.gif").exists()
+    # RS24 Tour: a current screenshot of the live page is committed and embedded (replaces the stale gif)
+    assert 'src="tour.png"' in html and (ROOT / "web" / "tour.png").exists()
+    # RS28 select-to-PRD hand-off: no model call/key; copy + deep-link to the user's own Claude
+    assert 'class="pick-cb"' in html and 'id="prdModal"' in html and 'id="prdPrompt"' in html
+    assert "claude.ai/new?q=" in html and "Copy prompt" in html
     # RS24 richness: cursor tilt + star count-up are native (no extra library)
     assert "attachTilt" in html and 'class="cnt"' in html
     for t in ("portfolio website", "iPhone app", "trip planner", "practice app"):
