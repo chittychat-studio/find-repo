@@ -44,8 +44,11 @@ open-source match that passes the filters, not every repo on GitHub.
 
 ## Web page (no install)
 
-A static page at `web/index.html` lets anyone type a project and see the top 10 repos in the browser — no
-Claude, no Python. Deploy it free on GitHub Pages:
+**Try it live: [replore.pages.dev](https://replore.pages.dev)** — type a project and see the top repos in your
+browser, no Claude and no Python needed.
+
+A static page at `web/index.html` powers it. It auto-deploys to [replore.pages.dev](https://replore.pages.dev)
+(Cloudflare Pages) on every push to `main`. To self-host it elsewhere, it also deploys free on GitHub Pages:
 
 1. Settings → Pages → Source → **GitHub Actions**.
 2. Push to `main` (the `pages` workflow deploys `web/`), or run the **pages** workflow by hand.
