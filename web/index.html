@@ -110,6 +110,7 @@
 
   /* two clean mode tiles (like the reference's cards) */
   .modes{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  .left-more{text-align:center;margin:14px 0 4px;font-size:13px}
   .fm-modes{display:flex;flex-direction:column;gap:8px;margin:4px 0 14px}
   .fm-modes .mode-tile{width:100%;min-width:0}
   .mode-tile{display:inline-flex;align-items:center;gap:12px;text-align:left;background:var(--card);
@@ -820,7 +821,7 @@ function licenseVerdict(spdx){
 function cardHtml(r,i,qtokens){
   var free=freeText(r.spdx), paid=lu(r.spdx), v=licenseVerdict(r.spdx);
   var okCom=v.c==="t-good"?1:0;   // one "free for commercial use" flag = the green verdict (permissive + weak copyleft)
-  return '<article class="rcard" data-com="'+okCom+'" data-starter="'+(r.starter?1:0)+'">'+
+  return '<article class="rcard" data-com="'+okCom+'" data-starter="'+(r.starter?1:0)+'"'+(r.left?' data-left="1"':'')+'>'+
     (i!=null?'<span class="rank">#'+(i+1)+'</span>':'')+
     '<span class="stars">★ <span class="cnt" data-v="'+r.stars+'">'+kstars(r.stars)+'</span></span>'+
     '<div class="name"><a href="'+esc(r.url)+'" target="_blank" rel="noopener">'+esc(r.name)+'</a></div>'+
@@ -881,7 +882,7 @@ function render(top, queries, excluded, totalMatches, qtokens, heading, note, ga
   if(!top.length){ return '<div class="panel"><p class="err">No repository matched.</p>'+
     '<p class="mut">Searches: '+esc(queries.join("; "))+'. Try fewer or broader words, or lower the minimum stars.</p></div>'; }
   var more=(totalMatches||top.length)-top.length;   // >0 only if we hit the render cap (rare)
-  var keptN=top.length;
+  var keptN=top.filter(function(r){ return !r.left; }).length, leftN=top.length-keptN;
   var h='<div class="res-head"><h2>'+(heading?esc(heading):'Top matches')+'</h2>'+
       '<span class="res-count mut">'+keptN+' result'+(keptN===1?'':'s')+'</span></div>'+
     (note?'<p class="res-note mut">'+note+'</p>':'')+  /* note is pre-built HTML: repo name already escaped, rest is our own markup */
@@ -889,6 +890,7 @@ function render(top, queries, excluded, totalMatches, qtokens, heading, note, ga
     '<div class="grid">'+top.map(function(r,i){return cardHtml(r,i,qtokens);}).join("")+'</div>'+
     '<div id="resEmpty" class="res-empty" hidden>No results match this filter. <button type="button" class="link-btn" id="resClear">Clear filter</button></div>'+
     '<div id="resMore" class="res-more-hint" aria-live="polite" hidden></div>'+   /* scroll sentinel: auto-reveals more (RS29) */
+    (leftN?'<p id="leftWrap" class="left-more" hidden><button type="button" class="link-btn" id="showLeft">Show '+leftN+' more we left out</button></p>':'')+
     '<p class="excl">Searches: '+esc(queries.join("; "))+' · Excluded — not open-source: '+excluded.license+
     ', too old: '+excluded.stale+', too few stars: '+excluded.low+', forks/archived: '+excluded.fork+
     ', harmful: '+excluded.harm+'</p>';
@@ -903,11 +905,12 @@ function applyResultFilter(){
   var cards=out.querySelectorAll(".rcard"), f=window.__resFilter||"all", limit=window.__resLimit||10, shown=0, matched=0;
   for(var i=0;i<cards.length;i++){ var c=cards[i];
     var ok = (f==="all" || (f==="com"&&c.getAttribute("data-com")==="1")
-      || (f==="starter"&&c.getAttribute("data-starter")==="1"));
+      || (f==="starter"&&c.getAttribute("data-starter")==="1")) && c.getAttribute("data-left")!=="1";   // RS34: left-out repos wait for "Show more"
     if(ok){ matched++; if(shown<limit){ c.style.display=""; shown++; } else c.style.display="none"; }
     else c.style.display="none";
   }
   var empty=out.querySelector("#resEmpty"); if(empty) empty.hidden = matched>0;
+  var lw=out.querySelector("#leftWrap"); if(lw) lw.hidden = matched>shown;   // the undo sits at the very bottom, after the last kept card
   var more=out.querySelector("#resMore");
   if(more){ if(matched>shown){ more.hidden=false; more.textContent="Showing "+shown+" of "+matched+" · scroll for more"; } else more.hidden=true; }
   var chips=out.querySelectorAll(".rfilter"); for(var j=0;j<chips.length;j++) chips[j].classList.toggle("on", chips[j].getAttribute("data-f")===f);
@@ -1206,8 +1209,10 @@ async function run(){
       if(gen!==window.__runGen) return;
       if(drops==="off"){ gate=null; }
       else if(drops&&drops.fail){ gate={ok:false,error:drops.error,resetsIn:drops.resetsInSec}; }
-      else if(drops){ var dropped={}; drops.forEach(function(d){ dropped[d.i]=1; });   // RS34: off-topic repos are simply left out
-        top=top.slice(0,30).filter(function(r,i){ return !dropped[i]; });
+      else if(drops){ var dropped={}; drops.forEach(function(d){ dropped[d.i]=1; });   // RS34: off-topic repos go to the end, hidden
+        var cut=top.slice(0,30);                                                        // behind "Show N more we left out" (undo)
+        top=cut.filter(function(r,i){ return !dropped[i]; })
+          .concat(cut.filter(function(r,i){ return dropped[i]; }).map(function(r){ r.left=1; return r; }));
         gate={ok:true,hidden:drops.length}; } }
     out.innerHTML=render(top,queries,excluded,ranked.length,qtok,heading,window.__likeNote||"",gate);
     // RS34: no on-screen note about the AI check; its outcome is kept as an attribute for diagnosis only
@@ -1347,6 +1352,11 @@ document.addEventListener("keydown",function(e){ if(e.key==="Escape") closeModal
   out.addEventListener("click",function(e){ var t=e.target;
     var fb=t.closest&&t.closest(".rfilter");
     if(fb){ window.__resFilter=fb.getAttribute("data-f"); window.__resLimit=10; applyResultFilter(); checkMore(); return; }
+    if(t.closest&&t.closest("#showLeft")){ var o=document.getElementById("out"), ls=o.querySelectorAll('.rcard[data-left="1"]');
+      for(var k=0;k<ls.length;k++) ls[k].removeAttribute("data-left");   // they become ordinary cards (also after a refresh)
+      window.__resLimit=(window.__resLimit||10)+ls.length; var w=document.getElementById("leftWrap"); if(w) w.remove();
+      var rc=o.querySelector(".res-count"), n=o.querySelectorAll(".rcard").length; if(rc) rc.textContent=n+" result"+(n===1?"":"s");
+      applyResultFilter(); checkMore(); saveResults(); return; }
     if(t.closest&&t.closest("#resClear")){ window.__resFilter="all"; window.__resLimit=10; applyResultFilter(); checkMore(); return; }
     if(t.closest&&t.closest("#resSelAll")){ var bx=shownPickBoxes(), all=bx.every(function(x){ return x.checked; });
       bx.forEach(function(x){ if(x.checked===all){ x.checked=!all; x.dispatchEvent(new Event("change",{bubbles:true})); } });

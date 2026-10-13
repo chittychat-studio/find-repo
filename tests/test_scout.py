@@ -634,6 +634,8 @@ def test_web_page_is_safe_static(monkeypatch):
     assert 'fetch("/api/relevance"' in html and "function relevanceGate" in html and 'setAttribute("data-gate"' in html
     for gone in ("Couldn\\u2019t check relevance", "AI hid", 'id="showOff"', "free AI checks are used up", "gate-note"):
         assert gone not in html, gone
+    # RS34 undo: dropped repos sit at the end behind one bottom line
+    assert 'id="showLeft"' in html and "more we left out" in html and 'data-left="1"' in html
     # RS24 richness: cursor tilt + star count-up are native (no extra library)
     assert "attachTilt" in html and 'class="cnt"' in html
     for t in ("portfolio website", "iPhone app", "trip planner", "practice app"):

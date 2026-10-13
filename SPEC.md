@@ -316,9 +316,10 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   an interactive challenge gets 90 s. Without the secret the check is off and behaviour
   is unchanged. A per-IP Cloudflare rate-limiting rule on `/api/relevance` is the owner's dashboard setting, not code.
   Limits of this: an agent driving a real browser slowly can still pass; on the Workers Free plan the worst case of
-  abuse is a day of keyword-only results, never a bill. The page shows only the kept repos and says nothing about the
-  check (owner's decision, 2026-10-13: no "AI hid N" line, no "show them"; dropped repos are simply left out, so a
-  visitor cannot see a wrongly dropped repo — the "when unsure, KEEP" prompt rule is what guards that). Rules: repo text
+  abuse is a day of keyword-only results, never a bill. The page shows only the kept repos and puts no note about the
+  check above them (owner's decision, 2026-10-13). Dropped repos move to the end, hidden; once the visitor reaches the
+  last kept card, one quiet line "Show N more we left out" appears at the very bottom and reveals them as ordinary
+  cards (the undo for a wrong drop; owner's decision, same day). Rules: repo text
   and the description are data, never instructions (RS9, RS25), and the prompt says so; the LLM may only drop or keep,
   never add, rename or reorder (mirrors RS6 — fit order stays deterministic); a response that isn't valid JSON or names
   an unknown index is ignored. **Fail open, silent:** if the function is missing, unconfigured, over a limit, slow
