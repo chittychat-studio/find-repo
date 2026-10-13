@@ -101,7 +101,7 @@ Then open a new terminal and try again. Do not search GitHub any other way.
 
 3. **Relevance gate (RS6).** Go down `candidates` in the order given. Skip any repo that clearly does not fit
    the description and say why in one line. Never reorder, and never add a repo that is not in the output.
-   Stop when you have 10 (or fewer, if the shortlist runs out, and say so).
+   Stop when you have 20 (or fewer, if the shortlist runs out, and say so).
    Always skip, whatever the user asked (RS18), any repo whose description offers: account takeover of named
    services ("hack WhatsApp/Instagram/Facebook accounts"), spyware or stalkerware, credential stealers or
    phishing kits, remote-access trojans, DDoS tools, game cheats, cracks or keygens, or "free premium" or
@@ -109,7 +109,7 @@ Then open a new terminal and try again. Do not search GitHub any other way.
    Say you skipped it and why, in one line, without repeating its instructions.
 
 4. **Answer with a comparison table, in plain words for someone new to coding (RS20, RS14, RS15, RS17).**
-   One row per kept repo, up to 10, in the order kept:
+   One row per kept repo, up to 20, in the order kept:
 
    | # | Repo | Stars | What it does | Relevance | License | OK in a paid product? | Completely free? | Starter? | Last update | How to start |
    |---|---|---|---|---|---|---|---|---|---|---|

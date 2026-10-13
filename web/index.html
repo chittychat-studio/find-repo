@@ -291,6 +291,17 @@
   .group-h span{color:var(--muted);font-weight:500}
   .err{color:var(--warn);font-weight:600}
   .excl{font-size:11.5px;color:var(--muted);margin:14px 4px 4px}
+  /* result-side filter chips + show-more */
+  .res-filter{display:flex;flex-wrap:wrap;gap:8px;margin:0 4px 14px}
+  .rfilter{background:var(--offbg);border:1px solid var(--line);border-radius:999px;padding:7px 13px;font:inherit;
+    font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;transition:border-color .18s,color .18s,background .18s}
+  .rfilter:hover{border-color:var(--accent);color:var(--accent-ink)}
+  .rfilter.on{background:linear-gradient(135deg,var(--accent),var(--accent-ink));border-color:transparent;color:#fff}
+  .res-more-wrap{display:flex;justify-content:center;margin:6px 0 2px}
+  .res-more{background:var(--offbg);border:1px solid var(--line);border-radius:999px;padding:10px 22px;font:inherit;
+    font-size:13.5px;font-weight:600;color:var(--accent-ink);cursor:pointer;transition:border-color .18s,transform .12s}
+  .res-more:hover{border-color:var(--accent);transform:translateY(-1px)}
+  .res-empty{text-align:center;color:var(--muted);font-size:14px;margin:18px 4px}
 
   /* empty-state explainer (the animated "how it works") */
   .explain{display:flex;flex-direction:column;justify-content:center;align-items:center;
@@ -684,7 +695,8 @@ function cardHtml(r,i,qtokens){
   var free=freeText(r.spdx), paid=lu(r.spdx);
   var paidTag=paid.indexOf("OK to use")===0?'t-good':'t-warn', freeTag=free==="Yes"?'t-good':'t-warn';
   var paidShort=paid.indexOf("OK to use")===0?"Paid-use OK":(paid.indexOf("OK in a paid")===0?"Paid OK, see terms":"Share your code");
-  return '<article class="rcard">'+
+  var okPaid=paid.indexOf("OK to use")===0?1:0, okFree=free==="Yes"?1:0;   // for result-side filtering
+  return '<article class="rcard" data-paid="'+okPaid+'" data-free="'+okFree+'" data-starter="'+(r.starter?1:0)+'">'+
     (i!=null?'<span class="rank">#'+(i+1)+'</span>':'')+
     '<span class="stars">★ <span class="cnt" data-v="'+r.stars+'">'+kstars(r.stars)+'</span></span>'+
     '<div class="name"><a href="'+esc(r.url)+'" target="_blank" rel="noopener">'+esc(r.name)+'</a></div>'+
@@ -731,23 +743,48 @@ function attachTilt(container, reduce){
   });
 }
 
-var PLUGIN_CTA='<div class="cta-inline"><b>Need more than the top 10?</b> This page shows the top 10. '+
-  'Run the plugin in Claude Code for every suitable repo — and a PRD read feature by feature. '+
+var PLUGIN_CTA='<div class="cta-inline"><b>Need more than the top 20?</b> This page shows the top 20. '+
+  'Run the plugin in Claude Code for every suitable repo — and a build plan feature by feature. '+
   '<button class="link-btn" onclick="openModal(\'pluginModal\')">Show commands →</button></div>';
+
+// result-side filter chips (filter the already-fetched cards, no new API calls — RS29)
+var RES_FILTERS=[["all","All"],["paid","✅ Paid-use OK"],["free","🆓 Completely free"],["starter","🧩 Starters"]];
+function filterBar(){ return '<div class="res-filter" role="group" aria-label="Filter results">'+
+  RES_FILTERS.map(function(f,i){ return '<button type="button" class="rfilter'+(i===0?' on':'')+'" data-f="'+f[0]+'">'+f[1]+'</button>'; }).join("")+
+  '</div>'; }
 
 function render(top, queries, excluded, totalMatches, qtokens, heading){
   if(!top.length){ return '<div class="panel"><p class="err">No repository matched.</p>'+
     '<p class="mut">Searches: '+esc(queries.join("; "))+'. Try fewer or broader words, or lower the minimum stars.</p></div>'; }
   var more=(totalMatches||top.length)-top.length;
-  var h='<div class="res-head"><h2>'+(heading?esc(heading):'Top '+top.length+' matches')+'</h2><span class="mut">best fit · relevant, popular, free</span></div>'+
+  var h='<div class="res-head"><h2>'+(heading?esc(heading):'Top matches')+'</h2></div>'+
+    filterBar()+
     '<div class="grid">'+top.map(function(r,i){return cardHtml(r,i,qtokens);}).join("")+'</div>'+
+    '<div id="resEmpty" class="res-empty" hidden>No results match this filter. <button type="button" class="link-btn" id="resClear">Clear filter</button></div>'+
+    '<div class="res-more-wrap"><button type="button" id="resMore" class="res-more" hidden>Show more ▾</button></div>'+
     '<p class="excl">Searches: '+esc(queries.join("; "))+' · Excluded — not open-source: '+excluded.license+
     ', too old: '+excluded.stale+', too few stars: '+excluded.low+', forks/archived: '+excluded.fork+
     ', harmful: '+excluded.harm+'</p>';
-  if(more>0) h+=PLUGIN_CTA.replace("Need more than the top 10?",
-    "Need more than the top 10? "+more+" more match"+(more===1?"":"es")+" passed the filters.");
+  if(more>0) h+=PLUGIN_CTA.replace("Need more than the top 20?",
+    "Need more than the top 20? "+more+" more match"+(more===1?"":"es")+" passed the filters.");
   return h;
 }
+// show/hide result cards by the active filter + reveal-limit (client-side only, no API calls)
+function applyResultFilter(){
+  var out=document.getElementById("out"); if(!out || !out.querySelector(".res-filter")) return;  // only the top-matches view
+  var cards=out.querySelectorAll(".rcard"), f=window.__resFilter||"all", limit=window.__resLimit||10, shown=0, matched=0;
+  for(var i=0;i<cards.length;i++){ var c=cards[i];
+    var ok = f==="all" || (f==="paid"&&c.getAttribute("data-paid")==="1")
+      || (f==="free"&&c.getAttribute("data-free")==="1") || (f==="starter"&&c.getAttribute("data-starter")==="1");
+    if(ok){ matched++; if(shown<limit){ c.style.display=""; shown++; } else c.style.display="none"; }
+    else c.style.display="none";
+  }
+  var empty=out.querySelector("#resEmpty"); if(empty) empty.hidden = matched>0;
+  var more=out.querySelector("#resMore");
+  if(more){ if(matched>shown){ more.hidden=false; more.textContent="Show more ("+shown+" of "+matched+") ▾"; } else more.hidden=true; }
+  var chips=out.querySelectorAll(".rfilter"); for(var j=0;j<chips.length;j++) chips[j].classList.toggle("on", chips[j].getAttribute("data-f")===f);
+}
+function initResultFilter(){ window.__resFilter="all"; window.__resLimit=10; applyResultFilter(); }
 
 // RS21: ready-made prompts the user can click to fill the box.
 var EXAMPLES=[
@@ -880,7 +917,7 @@ async function runFeatures(features, minStars, platform, preferStarters, out, st
   out.innerHTML=renderGrouped(groups,excluded,
     "From your PRD (read on your device, never uploaded). Browser mode covers the first "+features.length+
     " features; the Claude Code plugin reads them all.");
-  animateCards(out); st.textContent="Done."; saveResults();
+  animateCards(out); st.textContent=""; saveResults();
 }
 
 // "Find similar ones": accept owner/repo or a GitHub URL, look up its topics/language, search those (RS27)
@@ -938,9 +975,9 @@ async function run(){
     for(var i=0;i<queries.length;i++){ st.textContent="Searching ("+(i+1)+"/"+queries.length+")…";
       var items=await search(queries[i]);
       lists.push(keep(items,minStars,platform,excluded,seen)); }
-    var ranked=rankByFit(lists,preferStarters), top=ranked.slice(0,10);
+    var ranked=rankByFit(lists,preferStarters), top=ranked.slice(0,20);
     out.innerHTML=render(top,queries,excluded,ranked.length,qtok,heading);
-    animateCards(out); st.textContent="Done."; saveResults();
+    animateCards(out); initResultFilter(); st.textContent=""; saveResults();
   }catch(e){ st.textContent=""; out.innerHTML='<div class="panel"><p class="err">'+esc(e.message)+'</p></div>'; }
   finally{ go.disabled=false; window.__busy=false; }
 }
@@ -1051,6 +1088,12 @@ document.addEventListener("keydown",function(e){ if(e.key==="Escape") closeModal
     if(cb.checked){ if(i<0) picks.push({name:cb.getAttribute("data-name"),url:url,desc:cb.getAttribute("data-desc")}); }
     else if(i>=0) picks.splice(i,1);
     refresh(); });
+  // result-filter chips + show-more + clear (delegated, survives re-render)
+  out.addEventListener("click",function(e){ var t=e.target;
+    var fb=t.closest&&t.closest(".rfilter");
+    if(fb){ window.__resFilter=fb.getAttribute("data-f"); window.__resLimit=10; applyResultFilter(); return; }
+    if(t.closest&&t.closest("#resMore")){ window.__resLimit=20; applyResultFilter(); return; }
+    if(t.closest&&t.closest("#resClear")){ window.__resFilter="all"; window.__resLimit=10; applyResultFilter(); } });
   function buildPrompt(){
     var q=(document.getElementById("q").value||"").trim() || "my project";
     var list=picks.map(function(r,i){ return (i+1)+". "+r.name+" — "+r.url+(r.desc?"\n   "+r.desc:""); }).join("\n");
@@ -1159,7 +1202,7 @@ function restoreResults(){
   if(d.stack!=null) setStack(d.stack);
   var out=document.getElementById("out"); cleanCards(out);   // ensure restored cards are visible even if an old cache baked in opacity:0
   document.getElementById("status").textContent="Restored your last results — click the Replore logo (top-left) to start over.";
-  animateCards(out);
+  animateCards(out); initResultFilter();
   return true;
 }
 if(!restoreResults()) showHome();

@@ -489,10 +489,10 @@ def test_skill_edge_case_rules():
     assert "only finds open-source code on GitHub" in skill
 
 
-def test_defaults_are_top10_with_20_candidates():
-    """RS5: top 10, shortlist 20 so the relevance gate can drop and still have 10."""
-    res, _ = run([[repo(f"o/r{i}", 1000 - i) for i in range(30)]])
-    assert len(res["top"]) == 10 and len(res["candidates"]) == 20
+def test_defaults_are_top20_with_40_candidates():
+    """RS29: top 20, shortlist 40 so the relevance gate can drop and still have 20."""
+    res, _ = run([[repo(f"o/r{i}", 1000 - i) for i in range(50)]])
+    assert len(res["top"]) == 20 and len(res["candidates"]) == 40
 
 
 @pytest.mark.parametrize("spdx,want", [("MIT", "FREE_YES"), ("MPL-2.0", "FREE_WEAK"), ("GPL-3.0", "FREE_SHARE"),
@@ -516,11 +516,11 @@ def test_csv_output_rows_and_formula_guard(monkeypatch, capsys):
 
 
 def test_markdown_top_table_then_extra_candidates_and_free_note():
-    """RS20, RS10: top 10 printed once, the rest under 'More candidates'."""
-    res, _ = run([[repo(f"o/r{i}", 1000 - i) for i in range(15)]])
+    """RS20, RS10: top 20 printed once, the rest under 'More candidates'."""
+    res, _ = run([[repo(f"o/r{i}", 1000 - i) for i in range(30)]])
     md = scout.render_markdown(res)
-    assert "### Top 10" in md and "### More candidates" in md
-    assert md.count("[o/r0]") == 1 and "[o/r14]" in md
+    assert "### Top 20" in md and "### More candidates" in md
+    assert md.count("[o/r0]") == 1 and "[o/r29]" in md
     assert "Completely free?" in md and scout.FREE_NOTE in md
     small, _ = run([[repo("a/b", 900)]], top=10)
     assert "More candidates" not in scout.render_markdown(small)
@@ -531,7 +531,7 @@ def test_skill_comparison_table_and_prompt_fields():
     skill = (ROOT / "skills" / "find" / "SKILL.md").read_text()
     for col in ("What it does", "Relevance", "OK in a paid product?", "Completely free?", "How to start"):
         assert col in skill
-    assert "up to 10" in skill and "Stop when you have 10" in skill
+    assert "up to 20" in skill and "Stop when you have 20" in skill
     for field in ("What I'm building", "Platform", "Stack", "Selling it?", "Starting from scratch?"):
         assert field in skill
 

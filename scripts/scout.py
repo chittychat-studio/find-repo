@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Find the most-starred open-source GitHub repos matching search queries (SPEC RS1-RS23).
 
-Usage: scout.py "query one" ["query two" ...] [--top 10] [--candidates 20]
+Usage: scout.py "query one" ["query two" ...] [--top 20] [--candidates 40]
                 [--license open|any] [--max-age-months 24]
                 [--min-stars 50] [--rank fit|balanced|stars]
                 [--prefer-starters] [--all] [--group] [--json | --markdown | --csv]
@@ -199,7 +199,7 @@ def _pushed(item):
         return None
 
 
-def scout(queries, fetcher=fetch, top=10, candidates=20, license_mode="open", max_age_months=24,
+def scout(queries, fetcher=fetch, top=20, candidates=40, license_mode="open", max_age_months=24,
           now=None, token=None, rank_mode="fit", prefer_starters=False, min_stars=0):
     """RS2-RS5: search, merge, filter, rank. Returns a result dict; raises ScoutError (RS7)."""
     queries = [q.strip() for q in queries if q and q.strip()]
@@ -419,8 +419,8 @@ def render_markdown(result):
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("queries", nargs="+")
-    p.add_argument("--top", type=int, default=10)
-    p.add_argument("--candidates", type=int, default=20)
+    p.add_argument("--top", type=int, default=20)
+    p.add_argument("--candidates", type=int, default=40)
     p.add_argument("--all", dest="all_matches", action="store_true", help="no cap: every suitable repo (RS23)")
     p.add_argument("--group", action="store_true", help="group results by need/feature, for a PRD (RS23)")
     p.add_argument("--license", dest="license_mode", choices=["open", "any"], default="open")
