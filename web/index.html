@@ -226,7 +226,6 @@
     </div>
 
     <div class="foot">
-      <button class="link-btn" id="howBtn">▶ How it works</button>
       <button class="link-btn" id="pluginBtn">⌘ Use in Claude Code</button>
       <button class="link-btn" id="aboutBtn">ⓘ About results</button>
     </div>
@@ -573,7 +572,6 @@ document.getElementById("q").addEventListener("keydown",function(e){ if(e.key===
 // ---- modals ----
 function openModal(id){ document.getElementById(id).classList.add("open"); if(id==="howModal") buildSteps(document.getElementById("howSteps")); }
 function closeModals(){ var m=document.querySelectorAll(".modal"); for(var i=0;i<m.length;i++) m[i].classList.remove("open"); }
-document.getElementById("howBtn").addEventListener("click",function(){ openModal("howModal"); });
 document.getElementById("pluginBtn").addEventListener("click",function(){ openModal("pluginModal"); });
 document.getElementById("aboutBtn").addEventListener("click",function(){ openModal("aboutModal"); });
 document.querySelectorAll("[data-close]").forEach(function(b){ b.addEventListener("click",closeModals); });
