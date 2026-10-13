@@ -225,6 +225,12 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   browser cannot run Claude: query generation (keyword expansion on the web vs Claude-written queries + the
   RS6 relevance gate in the plugin) and the absence of `--license any` on the web. The plugin CLI default stays
   `--top 20` (candidates `40`) for its table; `--all` is uncapped.
+- **RS30** "Next steps" guidance for vibe coders (RS22 web page). A **menu item** (not a results-page block, to
+  avoid clutter) opens a short modal that turns "a list of repos" into a build path, in three plain-English
+  steps: (1) pick the 2–3 repos that fit and compare their license verdict + last-updated date, (2) generate a
+  build plan from the selection (the existing RS28 select-to-plan hand-off — no model call, no key, hands the
+  prompt to the user's own Claude), (3) build it in Claude Code, with a link to the plugin for smarter search
+  and a PRD-driven plan. Guidance only; it starts no search, runs no model, and holds no key (RS1 unchanged).
 
 ## RX — Deliberately excluded (v0.1)
 

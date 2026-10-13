@@ -412,6 +412,7 @@
     <button id="tourBtn" class="nav-btn" title="Watch how it works">▶ Tour</button>
     <button id="pluginBtn" class="nav-btn" title="Step-by-step: use the plugin in Claude Code">⌘ Use in Claude Code</button>
     <button id="aboutBtn" class="nav-btn" title="How results are ranked">ⓘ How ranking works</button>
+    <button id="nextBtn" class="nav-btn" title="Found repos — what to do next">🧭 Next steps</button>
     <a id="starBtn" class="nav-btn nav-star" href="https://github.com/chittychat-studio/replore" target="_blank" rel="noopener" title="If Replore helped, a star on GitHub means a lot — thank you!">★ Like our work? Star us</a>
   </nav>
   <div class="topbar-right">
@@ -548,6 +549,21 @@
   </ol>
   <p class="mut" style="margin-top:12px">Stuck? Full guide:
     <a href="https://github.com/chittychat-studio/replore" target="_blank" rel="noopener">github.com/chittychat-studio/replore</a>.</p>
+</div></div>
+
+<div class="modal" id="nextModal"><div class="sheet">
+  <button class="x" data-close>&times;</button>
+  <h2>Found some repos — what now?</h2>
+  <p class="mut">You've got a shortlist. Here's how to go from "a list of repos" to actually building, in three steps.</p>
+  <ol class="guide">
+    <li><b>Pick the ones that fit</b> — tick <i>＋ Add to plan</i> on the 2–3 cards you like. Compare them:
+      check the license verdict (can you use it in a paid product?) and the <i>updated</i> date before you commit to one.</li>
+    <li><b>Get a build plan</b> — hit <i>Generate plan</i> on the bar that appears. Replore turns your picks plus
+      what you're building into a step-by-step prompt — no AI runs here, it hands the prompt to <b>your own</b> Claude.</li>
+    <li><b>Build it in Claude Code</b> — paste the plan (or open it in Claude) and start shipping. Want smarter
+      search and a feature-by-feature plan from a whole PRD? <button type="button" class="link-btn" onclick="openModal('pluginModal')">Use the plugin</button>.</li>
+  </ol>
+  <p class="mut" style="margin-top:12px">Remember: stars are popularity, not quality, and a license is a plain summary, not legal advice.</p>
 </div></div>
 
 <div class="modal" id="aboutModal"><div class="sheet">
@@ -776,7 +792,7 @@ function render(top, queries, excluded, totalMatches, qtokens, heading, note){
   var h='<div class="res-head"><h2>'+(heading?esc(heading):'Top matches')+'</h2>'+
       '<span class="res-count mut">'+top.length+' result'+(top.length===1?'':'s')+'</span></div>'+
     LEXICAL_NOTE+
-    (note?'<p class="res-note mut">'+esc(note)+'</p>':'')+
+    (note?'<p class="res-note mut">'+note+'</p>':'')+  /* note is pre-built HTML: repo name already escaped, rest is our own markup */
     filterBar()+
     '<div class="grid">'+top.map(function(r,i){return cardHtml(r,i,qtokens);}).join("")+'</div>'+
     '<div id="resEmpty" class="res-empty" hidden>No results match this filter. <button type="button" class="link-btn" id="resClear">Clear filter</button></div>'+
@@ -989,8 +1005,10 @@ async function run(){
       var meta=await repoMeta(target);
       queries=altQueries(meta,platform);
       if(!queries.length) throw new Error("That repo has no topics or description to search from.");
-      if(!(meta.topics||[]).length)   // no GitHub topics → queries are guessed from the description, so matches are rough
-        window.__likeNote="“"+(meta.full_name||target)+"” has no GitHub topics, so these come from words in its description — a rough guess. For a closer match, run the plugin: it reads the repo itself.";
+      if(!(meta.topics||[]).length)   // no GitHub topics → we matched on description words; note is HTML (esc the repo name), with a plugin link
+        window.__likeNote="“"+esc(clean(meta.full_name||target))+"” has no GitHub topics, so we matched on its description. "+
+          "For matches based on what the repo actually does, the plugin reads the repo itself. "+
+          "<button type=\"button\" class=\"link-btn\" onclick=\"openModal('pluginModal')\">Use in Claude Code</button>";
       seen[clean(meta.full_name||target)]=null;  // exclude the original repo from the results (RS27)
       heading="Repos like "+(meta.full_name||target);
       qtok=sigTokens(queries.join(" "));
@@ -1092,6 +1110,7 @@ document.getElementById("likeTile").addEventListener("click",function(){ openMod
   });
 })();
 document.getElementById("aboutBtn").addEventListener("click",function(){ openModal("aboutModal"); });
+document.getElementById("nextBtn").addEventListener("click",function(){ openModal("nextModal"); });
 document.querySelectorAll("[data-close]").forEach(function(b){ b.addEventListener("click",closeModals); });
 document.querySelectorAll(".modal").forEach(function(m){ m.addEventListener("click",function(e){ if(e.target===m) closeModals(); }); });
 document.addEventListener("keydown",function(e){ if(e.key==="Escape") closeModals(); });
