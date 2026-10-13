@@ -1,8 +1,9 @@
 # Replore
 
-A Claude Code plugin. Describe your project in plain words and get the 10 most-starred
-open-source GitHub repos that fit it, as a comparison table: stars, what it does, relevance, license,
-whether you can use it in a paid product, whether it's completely free, and how to start.
+A Claude Code plugin. Describe your project in plain words and get the open-source GitHub repos that
+**best fit** it — ranked by relevance, popularity, and how freely you can use the license — as a comparison
+table: stars, what it does, relevance, license, whether you can use it in a paid product, whether it's
+completely free, and how to start.
 
 ```
 /replore:find a portfolio website with smooth scroll animations and good design taste
@@ -71,10 +72,12 @@ Needs Python 3.11+ (the plugin tells you how to install it if it's missing). Onc
 ## How it works (rules in `SPEC.md`)
 
 1. Claude turns your description into 1–4 GitHub search queries (RS1).
-2. `scripts/scout.py` runs them against the GitHub search API, sorted by stars, no forks, no archived repos (RS2).
+2. `scripts/scout.py` runs them against the GitHub search API in best-match (relevance) order, no forks, no
+   archived repos (RS2).
 3. It keeps only repos with an open-source license (RS3) that were pushed in the last 24 months (RS4).
-4. Ranking is balanced (RS5): each search's best match comes first, then the rest by stars, so one broad
-   search can't crowd out the others. Starting a new project? Starter templates go first (RS15).
+4. Ranking is by **fit** (RS5): a composite of relevance, popularity (stars) and license-freedom, so the top
+   repo is relevant *and* popular *and* free to use — not just the most-starred. Starting a new project?
+   Starter templates get a boost (RS15). (`--rank stars` or `--rank balanced` change it.)
 5. Claude may drop off-topic repos from the shortlist, giving a reason, but never reorders the list or adds repos (RS6).
 6. Every result says in plain words whether you can use it in a paid product (RS14) and how to start (RS15).
 
