@@ -163,8 +163,9 @@ python3 -m pytest
 ## Privacy
 
 No account, no server, no analytics: the makers of Replore never receive your ideas or searches. Search words
-go from your browser or computer straight to GitHub. Details — including what the web page keeps in your browser and
-the Claude Code plugin's local safety log — are in [`PRIVACY.md`](PRIVACY.md).
+go from your browser or computer straight to GitHub. Fonts and scripts are served from the site itself (no Google Fonts or CDN calls). Details — including
+what the web page keeps in your browser and the Claude Code plugin's optional, off-by-default local safety log — are
+in [`PRIVACY.md`](PRIVACY.md).
 
 ## License
 

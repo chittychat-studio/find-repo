@@ -7,14 +7,13 @@
 <!--
   Replore web page (SPEC RS22). Static single file, no build step, no key or token.
   It calls the PUBLIC GitHub search API from the browser (unauthenticated: ~10 searches/minute).
-  One external script only: GSAP (motion) from cdnjs, pinned; the page degrades gracefully without it.
+  No third-party requests for assets: GSAP 3.12.5 (motion) and the Inter/Spectral fonts are served from this site
+  (vendor/, fonts/); the page degrades gracefully without GSAP. Only GitHub's API is called (RS33).
   The browser version uses keyword search; the plugin (Claude Code, or the script in any AI agent) writes smarter queries, runs a
   relevance check, and reads a whole PRD. There is no AI in this page (a public page can't hold a key).
 -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" async crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Spectral:wght@600;700;800&display=swap">
+<script src="vendor/gsap.min.js" async></script>
+<link rel="stylesheet" href="fonts.css">
 <style>
   :root{
     /* warm clay-orange accents on a half-white cream background */
@@ -609,8 +608,8 @@
     your ideas, searches or plans.</p>
   <ul class="guide">
     <li><b>Your search words</b> go from your browser straight to <b>GitHub</b> (with your IP address) to run the search.</li>
-    <li><b>When the page loads</b>, Cloudflare (hosting), Google Fonts and cdnjs see your IP address — not what you search.
-      Searches are never put in the page address.</li>
+    <li><b>When the page loads</b>, only Cloudflare (our host) sees your IP address — not what you search. Fonts and
+      scripts come from this site, not from Google or other CDNs. Searches are never put in the page address.</li>
     <li><b>On your device only:</b> your last search, results and filters, so a refresh brings them back. Tap <b>✕</b> in the
       search bar or the Replore logo to delete them.</li>
     <li><b>Uploaded plans</b> are read in your browser and never uploaded; only short feature phrases are searched on GitHub.</li>

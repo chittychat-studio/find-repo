@@ -568,13 +568,20 @@ def test_web_page_is_safe_static(monkeypatch):
     assert not _re.search(r"github_pat_[A-Za-z0-9_]{20,}", html)
     assert 'id="token"' not in html and "findrepo_gh_token" not in html
     assert "models.github" not in html and "Authorization" not in html
-    # only external script allowed: GSAP from cdnjs, pinned to an exact version; page degrades without it
+    # RS33: no third-party asset requests — GSAP 3.12.5 and the fonts are self-hosted; page degrades without GSAP
     srcs = _re.findall(r'<script[^>]+src="([^"]+)"', html)
-    assert srcs == ["https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"], srcs
-    assert "unpkg" not in html.lower() and "jsdelivr" not in html.lower()
-    # any external stylesheet must be Google Fonts (Inter), degrades to system
+    assert srcs == ["vendor/gsap.min.js"], srcs
+    gsap = (ROOT / "web" / "vendor" / "gsap.min.js").read_text()
+    assert gsap.lstrip("/*! \n").startswith("GSAP 3.12.5") and "standard-licen" in gsap  # pinned, license header kept
     sheets = _re.findall(r'<link[^>]+rel="stylesheet"[^>]+href="([^"]+)"', html)
-    assert all(h.startswith("https://fonts.googleapis.com/") for h in sheets), sheets
+    assert sheets == ["fonts.css"], sheets
+    fcss = (ROOT / "web" / "fonts.css").read_text()
+    fonts = _re.findall(r"url\((fonts/[^)]+)\)", fcss)
+    assert fonts and all((ROOT / "web" / f).exists() for f in fonts), fonts
+    assert "http" not in fcss.split("*/", 1)[1]  # no remote font URLs
+    assert (ROOT / "web" / "fonts" / "Inter-OFL.txt").exists() and (ROOT / "web" / "fonts" / "Spectral-OFL.txt").exists()
+    for host in ("googleapis", "gstatic", "cdnjs", "unpkg", "jsdelivr"):
+        assert host not in html.lower(), host
     # calls the public search API in best-match order (RS2), forks/archived excluded; fit ranking (RS5) re-ranks
     assert "api.github.com/search/repositories" in html
     assert "fork:false archived:false is:public" in html
@@ -683,11 +690,11 @@ def test_privacy_notice_matches_what_the_code_does():
         assert banned not in html, banned
     # only these hosts are contacted; PRIVACY.md names each of them
     hosts = set(re.findall(r"https://([a-z0-9.-]+)", html))
-    allowed = {"api.github.com", "github.com", "fonts.googleapis.com", "fonts.gstatic.com", "cdnjs.cloudflare.com",
-               "claude.ai", "claude.com", "replore.pages.dev"}
+    allowed = {"api.github.com", "github.com", "claude.ai", "claude.com", "replore.pages.dev"}
     assert hosts <= allowed, hosts - allowed
-    for named in ("api.github.com", "Google Fonts", "cdnjs", "Cloudflare", "claude.ai", "security.log", "200 characters"):
+    for named in ("api.github.com", "Cloudflare", "claude.ai", "security.log", "200 characters", "off by default"):
         assert named in priv, named
     # the hook really writes only on a match, at most 200 chars, locally
     hook = (ROOT / "hooks" / "security_log.py").read_text()
     assert "if not hits:" in hook and "text[:200]" in hook and "urllib" not in hook
+    assert "if _log_path() is None:" in hook  # opt-in: off unless REPLORE_SECURITY_LOG is set (RS25)
