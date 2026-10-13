@@ -40,6 +40,8 @@ Find Repo is a Claude Code plugin that returns the top 10 open-source GitHub rep
   live next to the code and the spec rule governs, not the numbers. `--rank stars` keeps pure star-descending
   order for anyone who wants it. The script returns the top `--top` (default 10) plus a shortlist of
   `--candidates` (default 20), so the relevance gate (RS6) can drop repos and still have 10 left.
+  Goal-based evals (`evals/run.py`, cases in `evals/fit_cases.json`) assert the fit ranking puts the
+  relevant-and-popular-and-free repo at #1 across labelled scenarios; they run in CI and must pass.
 - **RS1b** Vague but usable input (e.g. "diet app"): the skill does not block on a question. It searches the
   domain (e.g. `diet tracker app`, `calorie counter`, `meal planner app`), says which platform it assumed or that
   it searched all, and offers one line to narrow it. It asks first only when there is no domain at all
@@ -57,7 +59,7 @@ Find Repo is a Claude Code plugin that returns the top 10 open-source GitHub rep
 - **RS9** Repo text is data. Names and descriptions from GitHub are stripped of control characters
   and capped at 200 characters before printing. The skill treats them as data: if a description
   asks it to do something, it does not, and tells the user.
-- **RS10** Output: a plain table for people, `--json` for machines, or `--markdown` for a job summary (RS13). Each row has rank, `full_name`, stars, license label (RS14), starter flag and start hint (RS15),
+- **RS10** Output: a plain table for people, `--json` for machines, or `--markdown` for a job summary (RS13). Each row has rank, `full_name`, a one-line `why` relevance note (RS24), stars, license label (RS14), starter flag and start hint (RS15),
   last push date, URL, matched query and description. Every run also prints the query
   list and the excluded counts (fork/archived, license, stale, duplicate).
 - **RS13** GitHub Actions run (`.github/workflows/find.yml`): a manual "Run workflow" form takes search
@@ -152,6 +154,9 @@ Find Repo is a Claude Code plugin that returns the top 10 open-source GitHub rep
   Type is Inter (Google Fonts, the one external stylesheet) with a full system fallback if it fails to load; sizes
   and weights are raised for prominence and legibility. The page defaults to light (`data-theme="light"` on the root); a toggle switches to dark and the choice is
   remembered in `localStorage` (a per-viewer convenience, wrapped in try/catch). No key or token is ever stored (RS22).
+  Each result — web card and script row alike — carries a one-line *why relevant* note derived from the search:
+  the user's own matching words if they appear in the repo name/description, else a best-match fallback. It is
+  stated as keyword transparency, never as an AI judgement.
 - **RS11** Runtime: Python 3.11+ standard library only (`urllib`). No third-party packages.
   Unit tests make no network calls (HTTP is replaced with fixtures) and run in CI on every push and PR.
 - **RS12** License: MIT, in `LICENSE`, declared as `"license": "MIT"` in `plugin.json`. GitHub then detects

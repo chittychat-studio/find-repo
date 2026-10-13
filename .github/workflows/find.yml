@@ -24,11 +24,11 @@ on:
         default: "50"
         type: string
       rank:
-        description: "balanced = each search's best match first; stars = pure star order"
+        description: "fit = relevant+popular+free; balanced = each search's best match first; stars = pure star order"
         required: true
-        default: balanced
+        default: fit
         type: choice
-        options: [balanced, stars]
+        options: [fit, balanced, stars]
       prefer_starters:
         description: "Put ready-made starter templates first"
         required: true

@@ -48,8 +48,8 @@ def test_dedupes_and_ranks_across_queries():
 
 
 def test_tie_broken_by_recent_push():
-    """RS5."""
-    res, _ = run([[repo("a/old", 100, pushed="2026-01-01T00:00:00Z"), repo("b/new", 100)]])
+    """RS5: in stars mode, equal stars are broken by the most recent push."""
+    res, _ = run([[repo("a/old", 100, pushed="2026-01-01T00:00:00Z"), repo("b/new", 100)]], rank_mode="stars")
     assert [r["full_name"] for r in res["top"]] == ["b/new", "a/old"]
 
 
@@ -58,7 +58,7 @@ def test_balanced_rank_stops_one_query_swamping_others():
     broad = [repo(f"big/r{i}", 100000 - i) for i in range(10)]
     niche = [repo("niche/a", 900), repo("niche/b", 800)]
     other = [repo("other/a", 50)]
-    res, _ = run([broad, niche, other], top=3)
+    res, _ = run([broad, niche, other], top=3, rank_mode="balanced")
     assert [r["full_name"] for r in res["top"]] == ["big/r0", "niche/a", "other/a"]
     assert [r["full_name"] for r in res["candidates"][3:5]] == ["big/r1", "niche/b"]
 
@@ -72,8 +72,35 @@ def test_stars_rank_mode_keeps_old_order():
 
 def test_balanced_round_sorted_by_stars_and_empty_query_skipped():
     """RS5."""
-    res, _ = run([[repo("a/low", 10)], [], [repo("b/high", 99)]])
+    res, _ = run([[repo("a/low", 10)], [], [repo("b/high", 99)]], rank_mode="balanced")
     assert [r["full_name"] for r in res["top"]] == ["b/high", "a/low"]
+
+
+def test_fit_score_lifts_relevance_and_freedom():
+    """RS5: a precise top-of-search match beats a tangential giant; permissive beats copyleft at a tie."""
+    exact = {"rel": 0, "stars": 300, "starter": False, "license_use": scout.USE_PAID_OK}
+    giant = {"rel": 12, "stars": 120000, "starter": False, "license_use": scout.USE_PAID_OK}
+    assert scout.fit_score(exact) > scout.fit_score(giant)
+    mit = {"rel": 0, "stars": 1000, "starter": False, "license_use": scout.USE_PAID_OK}
+    agpl = {"rel": 0, "stars": 1000, "starter": False, "license_use": scout.USE_NETWORK}
+    assert scout.fit_score(mit) > scout.fit_score(agpl)
+
+
+def test_fit_is_default_and_ranks_relevant_small_repo_first():
+    """RS5: with fit (the default), the exact match at the top of its search outranks a far bigger tangential repo."""
+    # tangential giant sits 13th in its query's results (rel=12); the exact match is first in its query (rel=0)
+    tangential = [repo(f"big/f{i}", 1) for i in range(12)] + [repo("big/giant", 120000)]
+    res, _ = run([[repo("tiny/exact", 300)], tangential])
+    assert res["rank_mode"] == "fit"
+    assert res["top"][0]["full_name"] == "tiny/exact"
+
+
+def test_why_relevant_keyword_then_fallback():
+    """RS24: shows the matched words, else a best-match fallback."""
+    w = scout.why_relevant("rag chatbot", "me/rag-chat", "a RAG chatbot over PDFs", 0)
+    assert w.startswith("Matches your search") and "rag" in w
+    assert scout.why_relevant("zzz", "x/y", "unrelated", 1) == "Top match for your search"
+    assert scout.why_relevant("zzz", "x/y", "unrelated", 9) == "Related to your search"
 
 
 @pytest.mark.parametrize("spdx,want", [
@@ -108,16 +135,16 @@ def test_prefer_starters_within_each_query():
     """RS15: starters first inside a query; balanced rounds still apply across queries."""
     q0 = [repo("lib/big", 50000), repo("tpl/small", 6000, is_template=True)]
     q1 = [repo("other/x", 7000)]
-    res, _ = run([q0, q1], prefer_starters=True)
+    res, _ = run([q0, q1], prefer_starters=True, rank_mode="balanced")
     assert [r["full_name"] for r in res["candidates"]] == ["other/x", "tpl/small", "lib/big"]
-    res, _ = run([q0, q1])
+    res, _ = run([q0, q1], rank_mode="balanced")
     assert [r["full_name"] for r in res["candidates"]] == ["lib/big", "other/x", "tpl/small"]
 
 
 def test_tiny_starter_does_not_jump_a_popular_library():
     """RS15: live regression, a 65-star template outranked a 12,992-star animation library."""
     q = [repo("barbajs/barba", 12992), repo("tiny/tpl", 65, is_template=True), repo("ok/tpl", 1300, is_template=True)]
-    res, _ = run([q], prefer_starters=True)
+    res, _ = run([q], prefer_starters=True, rank_mode="balanced")
     assert [r["full_name"] for r in res["candidates"]] == ["ok/tpl", "barbajs/barba", "tiny/tpl"]
 
 
@@ -128,7 +155,7 @@ def test_text_and_markdown_show_labels_and_key():
     for out in (txt, md):
         assert scout.USE_NETWORK in out and scout.HINT_TEMPLATE.replace("'", "") in out.replace("'", "").replace("\\", "")
         assert "stars can be bought" in out and "not legal advice" in out
-        assert "balanced" in out
+        assert "fit" in out
     assert "[starter]" in txt and "| yes |" in md
     empty, _ = run([[]])
     assert "stars can be bought" in scout.render(empty) and "stars can be bought" in scout.render_markdown(empty)
@@ -283,8 +310,8 @@ def test_main_json(monkeypatch, capsys):
                               "license_use": scout.USE_PAID_OK, "free": scout.FREE_YES, "starter": False,
                               "start_hint": scout.HINT_README,
                               "pushed": "2026-09-01", "url": "https://github.com/a/b", "query": "x",
-                              "description": "a/b desc", "rank": 1}
-    assert data["rank_mode"] == "balanced" and data["prefer_starters"] is False
+                              "description": "a/b desc", "rel": 0, "why": "Top match for your search", "rank": 1}
+    assert data["rank_mode"] == "fit" and data["prefer_starters"] is False
     assert set(data["excluded"]) == {"fork_or_archived", "license", "stale", "low_stars", "duplicate"}
     assert data["min_stars"] == 50
 
@@ -306,7 +333,7 @@ def test_fetch_builds_request_and_maps_errors(monkeypatch):
         return _Resp(b'{"items": []}')
     monkeypatch.setattr(scout.urllib.request, "urlopen", ok)
     assert scout.fetch("gsap fork:false", token="t0k") == {"items": []}
-    assert "sort=stars" in got["url"] and "order=desc" in got["url"] and got["auth"] == "Bearer t0k"
+    assert "per_page=30" in got["url"] and "sort=stars" not in got["url"] and got["auth"] == "Bearer t0k"
 
     def http(code, remaining=None):
         def f(req, timeout):
@@ -331,7 +358,7 @@ def test_stdlib_only_and_no_model_calls():
     """RS1, RS11."""
     src = (ROOT / "scripts" / "scout.py").read_text()
     imports = set(re.findall(r"^\s*(?:import|from)\s+([a-zA-Z_]+)", src, re.M))
-    assert imports <= {"argparse", "csv", "datetime", "io", "json", "os", "re", "sys", "urllib"}, imports
+    assert imports <= {"argparse", "csv", "datetime", "io", "json", "math", "os", "re", "sys", "urllib"}, imports
     assert not re.search(r"anthropic|openai|claude", src, re.I)
 
 
@@ -362,7 +389,7 @@ def test_markdown_summary_escapes_repo_text():
     assert re.search(r"(?<!\\)<img", md) is None
     assert "](http://evil)" not in md
     assert "[a/ok](https://github.com/a/ok)" in md
-    assert "| 1 |" in md and "No relevance check" in md
+    assert "| 1 |" in md and "semantic relevance check" in md
 
 
 def test_markdown_no_match(monkeypatch, capsys):
@@ -451,9 +478,9 @@ def test_csv_output_rows_and_formula_guard(monkeypatch, capsys):
     assert scout.main(["--csv", "x"]) == 0
     rows = list(_csv.reader(capsys.readouterr().out.splitlines()))
     assert rows[0] == scout.CSV_FIELDS
-    assert rows[1][1] == "a/b" and rows[1][3] == "900" and rows[1][6] == scout.FREE_YES
-    assert rows[1][11].startswith("'=")
-    assert rows[2][6] == scout.FREE_SHARE and len(rows) == 3
+    assert rows[1][1] == "a/b" and rows[1][4] == "900" and rows[1][7] == scout.FREE_YES
+    assert rows[1][12].startswith("'=")
+    assert rows[2][7] == scout.FREE_SHARE and len(rows) == 3
 
 
 def test_markdown_top_table_then_extra_candidates_and_free_note():
