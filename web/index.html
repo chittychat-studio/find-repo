@@ -109,7 +109,7 @@
   .modes{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
   .mode-tile{display:inline-flex;align-items:center;gap:12px;text-align:left;background:var(--card);
     border:1px solid var(--line);border-radius:16px;padding:13px 18px;cursor:pointer;font:inherit;color:var(--ink);
-    min-width:230px;transition:border-color .18s,transform .12s,box-shadow .18s}
+    flex:1 1 0;min-width:0;max-width:360px;transition:border-color .18s,transform .12s,box-shadow .18s}
   .mode-tile:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 16px 32px -18px rgba(192,83,44,.5)}
   .mode-tile .mt-ico{font-size:22px;line-height:1}
   .mode-tile .mt-txt{display:flex;flex-direction:column;line-height:1.3}
@@ -438,7 +438,7 @@
         </button>
         <label class="mode-tile" for="prd">
           <span class="mt-ico">📄</span>
-          <span class="mt-txt"><b>Match a whole plan</b><small>Upload a plan / PRD — read on your device; only short feature keywords are searched on GitHub</small></span>
+          <span class="mt-txt"><b>Match a whole plan</b><small>Upload a plan / PRD — read on your device</small></span>
         </label>
         <input id="prd" type="file" accept=".md,.markdown,.txt,.text,text/plain,text/markdown" hidden>
       </div>
