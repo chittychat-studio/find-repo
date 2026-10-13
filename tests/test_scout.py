@@ -516,9 +516,11 @@ def test_web_page_is_safe_static(monkeypatch):
     # any external stylesheet must be Google Fonts (Inter), degrades to system
     sheets = _re.findall(r'<link[^>]+rel="stylesheet"[^>]+href="([^"]+)"', html)
     assert all(h.startswith("https://fonts.googleapis.com/") for h in sheets), sheets
-    # calls the public search API, sorted by stars, forks/archived excluded
+    # calls the public search API in best-match order (RS2), forks/archived excluded; fit ranking (RS5) re-ranks
     assert "api.github.com/search/repositories" in html
-    assert "sort=stars" in html and "fork:false archived:false is:public" in html
+    assert "fork:false archived:false is:public" in html
+    assert "sort=stars" not in html  # RS5: best-match seeds fit ranking; stars no longer forced on the fetch
+    assert "rankByFit" in html and "fitScore" in html
     # license sets kept in sync with scout.py
     assert all(l in html for l in ("AGPL-3.0", "MPL-2.0", "MIT", "Unlicense"))
     assert "STARTER_MIN_SHARE" in html and "0.10" in html

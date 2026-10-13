@@ -12,7 +12,7 @@ global.matchMedia = () => ({matches:false});
 global.window = global;
 const s = {};
 new Function("document", "localStorage",
-  code + "; this.keywordQueries=keywordQueries; this.balanced=balanced; this.lu=lu; this.freeText=freeText;" +
+  code + "; this.keywordQueries=keywordQueries; this.rankByFit=rankByFit; this.fitScore=fitScore; this.lu=lu; this.freeText=freeText;" +
   " this.keep=keep; this.harmful=harmful; this.harmfulRepo=harmfulRepo; this.prdFeatures=prdFeatures;").call(s, document, global.localStorage || {getItem:()=>null,setItem(){},removeItem(){}});
 
 // RS16: iOS excludes macOS
@@ -27,7 +27,7 @@ assert.ok(!s.harmful("build a chat app"));
 ["WhatsApp Hacking Learn about ethical hacking of WhatsApp accounts", "hack instagram account tool",
  "Free robux generator", "aimbot wallhack"].forEach(d => assert.ok(s.harmfulRepo(d), "should flag: " + d));
 assert.ok(!s.harmfulRepo("A privacy-focused nutrition tracker"));
-// RS4a/RS3/RS4 filters + RS5 balanced with starter floor
+// RS4a/RS3/RS4 filters + RS5 fit ranking (relevance + stars + freedom) with starter floor
 const now = "2026-09-01T00:00:00Z", old = "2019-01-01T00:00:00Z";
 const q1 = [{full_name:"a/big",stargazers_count:50000,license:{spdx_id:"MIT"},pushed_at:now,description:"big"},
             {full_name:"a/tpl",stargazers_count:6000,license:{spdx_id:"MIT"},pushed_at:now,is_template:true,description:"t"},
@@ -39,7 +39,15 @@ const ex = {license:0,stale:0,low:0,fork:0,harm:0};
 const k1 = s.keep(q1, 50, "", ex), k2 = s.keep(q2, 50, "", ex);
 assert.deepStrictEqual(k1.map(r => r.name), ["a/big", "a/tpl"]);  // old, no-license, tiny dropped
 assert.strictEqual(ex.stale, 1); assert.strictEqual(ex.license, 1); assert.strictEqual(ex.low, 1);
-assert.deepStrictEqual(s.balanced([k1, k2], true).map(r => r.name), ["b/x", "a/tpl", "a/big"]);
+assert.deepStrictEqual(s.rankByFit([k1, k2], true).map(r => r.name), ["a/big", "a/tpl", "b/x"]);
+// RS5: a precise top-of-search match with far fewer stars can outrank a tangential giant
+const rel = [{name:"tiny/exact",stars:300,spdx:"MIT",starter:false,rel:0},
+             {name:"big/tangential",stars:120000,spdx:"MIT",starter:false,rel:12}];
+assert.strictEqual(s.rankByFit([rel], false)[0].name, "tiny/exact", "relevance should lift a smaller exact match");
+// RS5: between equally relevant, equally popular repos, the freer license wins
+const lic = [{name:"a/permissive",stars:1000,spdx:"MIT",starter:false,rel:0},
+             {name:"a/copyleft",stars:1000,spdx:"AGPL-3.0",starter:false,rel:0}];
+assert.strictEqual(s.rankByFit([lic], false)[0].name, "a/permissive", "free-to-use should break the tie");
 console.log("web logic ok");
 
 // RS23: PRD feature extraction (client-side, capped for the rate limit)

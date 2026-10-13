@@ -332,8 +332,9 @@ function keywordQueries(text, platform){
 }
 
 async function search(q){
+  // best-match (relevance) order seeds the fit ranking (RS2/RS5); stars are still in each result and weigh in RS5
   var url="https://api.github.com/search/repositories?q="+encodeURIComponent(q+" fork:false archived:false is:public")
-    +"&sort=stars&order=desc&per_page=30";
+    +"&per_page=30";
   var r=await fetch(url,{headers:{"Accept":"application/vnd.github+json"}});
   if(r.status===403||r.status===429) throw new Error("GitHub rate limit reached (10 searches/minute without a token). Wait a minute and try again.");
   if(r.status===422) throw new Error("GitHub rejected the search “"+q+"”. Use fewer words.");
@@ -358,20 +359,25 @@ function keep(items, minStars, platform, excluded){
     var topics=(it.topics||[]).map(function(t){return String(t).toLowerCase();});
     var starter=!!it.is_template||topics.some(function(t){return STARTER_TOPICS.has(t);});
     out.push({name:clean(name),stars:it.stargazers_count||0,spdx:spdx,pushed:(it.pushed_at||"").slice(0,10),
-      url:it.html_url||("https://github.com/"+name),desc:desc,starter:starter});
+      url:it.html_url||("https://github.com/"+name),desc:desc,starter:starter,rel:i});
   }
   return out;
 }
 
-function balanced(lists, preferStarters){
-  function order(rows){ var floor=rows.reduce(function(m,r){return Math.max(m,r.stars);},0)*STARTER_MIN_SHARE;
-    return rows.slice().sort(function(a,b){
-      if(preferStarters){ var as=(a.starter&&a.stars>=floor)?0:1, bs=(b.starter&&b.stars>=floor)?0:1; if(as!==bs)return as-bs; }
-      return b.stars-a.stars || a.name.localeCompare(b.name); }); }
-  var ord=lists.map(order), out=[], max=Math.max.apply(null,ord.map(function(x){return x.length;}).concat([0]));
-  for(var i=0;i<max;i++){ var round=[]; for(var j=0;j<ord.length;j++) if(i<ord[j].length) round.push(ord[j][i]);
-    round.sort(function(a,b){return b.stars-a.stars||a.name.localeCompare(b.name);}); out=out.concat(round); }
-  return out;
+// ---- fit ranking (RS5): relevant + popular + free to use at the top ----
+function fitScore(r, preferStarters, floor){
+  var relScore=1-Math.min(1,(r.rel||0)/20);                           // best-match position (RS2); top match = 1
+  var starScore=Math.min(1,Math.log10((r.stars||0)+1)/5);             // log-scaled popularity (~100k stars = 1)
+  var freeScore=PERMISSIVE.has(r.spdx)?1:(WEAK.has(r.spdx)?0.7:0.45); // permissive > weak copyleft > GPL/AGPL
+  var bonus=(preferStarters && r.starter && r.stars>=floor)?0.08:0;   // RS15 starter nudge
+  return 0.45*relScore+0.35*starScore+0.20*freeScore+bonus;
+}
+function rankByFit(lists, preferStarters){
+  var all=[]; for(var i=0;i<lists.length;i++) for(var j=0;j<lists[i].length;j++) all.push(lists[i][j]);
+  var floor=all.reduce(function(m,r){return Math.max(m,r.stars);},0)*STARTER_MIN_SHARE;
+  all.forEach(function(r){ r.fit=fitScore(r,preferStarters,floor); });
+  all.sort(function(a,b){ return b.fit-a.fit || b.stars-a.stars || a.name.localeCompare(b.name); });
+  return all;
 }
 
 // ---- card rendering (3D) ----
@@ -431,7 +437,7 @@ function render(top, queries, excluded, totalMatches){
   if(!top.length){ return '<div class="panel"><p class="err">No repository matched.</p>'+
     '<p class="mut">Searches: '+esc(queries.join("; "))+'. Try fewer or broader words, or lower the minimum stars.</p></div>'; }
   var more=(totalMatches||top.length)-top.length;
-  var h='<div class="res-head"><h2>Top '+top.length+' matches</h2><span class="mut">ranked by stars</span></div>'+
+  var h='<div class="res-head"><h2>Top '+top.length+' matches</h2><span class="mut">best fit · relevant, popular, free</span></div>'+
     '<div class="grid">'+top.map(function(r,i){return cardHtml(r,i);}).join("")+'</div>'+
     '<p class="excl">Searches: '+esc(queries.join("; "))+' · Excluded — not open-source: '+excluded.license+
     ', too old: '+excluded.stale+', too few stars: '+excluded.low+', forks/archived: '+excluded.fork+
@@ -513,8 +519,8 @@ async function runFeatures(features, minStars, platform, preferStarters, out, st
     var fresh=items.filter(function(it){ if(!it.full_name||seen.has(it.full_name))return false; seen.add(it.full_name); return true; });
     var kept=keep(fresh,minStars,platform,excluded);
     var floor=kept.reduce(function(m,r){return Math.max(m,r.stars);},0)*STARTER_MIN_SHARE;
-    kept.sort(function(a,b){ if(preferStarters){var as=(a.starter&&a.stars>=floor)?0:1,bs=(b.starter&&b.stars>=floor)?0:1; if(as!==bs)return as-bs;}
-      return b.stars-a.stars||a.name.localeCompare(b.name); });
+    kept.forEach(function(r){ r.fit=fitScore(r,preferStarters,floor); });
+    kept.sort(function(a,b){ return b.fit-a.fit||b.stars-a.stars||a.name.localeCompare(b.name); });
     groups.push({query:features[i],repos:kept});
   }
   out.innerHTML=renderGrouped(groups,excluded,
@@ -544,7 +550,7 @@ async function run(){
       var items=await search(queries[i]);
       var fresh=items.filter(function(it){ if(!it.full_name||seen.has(it.full_name))return false; seen.add(it.full_name); return true; });
       lists.push(keep(fresh,minStars,platform,excluded)); }
-    var ranked=balanced(lists,preferStarters), top=ranked.slice(0,10);
+    var ranked=rankByFit(lists,preferStarters), top=ranked.slice(0,10);
     out.innerHTML=render(top,queries,excluded,ranked.length);
     animateCards(out); st.textContent="Done."; saveResults();
   }catch(e){ st.textContent=""; out.innerHTML='<div class="panel"><p class="err">'+esc(e.message)+'</p></div>'; }
