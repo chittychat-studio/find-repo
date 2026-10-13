@@ -81,8 +81,11 @@
   button.primary:active{transform:translateY(0) scale(.99)}
   button.primary:disabled{opacity:.6;cursor:default;transform:none}
 
-  .chips-label{font-size:12.5px;color:var(--muted);margin:12px 0 0}
   .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+  .gallery{margin-top:20px;max-width:620px;width:100%}
+  .gallery-label{font-size:13px;color:var(--muted);margin:0 0 4px;text-align:center}
+  .gallery .chips{justify-content:center}
+  .gallery .chip{font-size:13.5px;padding:8px 14px}
   .chip{background:var(--offbg);color:var(--ink);border:1px solid var(--line);border-radius:999px;font-weight:500;
     padding:7px 12px;font:inherit;font-size:13px;cursor:pointer;
     transition:background .18s,border-color .18s,color .18s,transform .12s,box-shadow .18s}
@@ -189,8 +192,6 @@
     <div class="panel search">
       <label for="q">What are you building?</label>
       <textarea id="q" placeholder="e.g. a diet app for iPhone, starting from scratch"></textarea>
-      <p class="chips-label">Try one (click to fill):</p>
-      <div id="examples" class="chips"></div>
       <div class="row">
         <div><label for="platform" class="mut">Platform</label>
           <select id="platform"><option value="">Any</option><option value="web">Web</option>
@@ -439,19 +440,20 @@ var EXAMPLES=[
   {label:"🔒 Learn security safely", text:"learn web security by hacking a practice app", platform:"", starters:"no"},
   {label:"📑 PowerPoint from notes", text:"generate PowerPoint decks from my notes", platform:"", starters:"no"}
 ];
-(function(){ var box=document.getElementById("examples");
+// click an example → fill the form on the left, then search straight away (RS21)
+function pickExample(ex){
+  document.getElementById("q").value=ex.text;
+  document.getElementById("platform").value=ex.platform;
+  document.getElementById("starters").value=ex.starters;
+  run();
+}
+function buildExamples(box){
+  if(!box || box.dataset.built) return; box.dataset.built="1";
   EXAMPLES.forEach(function(ex,i){ var b=document.createElement("button"); b.type="button"; b.className="chip";
     b.textContent=ex.label; b.style.animationDelay=(i*35)+"ms";
-    b.addEventListener("click",function(){
-      var all=box.querySelectorAll(".chip");
-      for(var k=0;k<all.length;k++) all[k].classList.remove("selected");
-      b.classList.add("selected");
-      document.getElementById("q").value=ex.text;
-      document.getElementById("platform").value=ex.platform;
-      document.getElementById("starters").value=ex.starters;
-      document.getElementById("status").textContent="Filled — press “Find repos”.";
-      document.getElementById("q").focus(); });
-    box.appendChild(b); }); })();
+    b.addEventListener("click",function(){ pickExample(ex); });
+    box.appendChild(b); });
+}
 
 // RS23: pull up to N short feature phrases from a PRD/spec (client-side only).
 var PRD_MAX=6; // unauthenticated rate limit is ~10 searches/minute; keep headroom
@@ -587,15 +589,17 @@ function playExplainer(host){
   cycle();
 }
 
-// empty-state explainer in the results panel (visible on load, no scroll needed)
+// empty-state in the results panel: how-it-works + the clickable prompt gallery (visible on load)
 (function(){
   var out=document.getElementById("out");
   out.innerHTML='<div class="explain"><div style="font-size:15px;color:var(--muted);max-width:560px">'+
     'Find the right open-source building blocks in seconds. Here’s how it works:</div>'+
     '<div id="heroSteps"></div>'+
-    '<button class="primary" style="max-width:220px;margin-top:4px" onclick="document.getElementById(\'q\').focus()">Try it — describe your project</button>'+
+    '<div class="gallery"><p class="gallery-label">Or start from an example — click to fill in and search:</p>'+
+    '<div id="examples" class="chips"></div></div>'+
     '</div>';
   buildSteps(document.getElementById("heroSteps"));
+  buildExamples(document.getElementById("examples"));
 })();
 
 // ---- light / dark theme toggle (per-viewer convenience; falls back to system) ----
