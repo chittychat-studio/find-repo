@@ -300,9 +300,11 @@
   .privacy-note{text-align:center;font-size:12.5px;color:var(--muted);margin:10px auto 0;max-width:620px;line-height:1.45}
   /* result-side filter chips + show-more */
   .res-filter{display:flex;flex-wrap:wrap;gap:8px;margin:0 4px 14px}
-  .rfilter{background:var(--offbg);border:1px solid var(--line);border-radius:999px;padding:7px 13px;font:inherit;
+  .rfilter,.rsel{background:var(--offbg);border:1px solid var(--line);border-radius:999px;padding:7px 13px;font:inherit;
     font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;transition:border-color .18s,color .18s,background .18s}
-  .rfilter:hover{border-color:var(--accent);color:var(--accent-ink)}
+  .rfilter:hover,.rsel:hover{border-color:var(--accent);color:var(--accent-ink)}
+  .rsel{margin-left:auto}
+  .rsel.on{border-color:var(--accent);color:var(--accent-ink)}
   .rfilter.on{background:linear-gradient(135deg,var(--accent),var(--accent-ink));border-color:transparent;color:#fff}
   .res-more-hint{text-align:center;color:var(--muted);font-size:12.5px;margin:10px 4px 2px;min-height:18px}
   .res-empty{text-align:center;color:var(--muted);font-size:14px;margin:18px 4px}
@@ -486,6 +488,8 @@
     <button id="prdCopy" class="copy" title="Copy prompt" aria-label="Copy prompt">⧉</button>
   </div>
   <a id="prdOpen" class="primary-cta" href="#" target="_blank" rel="noopener">Open in Claude ↗</a>
+  <p id="prdLong" class="mut" style="margin-top:10px" hidden><b>Too many repos for the Open in Claude link.</b> Tap the copy
+    icon above and paste into Claude or any AI — or untick a few repos.</p>
   <p class="mut" style="margin-top:10px"><b>Open in Claude</b> opens a new chat on your own claude.ai account
     with the prompt ready to send. (If your browser doesn't pre-fill it, just tap the copy icon and paste.)
     New to the plugin? <button class="link-btn" onclick="openModal('pluginModal')">See setup</button>.</p>
@@ -838,6 +842,7 @@ var RES_FILTERS=[["all","All"],["com","✅ Free for commercial use"],["starter",
 function filterBar(){ return '<div class="res-filter" role="group" aria-label="Filter results">'+
   RES_FILTERS.map(function(f,i){ return '<button type="button" class="rfilter'+(i===0?' on':'')+'" data-f="'+f[0]+'">'+f[1]+'</button>'; }).join("")+
   '<button type="button" class="rfilter rclear" id="resClearBtn" data-f="all" title="Show all results" hidden>✕ Clear filter</button>'+
+  '<button type="button" class="rsel" id="resSelAll" title="Tick every repo shown, for a build plan (RS28a)">☑ Select all shown</button>'+
   '</div>'; }
 
 function render(top, queries, excluded, totalMatches, qtokens, heading, note){
@@ -874,7 +879,15 @@ function applyResultFilter(){
   if(more){ if(matched>shown){ more.hidden=false; more.textContent="Showing "+shown+" of "+matched+" · scroll for more"; } else more.hidden=true; }
   var chips=out.querySelectorAll(".rfilter"); for(var j=0;j<chips.length;j++) chips[j].classList.toggle("on", chips[j].getAttribute("data-f")===f);
   var cb=out.querySelector("#resClearBtn"); if(cb) cb.hidden=(f==="all");  // show "Clear filter" only when a filter is active
+  syncSelAll();
 }
+// "Select all shown" (RS28a): acts only on visible cards — respects the active filter and scroll-reveal
+function shownPickBoxes(){ var out=document.getElementById("out"); if(!out) return [];
+  return Array.prototype.filter.call(out.querySelectorAll(".rcard"),function(c){ return c.style.display!=="none"; })
+    .map(function(c){ return c.querySelector(".pick-cb"); }).filter(Boolean); }
+function syncSelAll(){ var b=document.getElementById("resSelAll"); if(!b) return;
+  var bx=shownPickBoxes(), all=bx.length>0 && bx.every(function(x){ return x.checked; });
+  b.textContent = all ? "☐ Deselect shown" : "☑ Select all shown ("+bx.length+")"; b.classList.toggle("on",all); b.hidden=!bx.length; }
 // infinite scroll: no button — when the sentinel nears the viewport, reveal 10 more (cards are already fetched; no API call)
 function checkMore(){ requestAnimationFrame(function(){ var s=document.querySelector("#out #resMore");
   if(s && !s.hidden && s.getBoundingClientRect().top < window.innerHeight+400) revealMore(); }); }
@@ -1217,7 +1230,7 @@ document.addEventListener("keydown",function(e){ if(e.key==="Escape") closeModal
   if(!out||!bar) return;
   var picks=[];  // [{name,url,desc}] of ticked repos
   function idx(url){ for(var i=0;i<picks.length;i++) if(picks[i].url===url) return i; return -1; }
-  function refresh(){ var n=picks.length;
+  function refresh(){ var n=picks.length; syncSelAll();
     if(n){ bar.removeAttribute("hidden"); countEl.textContent=n+" repo"+(n===1?"":"s")+" selected"; }
     else bar.setAttribute("hidden",""); }
   window.__resetPicks=function(){ picks=[]; refresh(); };
@@ -1232,13 +1245,17 @@ document.addEventListener("keydown",function(e){ if(e.key==="Escape") closeModal
   out.addEventListener("click",function(e){ var t=e.target;
     var fb=t.closest&&t.closest(".rfilter");
     if(fb){ window.__resFilter=fb.getAttribute("data-f"); window.__resLimit=10; applyResultFilter(); checkMore(); return; }
-    if(t.closest&&t.closest("#resClear")){ window.__resFilter="all"; window.__resLimit=10; applyResultFilter(); checkMore(); } });
+    if(t.closest&&t.closest("#resClear")){ window.__resFilter="all"; window.__resLimit=10; applyResultFilter(); checkMore(); return; }
+    if(t.closest&&t.closest("#resSelAll")){ var bx=shownPickBoxes(), all=bx.every(function(x){ return x.checked; });
+      bx.forEach(function(x){ if(x.checked===all){ x.checked=!all; x.dispatchEvent(new Event("change",{bubbles:true})); } });
+      syncSelAll(); } });
   function buildPrompt(){
     var q=(document.getElementById("q").value||"").trim() || "my project";
     var list=picks.map(function(r,i){ return (i+1)+". "+r.name+" — "+r.url+(r.desc?"\n   "+r.desc:""); }).join("\n");
     return "I'm building: "+q+"\n\n"+
-      "Write a product requirements document (PRD) for it, built on these open-source GitHub repos. "+
-      "Use them as the foundation and reference each where it fits:\n\n"+list+"\n\n"+
+      "Write a product requirements document (PRD) for it, built on these open-source GitHub repos:\n\n"+list+"\n\n"+
+      "Not every repo above will fit (they came from a keyword search). First triage each one as USE, REFERENCE ONLY "+
+      "or REJECT, with a one-line reason, and build only on the ones you USE.\n\n"+
       "Include: overview and goals; key features; which repo above covers each part (with its GitHub URL); "+
       "data model and APIs; non-goals; and open questions. Use only the repos listed — don't invent libraries, versions, or statistics.";
   }
@@ -1248,8 +1265,10 @@ document.addEventListener("keydown",function(e){ if(e.key==="Escape") closeModal
   if(goBtn) goBtn.addEventListener("click",function(){ if(!picks.length) return;
     var text=buildPrompt(); if(pre) pre.textContent=text;
     if(openLink){ var url="https://claude.ai/new?q="+encodeURIComponent(text);
-      if(url.length>7500) openLink.setAttribute("hidden","");       // too long for a URL — Copy only
-      else { openLink.removeAttribute("hidden"); openLink.href=url; } }
+      var tooLong=url.length>7500, note=document.getElementById("prdLong");
+      if(tooLong) openLink.setAttribute("hidden","");       // too long for a URL — Copy only (RS28a: say so)
+      else { openLink.removeAttribute("hidden"); openLink.href=url; }
+      if(note) note.hidden=!tooLong; }
     openModal("prdModal"); });
   if(copyBtn) copyBtn.addEventListener("click",function(){ var text=pre?pre.textContent:"";
     function ok(){ copyBtn.textContent="✓"; setTimeout(function(){ copyBtn.textContent="⧉"; },1400); }

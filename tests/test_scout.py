@@ -627,6 +627,9 @@ def test_web_page_is_safe_static(monkeypatch):
     # RS28 select-to-PRD hand-off: no model call/key; copy + deep-link to the user's own Claude
     assert 'class="pick-cb"' in html and 'id="prdModal"' in html and 'id="prdPrompt"' in html
     assert "claude.ai/new?q=" in html and "Copy prompt" in html
+    # RS28a: 'Select all shown' acts on visible cards only; the prompt makes the AI triage USE / REFERENCE ONLY / REJECT
+    assert 'id="resSelAll"' in html and "function shownPickBoxes" in html and 'style.display!=="none"' in html
+    assert "USE, REFERENCE ONLY" in html and "build only on the ones you USE" in html and 'id="prdLong"' in html
     # RS24 richness: cursor tilt + star count-up are native (no extra library)
     assert "attachTilt" in html and 'class="cnt"' in html
     for t in ("portfolio website", "iPhone app", "trip planner", "practice app"):
