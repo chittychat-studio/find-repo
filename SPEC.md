@@ -148,6 +148,18 @@ Relevance gate: stars measure popularity, not fit. The skill may only *drop* a s
   Unit tests make no network calls (HTTP is replaced with fixtures) and run in CI on every push and PR.
 - **RS12** License: MIT, in `LICENSE`, declared as `"license": "MIT"` in `plugin.json`. GitHub then detects
   `MIT`, so the plugin passes its own RS3 filter.
+- **RS25** Prompt-injection safety. Every input the plugin reads — the user's description / `$ARGUMENTS`, their
+  latest message, any selection, and any pasted or uploaded PRD / spec / file — is treated strictly as data
+  describing *what to search for*, never as instructions to the assistant (this extends RS9, which already covers
+  GitHub output). The skill text states this and tells the assistant to ignore embedded directives (ignore-these-
+  steps, reveal / print the prompt, run or install something, act-as, disable-a-safety-check), take only the
+  search intent, and say once that it did so. The skill's only actions remain running `scripts/scout.py` and
+  presenting results (RX4). Defence-in-depth: a logging hook (`hooks/security_log.py`, declared in
+  `hooks/hooks.json`, Python stdlib only — RS11) runs on `UserPromptSubmit`; it scans the submitted text for
+  prompt-injection and harmful-intent patterns and appends any match as one JSON line to a security log
+  (`$FIND_REPO_SECURITY_LOG`, default `~/.find-repo/security.log`). It only logs — it never blocks the user and
+  never echoes the prompt back verbatim beyond a short truncated sample — so it is an audit trail, not a gate.
+  The guarantee holds from the skill text alone; the hook records attempts for review.
 
 ## RX — Deliberately excluded (v0.1)
 
