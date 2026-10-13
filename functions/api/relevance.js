@@ -48,7 +48,9 @@ export function buildMessages(query, repos) {
 // Parse the model's reply; anything malformed is ignored (keep everything) rather than trusted.
 export function parseDrops(text, n) {
   let obj;
-  try { obj = JSON.parse(String(text).replace(/^```(?:json)?\s*|\s*```$/g, "")); } catch { return null; }
+  const t = String(text), a = t.indexOf("{"), b = t.lastIndexOf("}");   // small models often wrap JSON in prose
+  if (a < 0 || b < a) return null;
+  try { obj = JSON.parse(t.slice(a, b + 1)); } catch { return null; }
   if (!obj || !Array.isArray(obj.drop)) return null;
   const seen = new Set(), drop = [];
   for (const d of obj.drop) {
@@ -69,8 +71,8 @@ export function classifyLimit(status, text, retryAfter, now = Date.now()) {
   const dailyWords = DAILY.test(text);
   if (status !== 429 && !dailyWords) return null;
   const daily = dailyWords || (retryAfter !== null && retryAfter > 600);
-  if (!daily) return { error: "llm_rate_limited", resetsInSec: retryAfter || 60 };
-  return { error: "llm_daily_limit", resetsInSec: retryAfter && retryAfter > 600 ? retryAfter : secondsToUtcMidnight(now) };
+  if (!daily) return { error: "llm_rate_limited", resetsInSec: Math.min(retryAfter || 60, 600) };
+  return { error: "llm_daily_limit", resetsInSec: Math.min(retryAfter && retryAfter > 600 ? retryAfter : secondsToUtcMidnight(now), 86400) };
 }
 export async function limitInfo(res, now = Date.now()) {
   let text = ""; try { text = (await res.text()).slice(0, 2000); } catch {}
@@ -84,22 +86,24 @@ export async function judge(query, repos, env, fetchImpl = fetch, ms = TIMEOUT_M
   const payload = { model, messages: buildMessages(query, repos), temperature: 0, max_tokens: 900 };
   if (env.LLM_JSON_MODE !== "0") payload.response_format = { type: "json_object" };
   const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), ms);
-  let res;
-  try {
-    res = await fetchImpl(`${base}/chat/completions`, {
-      method: "POST", signal: ctl.signal,
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${env.LLM_API_KEY}` },
-      body: JSON.stringify(payload),
-    });
-  } catch (e) {
-    return { status: e && e.name === "AbortError" ? 504 : 502, error: "llm_unreachable" };
+  let res, data;
+  try {   // the timer stays armed until the body is read, so a stalled body can't outlast the budget
+    try {
+      res = await fetchImpl(`${base}/chat/completions`, {
+        method: "POST", signal: ctl.signal,
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${env.LLM_API_KEY}` },
+        body: JSON.stringify(payload),
+      });
+    } catch (e) {
+      return { status: e && e.name === "AbortError" ? 504 : 502, error: "llm_unreachable" };
+    }
+    if (!res.ok) {
+      const lim = await limitInfo(res);
+      if (lim) return { status: 503, error: lim.error, resetsInSec: lim.resetsInSec };
+      return { status: 502, error: "llm_error" };
+    }
+    try { data = await res.json(); } catch { return { status: 502, error: "llm_bad_response" }; }
   } finally { clearTimeout(timer); }
-  if (!res.ok) {
-    const lim = await limitInfo(res);
-    if (lim) return { status: 503, error: lim.error, resetsInSec: lim.resetsInSec };
-    return { status: 502, error: "llm_error" };
-  }
-  let data; try { data = await res.json(); } catch { return { status: 502, error: "llm_bad_response" }; }
   const text = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
   const drop = parseDrops(text, repos.length);
   if (!drop) return { status: 502, error: "llm_unparseable" };
@@ -137,10 +141,10 @@ export async function judgeChain(query, repos, env, fetchImpl = fetch, budgetMs 
   if (env.LLM_API_KEY) steps.push(ms => judge(query, repos, env, fetchImpl, ms));
   if (!steps.length) return { status: 503, error: "not_configured" };
   const end = Date.now() + budgetMs, fails = [];
-  for (const step of steps) {
+  for (let k = 0; k < steps.length; k++) {
     const left = end - Date.now();
     if (left < 1000) break;
-    const out = await step(left);
+    const out = await steps[k](k < steps.length - 1 ? Math.min(left, Math.round(budgetMs * 0.6)) : left);  // keep time for the fallback
     if (out.status === 200) return out;
     fails.push(out);
   }
@@ -152,6 +156,42 @@ export async function judgeChain(query, repos, env, fetchImpl = fetch, budgetMs 
     return { status: 503, error: pick[0].error, resetsInSec: Math.min(...pick.map(f => f.resetsInSec)) };
   }
   return fails.find(f => !f.resetsInSec);
+}
+
+// RS34b: answers for the built-in example searches are cached at Cloudflare's edge for a day, so repeat visitors
+// tapping the same quick pick don't spend AI allowance. Only these fixed texts are cached — never what a visitor
+// types — so nothing a user writes is stored. Must match EXAMPLES in web/index.html (tested).
+export const EXAMPLE_QUERIES = [
+  "a portfolio website with smooth scroll animations",
+  "landing page for my SaaS in Next.js, I'll sell it",
+  "my first iPhone app, a habit tracker",
+  "a diet and calorie tracking app",
+  "a chatbot that answers questions from my PDFs, Python",
+  "dashboard to show my sales spreadsheet as charts",
+  "a simple 2D browser game engine for beginners",
+  "offline maps for my trip planner app",
+  "learn web security by hacking a practice app",
+  "generate PowerPoint decks from my notes",
+];
+const EXAMPLE_SET = new Set(EXAMPLE_QUERIES);
+const CACHE_TTL = 86400;
+export async function cacheKey(query, repos) {
+  const data = new TextEncoder().encode(JSON.stringify([1, query, repos.map(r => [r.name, r.description || "", r.topics || []])]));
+  const hex = [...new Uint8Array(await crypto.subtle.digest("SHA-256", data))].map(b => b.toString(16).padStart(2, "0")).join("");
+  return new Request(`https://replore-relevance.cache/v1/${hex}`);
+}
+export async function cachedJudge(query, repos, env, fetchImpl = fetch, cache = globalThis.caches && globalThis.caches.default) {
+  const usable = cache && EXAMPLE_SET.has(query);
+  let key;
+  if (usable) {
+    try { key = await cacheKey(query, repos); const hit = await cache.match(key); if (hit) return { status: 200, body: await hit.json(), cached: true }; }
+    catch { key = null; }   // a cache problem never blocks the check
+  }
+  const out = await judgeChain(query, repos, env, fetchImpl);
+  if (usable && key && out.status === 200) {
+    try { await cache.put(key, new Response(JSON.stringify(out.body), { headers: { "Content-Type": "application/json", "Cache-Control": `max-age=${CACHE_TTL}` } })); } catch {}
+  }
+  return out;
 }
 
 const json = (status, obj) => new Response(JSON.stringify(obj), {
@@ -167,7 +207,7 @@ export async function onRequestPost({ request, env }) {
   let body; try { body = JSON.parse(raw); } catch { return json(400, { error: "invalid_json" }); }
   const bad = validate(body);
   if (bad) return json(400, { error: bad });
-  const out = await judgeChain(body.query, body.repos, env);
+  const out = await cachedJudge(body.query, body.repos, env);
   return out.status === 200 ? json(200, out.body)
     : json(out.status, out.resetsInSec ? { error: out.error, resetsInSec: out.resetsInSec } : { error: out.error });
 }

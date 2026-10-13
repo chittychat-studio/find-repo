@@ -96,7 +96,7 @@ console.log("relevance function ok");
   assert.deepStrictEqual(out, { status: 503, error: "llm_daily_limit", resetsInSec: 5400 }); }
 console.log("limit classification ok");
 
-// RS34a provider chain: OpenAI-compatible first, Workers AI (AI binding) as fallback
+// RS34a provider chain: Workers AI (AI binding) first, OpenAI-compatible (Groq) as fallback
 { const ok = '{"drop":[{"i":1,"why":"mobile"}]}';
   const ai = (impl) => ({ run: async (model, input) => { ai.last = { model, input }; return impl(); } });
   const lim = async () => new Response("tokens per day exceeded", { status: 429 });
@@ -142,3 +142,53 @@ console.log("limit classification ok");
     assert.strictEqual(r.status, 200); }
 }
 console.log("provider chain ok");
+
+// peer-review regressions (RS34/RS34a)
+{ const ok = '{"drop":[{"i":0,"why":"x"}]}';
+  // a hanging Workers AI still leaves time for Groq
+  { let called = false; const groq = async () => { called = true; return fakeLLM(ok)(); };
+    const out = await fn.judgeChain("q", repos, { ...env, AI: { run: () => new Promise(() => {}) } }, groq, 3000);
+    assert.strictEqual(out.status, 200); assert.ok(called, "fallback must run after a slow first provider"); }
+  // prose around the JSON is tolerated; still only valid indices
+  assert.deepStrictEqual(fn.parseDrops('Here is the JSON:\n{"drop":[{"i":2,"why":"injection"}]}\nHope that helps', 3), [{ i: 2, why: "injection" }]);
+  assert.strictEqual(fn.parseDrops("no json here {", 3), null);
+  // absurd retry-after is capped at 24 h (daily) / 10 min (busy)
+  { const r = (status, body, ra) => new Response(body, { status, headers: { "retry-after": String(ra) } });
+    assert.strictEqual((await fn.limitInfo(r(429, "tokens per day", 999999))).resetsInSec, 86400);
+    assert.strictEqual((await fn.limitInfo(r(429, "slow down", 300))).resetsInSec, 300); }
+  // a stalled response body times out instead of hanging
+  { const stall = async (url, init) => ({ ok: true, status: 200, headers: new Headers(),
+      json: () => new Promise((_, rej) => init.signal.addEventListener("abort", () => rej(Object.assign(new Error("a"), { name: "AbortError" })))) });
+    assert.strictEqual((await fn.judge("q", repos, env, stall, 50)).status, 502); }
+  // resetsInSec reaches the HTTP response
+  { const AI = { run: async () => { throw new Error("used up your daily free allocation of 10,000 neurons"); } };
+    const r = await post({ query: "q", repos }, { AI }); const j = await r.json();
+    assert.strictEqual(r.status, 503); assert.strictEqual(j.error, "llm_daily_limit"); assert.ok(j.resetsInSec > 0 && j.resetsInSec <= 86400); }
+}
+console.log("review regressions ok");
+
+// RS34b example cache: only the built-in example texts, only successful answers, never visitor text
+{ const store = new Map();
+  const cache = { match: async k => store.has(k.url) ? new Response(store.get(k.url)) : undefined,
+                  put: async (k, r) => { store.set(k.url, await r.text()); } };
+  const ex = fn.EXAMPLE_QUERIES[0];
+  let calls = 0; const AI = { run: async () => { calls++; return { response: '{"drop":[{"i":1,"why":"mobile"}]}' }; } };
+  const a = await fn.cachedJudge(ex, repos, { AI }, fetch, cache);
+  const b = await fn.cachedJudge(ex, repos, { AI }, fetch, cache);
+  assert.strictEqual(calls, 1, "second example tap is served from cache"); assert.deepStrictEqual(a.body, b.body); assert.ok(b.cached);
+  // different candidate list -> different key -> fresh check
+  await fn.cachedJudge(ex, repos.slice(0, 2), { AI }, fetch, cache); assert.strictEqual(calls, 2);
+  // visitor text is never cached
+  store.clear(); calls = 0;
+  await fn.cachedJudge("my secret startup idea", repos, { AI }, fetch, cache);
+  await fn.cachedJudge("my secret startup idea", repos, { AI }, fetch, cache);
+  assert.strictEqual(calls, 2); assert.strictEqual(store.size, 0);
+  // failures are not cached; a broken cache never blocks the check
+  const bad = { run: async () => { throw new Error("boom"); } };
+  await fn.cachedJudge(ex, repos, { AI: bad }, fetch, cache); assert.strictEqual(store.size, 0);
+  const broken = { match: async () => { throw new Error("x"); }, put: async () => { throw new Error("x"); } };
+  assert.strictEqual((await fn.cachedJudge(ex, repos, { AI }, fetch, broken)).status, 200);
+  assert.strictEqual((await fn.cachedJudge(ex, repos, { AI }, fetch, undefined)).status, 200);
+  // the cache key never contains the text itself
+  const k = await fn.cacheKey(ex, repos); assert.ok(!k.url.includes("portfolio")); }
+console.log("example cache ok");

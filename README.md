@@ -69,7 +69,7 @@ Keep the account on the Workers **Free** plan if you want it to stop at the dail
 Settings → Variables and Secrets, add a **secret** `LLM_API_KEY` (e.g. a free Groq API key from console.groq.com) and
 redeploy; optional `LLM_BASE_URL` (any OpenAI-compatible endpoint; default Groq) and `LLM_MODEL` (default
 `llama-3.1-8b-instant`). With neither the binding nor the key, the page shows plain keyword results with no note.
-Before adding or switching a provider, check its data-use terms (free tiers limited to prototyping, such as GitHub
+Before adding or switching a provider, check its data-use terms (free tiers intended for prototyping, such as GitHub
 Models, don't qualify) and update `PRIVACY.md`.
 
 ## Install (Claude Code)
