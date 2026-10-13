@@ -69,6 +69,11 @@ Keep the account on the Workers **Free** plan if you want it to stop at the dail
 Settings → Variables and Secrets, add a **secret** `LLM_API_KEY` (e.g. a free Groq API key from console.groq.com) and
 redeploy; optional `LLM_BASE_URL` (any OpenAI-compatible endpoint; default Groq) and `LLM_MODEL` (default
 `llama-3.1-8b-instant`). With neither the binding nor the key, the page shows plain keyword results with no note.
+**Bot check (SPEC RS34c, recommended):** in Cloudflare → Turnstile, add a widget for your site's hostname
+(Invisible or Managed), then in the Pages project add the variable `TURNSTILE_SITE_KEY` (public) and the **secret**
+`TURNSTILE_SECRET`, and redeploy. Every AI check then needs a fresh Turnstile token. Also add a rate-limiting rule
+(Security → WAF → Rate limiting rules) on the path `/api/relevance`, per IP. On the Free plan, the worst that
+abuse can do is use up the day's allowance, never bill you.
 Before adding or switching a provider, check its data-use terms (free tiers intended for prototyping, such as GitHub
 Models, don't qualify) and update `PRIVACY.md`.
 

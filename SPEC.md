@@ -298,7 +298,18 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   searches only (the fixed texts of RS21, listed in the function and kept identical to the page by a test), a successful
   answer is kept in Cloudflare's edge cache for 24 h, keyed by a SHA-256 of the example text and the candidate repos,
   so repeat quick-pick taps spend no AI allowance. Text a visitor types is never cached or stored. Provider-side
-  prompt caching is not used: the reusable prefix (the system prompt) is small next to the per-search repo list. The page shows only kept repos, says how many were
+  prompt caching is not used: the reusable prefix (the system prompt) is small next to the per-search repo list.
+  **Bot check (RS34c):** the AI allowance is shared by every visitor, so the function only spends it on requests that
+  look like this page: (1) a POST whose `Origin` names another site is refused (403 `bad_origin`); (2) when the owner
+  sets `TURNSTILE_SECRET` (and the public `TURNSTILE_SITE_KEY`), every POST must carry a fresh Cloudflare Turnstile
+  token in `CF-Turnstile-Token`, verified server-side with Cloudflare's siteverify before any model call; a missing,
+  invalid or unverifiable token is refused (403 `bot_check_failed`) — fail closed on spend, while the page still shows
+  keyword results with "Couldn't confirm this browser, so showing keyword matches". The page learns the site key from
+  `GET /api/relevance` and loads Turnstile from `challenges.cloudflare.com` only when a key is set (the one exception
+  to RS33's no-third-party-script rule, disclosed in `PRIVACY.md`). Without the secret the check is off and behaviour
+  is unchanged. A per-IP Cloudflare rate-limiting rule on `/api/relevance` is the owner's dashboard setting, not code.
+  Limits of this: an agent driving a real browser slowly can still pass; on the Workers Free plan the worst case of
+  abuse is a day of keyword-only results, never a bill. The page shows only kept repos, says how many were
   hidden as off-topic, and offers "show them" (transparency, not silent removal). Rules: repo text and the description
   are data, never instructions (RS9, RS25), and the prompt says so; the LLM may only drop or keep, never add, rename
   or reorder (mirrors RS6 — fit order stays deterministic); a response that isn't valid JSON or names an unknown index is

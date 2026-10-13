@@ -198,8 +198,31 @@ const json = (status, obj) => new Response(JSON.stringify(obj), {
   status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" },
 });
 
-export async function onRequestPost({ request, env }) {
+// RS34c: refuse cross-site callers, then (when configured) require a verified Cloudflare Turnstile token before any
+// model call. Fail closed on spend: if siteverify can't be reached, the AI isn't called.
+export function sameOrigin(request) {
+  const o = request.headers.get("Origin");
+  if (!o) return true;   // non-browser callers send none; the Turnstile check below is what stops scripts
+  try { return new URL(o).host === new URL(request.url).host; } catch { return false; }
+}
+export async function verifyTurnstile(request, env, fetchImpl = fetch) {
+  if (!env.TURNSTILE_SECRET) return true;
+  const token = request.headers.get("CF-Turnstile-Token") || "";
+  if (!token || token.length > 2048) return false;
+  const form = new FormData();
+  form.append("secret", env.TURNSTILE_SECRET); form.append("response", token);
+  const ip = request.headers.get("CF-Connecting-IP"); if (ip) form.append("remoteip", ip);
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 3000);
+  try {
+    const res = await fetchImpl("https://challenges.cloudflare.com/turnstile/v0/siteverify", { method: "POST", body: form, signal: ctl.signal });
+    const j = await res.json();
+    return !!(j && j.success === true);
+  } catch { return false; } finally { clearTimeout(timer); }
+}
+
+export async function onRequestPost({ request, env }, fetchImpl = fetch) {
   if (!env.LLM_API_KEY && !(env.AI && typeof env.AI.run === "function")) return json(503, { error: "not_configured" });
+  if (!sameOrigin(request)) return json(403, { error: "bad_origin" });
   const ct = request.headers.get("Content-Type") || "";
   if (!ct.includes("application/json")) return json(415, { error: "json_only" });
   const raw = await request.text();
@@ -207,9 +230,16 @@ export async function onRequestPost({ request, env }) {
   let body; try { body = JSON.parse(raw); } catch { return json(400, { error: "invalid_json" }); }
   const bad = validate(body);
   if (bad) return json(400, { error: bad });
-  const out = await cachedJudge(body.query, body.repos, env);
+  if (!(await verifyTurnstile(request, env, fetchImpl))) return json(403, { error: "bot_check_failed" });
+  const out = await cachedJudge(body.query, body.repos, env, fetchImpl);
   return out.status === 200 ? json(200, out.body)
     : json(out.status, out.resetsInSec ? { error: out.error, resetsInSec: out.resetsInSec } : { error: out.error });
 }
 
+// RS34c: the page asks which bot check to load (the site key is public by design; the secret never leaves here)
+export async function onRequestGet({ env }) {
+  return new Response(JSON.stringify({ turnstile: env.TURNSTILE_SITE_KEY || null }), {
+    headers: { "Content-Type": "application/json", "Cache-Control": "public, max-age=300", "X-Content-Type-Options": "nosniff" },
+  });
+}
 export async function onRequest() { return json(405, { error: "post_only" }); }

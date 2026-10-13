@@ -192,3 +192,37 @@ console.log("review regressions ok");
   // the cache key never contains the text itself
   const k = await fn.cacheKey(ex, repos); assert.ok(!k.url.includes("portfolio")); }
 console.log("example cache ok");
+
+// RS34c bot check: cross-site Origin refused; with TURNSTILE_SECRET a verified token is required before any model call
+{ const ok = '{"drop":[]}';
+  let aiCalls = 0; const AI = { run: async () => { aiCalls++; return { response: ok }; } };
+  const req = (headers = {}) => new Request("https://replore.pages.dev/api/relevance", { method: "POST",
+    headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify({ query: "q", repos }) });
+  // origin
+  assert.strictEqual((await fn.onRequestPost({ request: req({ Origin: "https://evil.example" }), env: { AI } })).status, 403);
+  assert.strictEqual((await fn.onRequestPost({ request: req({ Origin: "https://replore.pages.dev" }), env: { AI } })).status, 200);
+  assert.strictEqual((await fn.onRequestPost({ request: req({ Origin: "null" }), env: { AI } })).status, 403);
+  // Turnstile on
+  const tenv = { AI, TURNSTILE_SECRET: "ts-SECRET", TURNSTILE_SITE_KEY: "0xSITE" };
+  let sv = null;
+  const verifier = (success) => async (url, init) => {
+    if (url.includes("siteverify")) { sv = { url, form: init.body }; return new Response(JSON.stringify({ success })); }
+    throw new Error("unexpected fetch " + url); };
+  aiCalls = 0;
+  let r = await fn.onRequestPost({ request: req(), env: tenv }, verifier(true));
+  assert.strictEqual(r.status, 403); assert.strictEqual((await r.json()).error, "bot_check_failed"); assert.strictEqual(aiCalls, 0, "no token -> no AI spend");
+  r = await fn.onRequestPost({ request: req({ "CF-Turnstile-Token": "bad" }), env: tenv }, verifier(false));
+  assert.strictEqual(r.status, 403); assert.strictEqual(aiCalls, 0);
+  r = await fn.onRequestPost({ request: req({ "CF-Turnstile-Token": "good", "CF-Connecting-IP": "203.0.113.9" }), env: tenv }, verifier(true));
+  assert.strictEqual(r.status, 200); assert.strictEqual(aiCalls, 1);
+  assert.strictEqual(sv.form.get("secret"), "ts-SECRET"); assert.strictEqual(sv.form.get("response"), "good"); assert.strictEqual(sv.form.get("remoteip"), "203.0.113.9");
+  assert.ok(!(await r.text()).includes("SECRET"));
+  // siteverify unreachable -> fail closed on spend
+  r = await fn.onRequestPost({ request: req({ "CF-Turnstile-Token": "good" }), env: tenv }, async () => { throw new TypeError("net"); });
+  assert.strictEqual(r.status, 403); assert.strictEqual(aiCalls, 1);
+  // GET returns only the public site key
+  const g = await (await fn.onRequestGet({ env: tenv })).text();
+  assert.deepStrictEqual(JSON.parse(g), { turnstile: "0xSITE" }); assert.ok(!g.includes("ts-SECRET"));
+  assert.deepStrictEqual(await (await fn.onRequestGet({ env: {} })).json(), { turnstile: null });
+}
+console.log("bot check ok");
