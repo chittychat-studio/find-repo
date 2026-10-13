@@ -1,4 +1,4 @@
-# Find Repo
+# Replore
 
 Claude Code plugin: free-text project description → top 3 most-starred open-source GitHub repos. Full rules: `SPEC.md`.
 

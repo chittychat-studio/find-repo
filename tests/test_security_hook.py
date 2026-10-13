@@ -11,7 +11,7 @@ HOOK = ROOT / "hooks" / "security_log.py"
 
 
 def _run(payload, logfile):
-    env = dict(os.environ, FIND_REPO_SECURITY_LOG=str(logfile))
+    env = dict(os.environ, REPLORE_SECURITY_LOG=str(logfile))
     text = payload if isinstance(payload, str) else json.dumps(payload)
     return subprocess.run([sys.executable, str(HOOK)], input=text, capture_output=True, text=True, env=env)
 

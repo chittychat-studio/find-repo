@@ -86,7 +86,7 @@ def fetch(query, token=None, timeout=20):
     req = urllib.request.Request(f"{API}?{params}", headers={
         "Accept": "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
-        "User-Agent": "find-repo",
+        "User-Agent": "replore",
     })
     if token:
         req.add_header("Authorization", f"Bearer {token}")
@@ -332,7 +332,7 @@ def render(result):
 
 def render_markdown_grouped(result):
     """RS23: one section per feature/query, every suitable repo listed (no 10-cap)."""
-    out = ["## find-repo results — grouped by need", "",
+    out = ["## replore results — grouped by need", "",
            f"**Filters:** license={result['license_mode']}, last push within "
            f"{result['max_age_months'] or 'any'} months, at least {result['min_stars']} stars, no forks, no archived  ",
            "**Excluded:** " + ", ".join(f"{k}={v}" for k, v in result["excluded"].items()), ""]
@@ -386,7 +386,7 @@ def _md(text):
 
 def render_markdown(result):
     """RS10, RS13: Markdown for a GitHub Actions job summary."""
-    out = ["## find-repo results", "",
+    out = ["## replore results", "",
            f"**Queries:** {_md('; '.join(result['queries']))}  ",
            f"**Filters:** license={result['license_mode']}, last push within "
            f"{result['max_age_months'] or 'any'} months, at least {result['min_stars']} stars, no forks, no archived  ",
@@ -444,7 +444,7 @@ def main(argv=None):
                     max_age_months=a.max_age_months, token=token, rank_mode=a.rank_mode,
                     prefer_starters=a.prefer_starters, min_stars=a.min_stars)
     except ScoutError as e:
-        print(f"find-repo: {e}", file=sys.stderr)
+        print(f"replore: {e}", file=sys.stderr)
         return 2
     out = (json.dumps(res, indent=2, ensure_ascii=False) if a.json
            else render_markdown_grouped(res) if (a.markdown and a.group)

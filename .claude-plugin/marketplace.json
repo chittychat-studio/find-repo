@@ -1,10 +1,10 @@
 {
-  "name": "find-repo",
-  "description": "Marketplace for the Find Repo plugin.",
+  "name": "replore",
+  "description": "Marketplace for the Replore plugin.",
   "owner": {"name": "chittychat-studio"},
   "plugins": [
     {
-      "name": "find-repo",
+      "name": "replore",
       "source": "./",
       "description": "Find the 10 most-starred open-source GitHub repos for a project you describe."
     }

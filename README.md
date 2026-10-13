@@ -1,34 +1,34 @@
-# Find Repo
+# Replore
 
 A Claude Code plugin. Describe your project in plain words and get the 10 most-starred
 open-source GitHub repos that fit it, as a comparison table: stars, what it does, relevance, license,
 whether you can use it in a paid product, whether it's completely free, and how to start.
 
 ```
-/find-repo:find a portfolio website with smooth scroll animations and good design taste
+/replore:find a portfolio website with smooth scroll animations and good design taste
 ```
 
 ## Example prompts
 
-Type `/find-repo:find` followed by what you're building. Plain English is fine.
+Type `/replore:find` followed by what you're building. Plain English is fine.
 
-- **Website:** `/find-repo:find a portfolio website with smooth scroll animations, starting from scratch`
-- **Website:** `/find-repo:find landing page for my SaaS in Next.js, I'll sell it`
-- **Mobile app:** `/find-repo:find my first iPhone app, a habit tracker, no coding experience`
-- **Mobile app:** `/find-repo:find diet app for Android and iPhone`
-- **AI agent:** `/find-repo:find a chatbot that answers questions from my PDFs, Python`
-- **AI agent:** `/find-repo:find generate PowerPoint decks from my notes`
-- **Data:** `/find-repo:find dashboard to show my sales spreadsheet as charts`
-- **Games:** `/find-repo:find a simple 2D browser game engine for beginners`
-- **Learning:** `/find-repo:find learn web security by hacking a practice app`
-- **Learning:** `/find-repo:find offline maps for my trip planner app`
+- **Website:** `/replore:find a portfolio website with smooth scroll animations, starting from scratch`
+- **Website:** `/replore:find landing page for my SaaS in Next.js, I'll sell it`
+- **Mobile app:** `/replore:find my first iPhone app, a habit tracker, no coding experience`
+- **Mobile app:** `/replore:find diet app for Android and iPhone`
+- **AI agent:** `/replore:find a chatbot that answers questions from my PDFs, Python`
+- **AI agent:** `/replore:find generate PowerPoint decks from my notes`
+- **Data:** `/replore:find dashboard to show my sales spreadsheet as charts`
+- **Games:** `/replore:find a simple 2D browser game engine for beginners`
+- **Learning:** `/replore:find learn web security by hacking a practice app`
+- **Learning:** `/replore:find offline maps for my trip planner app`
 
 ## Prompt template
 
 Copy, fill in what you know, delete the rest. Only the first line is needed.
 
 ```
-/find-repo:find
+/replore:find
 What I'm building: <one sentence>
 Platform: <web / iPhone / Android / desktop / not sure>
 Stack: <React, Python, Swift... or not sure>
@@ -60,7 +60,7 @@ AI step stays in the plugin.
 
 ```
 /plugin marketplace add chittychat-studio/find-repo
-/plugin install find-repo@find-repo
+/plugin install replore@replore
 ```
 
 Needs Python 3.11+ (the plugin tells you how to install it if it's missing). Once installed, it is available in every project.

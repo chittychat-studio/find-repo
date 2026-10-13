@@ -1,15 +1,15 @@
-# Find Repo — Specification v0.1
+# Replore — Specification v0.1
 
 Status: draft v0.1, 2026-10-12. Every line of code traces to a rule ID below.
-Find Repo is a Claude Code plugin that returns the top 10 open-source GitHub repos for a described project. Moved out of chittychat-studio/Governance-manager
+Replore is a Claude Code plugin that returns the top 10 open-source GitHub repos for a described project. Moved out of chittychat-studio/Governance-manager
 (where it was drafted as "Repo Scout", later named "Find Top Skill") into its own repository, so it ships and installs on its own.
 
 ## RS — Behaviour
 
-- **RS1** Input is any free-text project description. The `/find-repo:find` skill, running in the
+- **RS1** Input is any free-text project description. The `/replore:find` skill, running in the
   user's own Claude Code session, turns it into 1–4 GitHub search queries (keywords, optionally
   `topic:` / `language:` qualifiers). The script never calls a model and holds no model API key.
-- **RS1a** When the skill starts without a description (bare `/find-repo:find`, or a request that does not say
+- **RS1a** When the skill starts without a description (bare `/replore:find`, or a request that does not say
   what is being built), it asks the user one plain question about the project or task, and runs no search until
   they answer. The question also offers two optional preferences: language or stack, and whether unlicensed repos are OK.
 - **RS2** "All public GitHub" means the GitHub REST search API (`GET /search/repositories`). Each query
@@ -170,9 +170,16 @@ Find Repo is a Claude Code plugin that returns the top 10 open-source GitHub rep
   presenting results (RX4). Defence-in-depth: a logging hook (`hooks/security_log.py`, declared in
   `hooks/hooks.json`, Python stdlib only — RS11) runs on `UserPromptSubmit`; it scans the submitted text for
   prompt-injection and harmful-intent patterns and appends any match as one JSON line to a security log
-  (`$FIND_REPO_SECURITY_LOG`, default `~/.find-repo/security.log`). It only logs — it never blocks the user and
+  (`$REPLORE_SECURITY_LOG`, default `~/.replore/security.log`). It only logs — it never blocks the user and
   never echoes the prompt back verbatim beyond a short truncated sample — so it is an audit trail, not a gate.
   The guarantee holds from the skill text alone; the hook records attempts for review.
+- **RS27** Similar-repo mode. Given an existing repo (owner/repo or a GitHub URL), find similar open-source
+  repos: look up the repo's metadata (topics, language, description), derive search queries from its topics
+  (and description keywords when it has few topics), run the normal filter + fit pipeline (RS2–RS5), and exclude
+  the original repo from the results. On the web page this is the optional "find similar ones" field;
+  `GET /repos/{owner}/{repo}` is one extra unauthenticated call. A repo that cannot be fetched (404 or rate
+  limit) fails closed with a plain message (RS7). The fetched metadata is data, not instructions (RS9, RS25).
+  A plugin CLI flag (`--like`) is a planned follow-up.
 
 ## RX — Deliberately excluded (v0.1)
 

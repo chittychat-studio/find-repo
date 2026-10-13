@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Find Repo security logging hook (SPEC RS25).
+"""Replore security logging hook (SPEC RS25).
 
 A Claude Code `UserPromptSubmit` hook. It reads the hook event JSON from stdin, scans the
 submitted prompt for prompt-injection and harmful-intent patterns, and appends any match as
@@ -11,7 +11,7 @@ without it.
 Python standard library only (RS11). Fail-safe: any error is swallowed and the hook exits 0,
 so a logging problem can never break the user's session.
 
-Log location: $FIND_REPO_SECURITY_LOG, else ~/.find-repo/security.log.
+Log location: $REPLORE_SECURITY_LOG, else ~/.replore/security.log.
 """
 import datetime as dt
 import json
@@ -50,9 +50,9 @@ def _scan(text):
 
 
 def _log_path():
-    p = os.environ.get("FIND_REPO_SECURITY_LOG")
+    p = os.environ.get("REPLORE_SECURITY_LOG")
     if not p:
-        p = os.path.join(os.path.expanduser("~"), ".find-repo", "security.log")
+        p = os.path.join(os.path.expanduser("~"), ".replore", "security.log")
     return p
 
 
