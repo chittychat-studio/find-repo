@@ -12,7 +12,7 @@ global.matchMedia = () => ({matches:false});
 global.window = global;
 const s = {};
 new Function("document", "localStorage",
-  code + "; this.keywordQueries=keywordQueries; this.rankByFit=rankByFit; this.fitScore=fitScore; this.whyRelevant=whyRelevant; this.lu=lu; this.freeText=freeText;" +
+  code + "; this.keywordQueries=keywordQueries; this.rankByFit=rankByFit; this.fitScore=fitScore; this.whyRelevant=whyRelevant; this.esc=esc; this.lu=lu; this.freeText=freeText;" +
   " this.keep=keep; this.harmful=harmful; this.harmfulRepo=harmfulRepo; this.prdFeatures=prdFeatures;").call(s, document, global.localStorage || {getItem:()=>null,setItem(){},removeItem(){}});
 
 // RS16: iOS excludes macOS
@@ -53,6 +53,18 @@ const w1 = s.whyRelevant({name:"me/rag-chat", desc:"A RAG chatbot over your PDFs
 assert.ok(w1.startsWith("Matches your words") && w1.includes("rag"), w1);
 assert.strictEqual(s.whyRelevant({name:"x/y", desc:"unrelated", rel:1}, ["zzz"]), "Top match for your search");
 assert.strictEqual(s.whyRelevant({name:"x/y", desc:"unrelated", rel:9}, ["zzz"]), "Related to your search");
+// whole-word match: "ai" must NOT fire on "email"
+assert.strictEqual(s.whyRelevant({name:"me/mailer", desc:"a fast email client", rel:0}, ["ai","chat"]), "Top match for your search");
+// esc escapes quotes so repo text can't break out of an HTML attribute
+assert.ok(s.esc('a"b').indexOf('"') < 0 && s.esc("a'b").indexOf("'") < 0, "esc should escape quotes");
+// RS5: a repo found in a later query at a better position takes the lower rel (cross-query dedup)
+const xseen = {}, xex = {license:0,stale:0,low:0,fork:0,harm:0};
+const L1 = s.keep([{full_name:"z/lo",stargazers_count:5,license:{spdx_id:"MIT"},pushed_at:now,description:"d"},
+                   {full_name:"x/dup",stargazers_count:1000,license:{spdx_id:"MIT"},pushed_at:now,description:"d"}], 50, "", xex, xseen);
+const xdup = L1.find(r => r.name === "x/dup");
+assert.strictEqual(xdup.rel, 1, "first query sees x/dup at index 1");
+s.keep([{full_name:"x/dup",stargazers_count:1000,license:{spdx_id:"MIT"},pushed_at:now,description:"d"}], 50, "", xex, xseen);
+assert.strictEqual(xdup.rel, 0, "dup rel drops to the better position found by a later query");
 console.log("web logic ok");
 
 // RS23: PRD feature extraction (client-side, capped for the rate limit)

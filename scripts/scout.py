@@ -129,8 +129,9 @@ _WORD = re.compile(r"[a-z0-9]+")
 
 
 def _freedom(use):
-    """RS5: permissive > weak copyleft > GPL/AGPL (all still pass the RS3 open-source filter)."""
-    return 1.0 if use == USE_PAID_OK else (0.7 if use == USE_WEAK else 0.45)
+    """RS5: permissive > weak copyleft > GPL/AGPL > no licence (the last only reachable with --license any)."""
+    return (1.0 if use == USE_PAID_OK else 0.7 if use == USE_WEAK
+            else 0.45 if use in (USE_SHARE, USE_NETWORK) else 0.1)
 
 
 def fit_score(r, prefer_starters=False, floor=0.0):
@@ -143,10 +144,14 @@ def fit_score(r, prefer_starters=False, floor=0.0):
 
 
 def why_relevant(query, name, desc, rel):
-    """RS24: one honest line on why a repo is here — a literal keyword match, not an AI judgement."""
-    toks, hay, hits = [w for w in _WORD.findall((query or "").lower()) if len(w) > 1], (name + " " + desc).lower(), []
+    """RS24: one honest line on why a repo is here — a whole-word keyword match, not an AI judgement."""
+    # drop search qualifiers (topic:/language:/is:…) and negated terms (-foo) so we never claim a match on them
+    plain = " ".join(t for t in (query or "").split() if ":" not in t and not t.startswith("-"))
+    toks = [w for w in _WORD.findall(plain.lower()) if len(w) > 1]
+    words = set(_WORD.findall((name + " " + desc).lower()))  # match whole words, so "ai" ≠ "email"
+    hits = []
     for t in toks:
-        if t in hay and t not in hits:
+        if t in words and t not in hits:
             hits.append(t)
         if len(hits) >= 3:
             break
@@ -165,9 +170,13 @@ def rank(by_query, mode="fit", prefer_starters=False):
     """RS5: fit score across all matches (default), round-robin by stars (balanced), or plain stars."""
     allr = [r for rows in by_query for r in rows]
     if mode == "fit":
-        floor = max((r["stars"] for r in allr), default=0) * STARTER_MIN_SHARE
-        return sorted(allr, key=lambda r: (-fit_score(r, prefer_starters, floor), -r["stars"],
-                                           -r["_pushed"], r["full_name"]))
+        # RS15: the starter floor is per-query ("that query's most-starred match"), not global
+        scored = []
+        for rows in by_query:
+            floor = max((r["stars"] for r in rows), default=0) * STARTER_MIN_SHARE
+            scored += [(fit_score(r, prefer_starters, floor), r) for r in rows]
+        scored.sort(key=lambda t: (-t[0], -t[1]["stars"], -t[1]["_pushed"], t[1]["full_name"]))
+        return [r for _, r in scored]
     if mode == "stars":
         return sorted(allr, key=lambda r: (-r["stars"], -r["_pushed"], r["full_name"]))
     # balanced: round-robin by stars so one broad query cannot swamp the list (RS5)
@@ -206,7 +215,7 @@ def scout(queries, fetcher=fetch, top=10, candidates=20, license_mode="open", ma
     cutoff = now - dt.timedelta(days=30.44 * max_age_months) if max_age_months > 0 else None
 
     excluded = {"fork_or_archived": 0, "license": 0, "stale": 0, "low_stars": 0, "duplicate": 0}
-    seen, by_query = set(), []
+    seen, by_query = {}, []  # name -> its kept row (or None if the name was seen but filtered out)
     for q in queries:
         kept = []
         by_query.append(kept)
@@ -222,9 +231,13 @@ def scout(queries, fetcher=fetch, top=10, candidates=20, license_mode="open", ma
             if not name:
                 continue
             if name in seen:
+                prev = seen[name]  # RS5: a repo is counted once, under its best (lowest) relevance position
+                if prev is not None and idx < prev["rel"]:
+                    prev["rel"] = idx
+                    prev["why"] = why_relevant(prev["query"], prev["full_name"], prev["description"], idx)
                 excluded["duplicate"] += 1
                 continue
-            seen.add(name)
+            seen[name] = None  # mark seen; set to the row below once it survives the filters
             if it.get("fork") or it.get("archived") or it.get("disabled"):
                 excluded["fork_or_archived"] += 1
                 continue
@@ -249,7 +262,7 @@ def scout(queries, fetcher=fetch, top=10, candidates=20, license_mode="open", ma
             topics = {str(t).lower() for t in (it.get("topics") or [])}
             is_template = bool(it.get("is_template"))
             cname, cdesc = clean(name), clean(it.get("description"))
-            kept.append({
+            row = {
                 "full_name": cname,
                 "stars": int(it.get("stargazers_count") or 0),
                 "license": label,
@@ -265,7 +278,9 @@ def scout(queries, fetcher=fetch, top=10, candidates=20, license_mode="open", ma
                 "description": cdesc,
                 "rel": idx,  # RS2: best-match position, drives relevance in fit ranking (RS5)
                 "why": why_relevant(q, cname, cdesc, idx),  # RS24
-            })
+            }
+            kept.append(row)
+            seen[name] = row
 
     kept = rank(by_query, rank_mode, prefer_starters)  # RS5, RS15
     # RS23: per-feature groups (a repo appears under the first query that returned it); build before _pushed is dropped

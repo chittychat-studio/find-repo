@@ -311,7 +311,8 @@ function freeText(spdx){ var u=lu(spdx);
  if(u.indexOf("OK in a paid")===0)return"Yes, but changes to its files must stay open";
  if(u.indexOf("You must share")===0)return"Free to use, but you must share your code";
  return"No: no license"; }
-function esc(s){var d=document.createElement("div");d.textContent=s==null?"":s;return d.innerHTML;}
+function esc(s){var d=document.createElement("div");d.textContent=s==null?"":s;
+  return d.innerHTML.replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
 function clean(s){return (s||"").replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁦-⁩]/g," ").trim().slice(0,200);}
 function kstars(n){return n>=1000?(n/1000).toFixed(n>=10000?0:1)+"k":""+n;}
 
@@ -347,9 +348,15 @@ async function search(q){
 function harmful(text){ for(var i=0;i<HARM_INTENT.length;i++) if(HARM_INTENT[i].test(text)) return true; return false; }
 function harmfulRepo(desc){ for(var i=0;i<HARM.length;i++) if(HARM[i].test(desc)) return true; return false; }
 
-function keep(items, minStars, platform, excluded){
+function keep(items, minStars, platform, excluded, seen){
+  seen = seen || {};  // name -> kept row (or null if seen but filtered out); shared across queries for RS5 rel
   var cutoff=Date.now()-MAX_AGE_MONTHS*30.44*864e5, out=[];
   for(var i=0;i<items.length;i++){ var it=items[i], name=it.full_name; if(!name) continue;
+    var cname=clean(name);
+    if(Object.prototype.hasOwnProperty.call(seen,cname)){ var prev=seen[cname];  // RS5: best (lowest) rel wins
+      if(prev && i<prev.rel) prev.rel=i;
+      continue; }
+    seen[cname]=null;  // mark seen; set to the row below once it survives the filters
     if(it.fork||it.archived||it.disabled){excluded.fork++;continue;}
     var spdx=it.license&&it.license.spdx_id;
     if(!OPEN.has(spdx)){excluded.license++;continue;}
@@ -360,8 +367,9 @@ function keep(items, minStars, platform, excluded){
     if(harmfulRepo(desc)){excluded.harm++;continue;}
     var topics=(it.topics||[]).map(function(t){return String(t).toLowerCase();});
     var starter=!!it.is_template||topics.some(function(t){return STARTER_TOPICS.has(t);});
-    out.push({name:clean(name),stars:it.stargazers_count||0,spdx:spdx,pushed:(it.pushed_at||"").slice(0,10),
-      url:it.html_url||("https://github.com/"+name),desc:desc,starter:starter,rel:i});
+    var row={name:cname,stars:it.stargazers_count||0,spdx:spdx,pushed:(it.pushed_at||"").slice(0,10),
+      url:it.html_url||("https://github.com/"+name),desc:desc,starter:starter,rel:i};
+    out.push(row); seen[cname]=row;
   }
   return out;
 }
@@ -375,9 +383,11 @@ function fitScore(r, preferStarters, floor){
   return 0.45*relScore+0.35*starScore+0.20*freeScore+bonus;
 }
 function rankByFit(lists, preferStarters){
-  var all=[]; for(var i=0;i<lists.length;i++) for(var j=0;j<lists[i].length;j++) all.push(lists[i][j]);
-  var floor=all.reduce(function(m,r){return Math.max(m,r.stars);},0)*STARTER_MIN_SHARE;
-  all.forEach(function(r){ r.fit=fitScore(r,preferStarters,floor); });
+  var all=[];
+  for(var i=0;i<lists.length;i++){  // RS15: starter floor is per-query (that query's top repo), not global
+    var floor=lists[i].reduce(function(m,r){return Math.max(m,r.stars);},0)*STARTER_MIN_SHARE;
+    for(var j=0;j<lists[i].length;j++){ lists[i][j].fit=fitScore(lists[i][j],preferStarters,floor); all.push(lists[i][j]); }
+  }
   all.sort(function(a,b){ return b.fit-a.fit || b.stars-a.stars || a.name.localeCompare(b.name); });
   return all;
 }
@@ -388,10 +398,12 @@ function sigTokens(text){ var out=[], seen={};
     if(w && w.length>1 && !STOP.has(w) && !seen[w]){ seen[w]=1; out.push(w); } });
   return out;
 }
-// one honest line on why a repo is in the list (keyword match, not AI understanding)
+// one honest line on why a repo is in the list (whole-word keyword match, not AI understanding)
 function whyRelevant(r, qtokens){
-  var hay=((r.name||"")+" "+(r.desc||"")).toLowerCase(), hit=[];
-  for(var i=0;i<(qtokens||[]).length && hit.length<3;i++) if(hay.indexOf(qtokens[i])>=0) hit.push(qtokens[i]);
+  var words={}; ((r.name||"")+" "+(r.desc||"")).toLowerCase().replace(/[^a-z0-9 +#.]/g," ").split(/\s+/)
+    .forEach(function(w){ if(w) words[w]=1; });  // match whole words, so "ai" never fires on "email"
+  var hit=[];
+  for(var i=0;i<(qtokens||[]).length && hit.length<3;i++) if(words[qtokens[i]]) hit.push(qtokens[i]);
   if(hit.length) return 'Matches your words: '+hit.map(function(w){return '“'+w+'”';}).join(", ");
   return (r.rel!=null&&r.rel<=3) ? 'Top match for your search' : 'Related to your search';
 }
@@ -524,14 +536,15 @@ function renderGrouped(groups, excluded, note){
     h+='<div class="grid">'+g.repos.map(function(r){return cardHtml(r,null,gtokens);}).join("")+'</div>';
   });
   h+='<p class="excl">'+total+' open-source repos across '+groups.length+' needs. Excluded — not open-source: '+
-    excluded.license+', too old: '+excluded.stale+', too few stars: '+excluded.low+', harmful: '+excluded.harm+
+    excluded.license+', too old: '+excluded.stale+', too few stars: '+excluded.low+', forks/archived: '+excluded.fork+
+    ', harmful: '+excluded.harm+
     '. Every suitable match that passed the filters, grouped by the first search that found it — not every repo on GitHub.</p>'+
     PLUGIN_CTA;
   return h;
 }
 
 async function runFeatures(features, minStars, platform, preferStarters, out, st){
-  var ex2=platform==="ios"?" -topic:macos":"", excluded={license:0,stale:0,low:0,fork:0,harm:0}, seen=new Set(), groups=[];
+  var ex2=platform==="ios"?" -topic:macos":"", excluded={license:0,stale:0,low:0,fork:0,harm:0}, seen={}, groups=[];
   for(var i=0;i<features.length;i++){ st.textContent="Searching feature "+(i+1)+"/"+features.length+"…";
     var items=await search((features[i]+ex2).trim());
     var fresh=items.filter(function(it){ if(!it.full_name||seen.has(it.full_name))return false; seen.add(it.full_name); return true; });
@@ -563,11 +576,10 @@ async function run(){
   try{
     var queries=keywordQueries(text,platform);
     if(!queries.length) throw new Error("Couldn't build a search. Try different words.");
-    var excluded={license:0,stale:0,low:0,fork:0,harm:0}, seen=new Set(), lists=[];
+    var excluded={license:0,stale:0,low:0,fork:0,harm:0}, seen={}, lists=[];
     for(var i=0;i<queries.length;i++){ st.textContent="Searching ("+(i+1)+"/"+queries.length+")…";
       var items=await search(queries[i]);
-      var fresh=items.filter(function(it){ if(!it.full_name||seen.has(it.full_name))return false; seen.add(it.full_name); return true; });
-      lists.push(keep(fresh,minStars,platform,excluded)); }
+      lists.push(keep(items,minStars,platform,excluded,seen)); }
     var ranked=rankByFit(lists,preferStarters), top=ranked.slice(0,10);
     out.innerHTML=render(top,queries,excluded,ranked.length,sigTokens(text));
     animateCards(out); st.textContent="Done."; saveResults();

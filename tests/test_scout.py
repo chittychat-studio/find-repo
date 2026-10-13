@@ -103,6 +103,38 @@ def test_why_relevant_keyword_then_fallback():
     assert scout.why_relevant("zzz", "x/y", "unrelated", 9) == "Related to your search"
 
 
+def test_why_relevant_whole_word_and_ignores_qualifiers():
+    """RS24: 'ai' must not match inside 'email'; topic:/language: and negated -terms are never claimed."""
+    assert scout.why_relevant("ai chat", "me/mailer", "a fast email client", 0) == "Top match for your search"
+    assert scout.why_relevant("ios app -topic:macos", "a/b", "a macOS and iOS helper", 0) == 'Matches your search: "ios"'
+    assert scout.why_relevant("rag chatbot", "me/rag", "a RAG chatbot", 0) == 'Matches your search: "rag", "chatbot"'
+
+
+def test_duplicate_keeps_best_relevance_position():
+    """RS5: a repo found by two queries is scored under its best (lowest) best-match position, not the first."""
+    q1 = [repo(f"q1/r{i}", 1000) for i in range(5)] + [repo("x/dup", 1000)]  # x/dup at rel=5 here
+    q2 = [repo("x/dup", 1000)]                                               # and rel=0 here
+    res, _ = run([q1, q2])
+    dup = next(r for r in res["all"] if r["full_name"] == "x/dup")
+    assert dup["rel"] == 0 and dup["query"] == "q0"  # best rel, still grouped under the first finder (RS23)
+    assert res["excluded"]["duplicate"] == 1
+
+
+def test_freedom_tiers_rank_free_above_copyleft_above_none():
+    """RS5: permissive > weak > GPL/AGPL > no licence (the last only with --license any)."""
+    assert scout._freedom(scout.USE_PAID_OK) > scout._freedom(scout.USE_WEAK) > scout._freedom(scout.USE_SHARE)
+    assert scout._freedom(scout.USE_SHARE) == scout._freedom(scout.USE_NETWORK) > scout._freedom(scout.USE_NONE)
+
+
+def test_fit_starter_bonus_uses_per_query_floor():
+    """RS15: a niche query's starter earns the nudge against *its* top repo, not a bigger query's."""
+    big = [repo("big/lib", 100000)]
+    niche = [repo("niche/lib", 2000), repo("niche/tpl", 500, is_template=True)]
+    res, _ = run([big, niche], prefer_starters=True)
+    names = [r["full_name"] for r in res["all"]]
+    assert names.index("niche/tpl") < names.index("niche/lib")
+
+
 @pytest.mark.parametrize("spdx,want", [
     ("MIT", "USE_PAID_OK"), ("Apache-2.0", "USE_PAID_OK"), ("CC0-1.0", "USE_PAID_OK"), ("BSD-3-Clause", "USE_PAID_OK"),
     ("MPL-2.0", "USE_WEAK"), ("LGPL-3.0", "USE_WEAK"),
