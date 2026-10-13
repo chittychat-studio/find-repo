@@ -1066,7 +1066,9 @@ function focusables(el){ return Array.prototype.slice.call(el.querySelectorAll(
     'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'))
     .filter(function(n){ return n.offsetParent!==null; }); }
 function openModal(id){ var m=document.getElementById(id); if(!m) return;
-  __lastFocus=document.activeElement;                        // remember opener to restore focus on close
+  var already=document.querySelector(".modal.open");         // never stack modals: close any open one first
+  if(already && already!==m){ already.classList.remove("open"); stopDemo("howDemo"); }
+  else if(!already){ __lastFocus=document.activeElement; }   // remember opener (keep the original when switching modals)
   m.classList.add("open");
   if(id==="howModal"){ var hd=document.getElementById("howDemo"); buildDemo(hd); if(hd&&hd.__playDemo) hd.__playDemo(); }
   var focusId = id==="filtersModal" ? "stackInput" : (id==="likeModal" ? "like" : null), sheet=m.querySelector(".sheet");
