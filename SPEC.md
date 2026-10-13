@@ -200,9 +200,19 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   and was removed. A sane upper bound (60) guards against a runaway list; the page shows the first 10 and a
   single "Show more" reveals **all** of them — nothing is re-fetched (RS7 unaffected, no new API call). The
   results header shows the **number of matches** on the right (e.g. "22 results"). Above the results a row of
-  **plain-English filter chips** — All / ✅ Paid-use OK / 🆓 Completely free / 🧩 Starters — shows or hides the
-  already-fetched cards client-side (raw SPDX codes are deliberately not a filter). An empty filtered set shows a
-  "clear filter" message. Filters apply only to the single top-matches list, not the grouped PRD view.
+  **plain-English filter chips** — All / ✅ Free for commercial use / 🧩 Starters — shows or hides the
+  already-fetched cards client-side (raw SPDX codes are deliberately not a filter). The commercial-use chip maps
+  to the green card verdict (permissive + weak copyleft). The earlier "Paid-use OK" and "Completely free" chips
+  were **removed because they filtered to the identical set** every time: both flags were 1 only for permissive
+  licences and 0 otherwise, so the two chips could never differ (the paid-vs-free distinction is a copyleft
+  nuance kept in the card verdict/tooltip, not two redundant filters). An empty filtered set shows a "clear
+  filter" message. Filters apply only to the single top-matches list, not the grouped PRD view.
+- **RS29c** Lexical-search disclosure at results time (RS22 web page). Every results view shows a one-line note
+  that the web page is **keyword (lexical) search** — it matches the user's words, not their meaning — and links
+  to the plugin for semantic matching (the plugin runs Claude's query understanding + the RS6 relevance gate).
+  This makes the keyword-vs-semantic limitation honest at the point of use, not only in the How-it-works copy,
+  and funnels hard cases (e.g. a repo whose relevance is in meaning, not shared words) to the plugin. No model
+  runs in the page and no key is held (RS1 unchanged).
 - **RS29a** One license verdict per card (RS14/RS20 on the web page). A card shows a **single** plain-English
   license verdict — ✅ free for commercial use / ✅ paid-use OK, changes stay open / ⚠ must open-source your app /
   ⚠ share your code even as a web app / ⛔ no licence — not the earlier redundant "Paid-use OK" + "Completely

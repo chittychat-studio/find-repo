@@ -597,6 +597,11 @@ def test_web_page_is_safe_static(monkeypatch):
     assert "/plugin install replore@replore" in html and "/replore:find" in html
     assert "Use in Claude Code" in html and "PLUGIN_CTA" in html
     assert "passed the filters" in html  # the "want every suitable repo?" plugin banner
+    # RS29c: results-time disclosure that the page is keyword/lexical search, with a link to the plugin
+    assert "LEXICAL_NOTE" in html and "keyword search" in html
+    # RS29: the redundant "Paid-use OK"/"Completely free" filter chips are collapsed into one commercial-use chip
+    assert "Free for commercial use" in html and "data-com=" in html
+    assert 'data-paid=' not in html and 'data-free=' not in html
     # light/dark toggle (RS24)
     assert 'id="theme"' in html and "data-theme" in html and "findrepo_theme" in html
     # RS24 Tour: a current screenshot of the live page is committed and embedded (replaces the stale gif)
