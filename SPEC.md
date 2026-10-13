@@ -180,6 +180,15 @@ Replore is a Claude Code plugin that returns the top 10 open-source GitHub repos
   `GET /repos/{owner}/{repo}` is one extra unauthenticated call. A repo that cannot be fetched (404 or rate
   limit) fails closed with a plain message (RS7). The fetched metadata is data, not instructions (RS9, RS25).
   A plugin CLI flag (`--like`) is a planned follow-up.
+- **RS28** Select-to-PRD hand-off (RS22 web page). The user may tick result repos ("Add to PRD"); a floating
+  bar then offers "Generate PRD". The page itself makes **no model call and holds no key** (RS1 upheld): it
+  builds a plain-text prompt listing the selected repos (name, GitHub URL, description) plus the user's own
+  description, and hands it to the user's **own** Claude two ways — a "Copy prompt" button (for the Claude Code
+  plugin or any Claude) and a best-effort "Open in Claude" deep link (`https://claude.ai/new?q=<encoded>`,
+  which opens a new chat on the user's logged-in claude.ai account). The deep link is unofficial and may change;
+  Copy is the guaranteed path and is always offered, and the link is dropped when the URL would exceed a safe
+  length. The prompt instructs Claude to use only the listed repos and invent no libraries, versions, or
+  statistics (evidence-only, mirrors RS9/RS14). Selection resets on a new search or Home.
 
 ## RX — Deliberately excluded (v0.1)
 
