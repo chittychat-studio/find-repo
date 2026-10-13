@@ -630,9 +630,10 @@ def test_web_page_is_safe_static(monkeypatch):
     # RS28a: 'Select all shown' acts on visible cards only; the prompt makes the AI triage USE / REFERENCE ONLY / REJECT
     assert 'id="resSelAll"' in html and "function shownPickBoxes" in html and 'style.display!=="none"' in html
     assert "USE, REFERENCE ONLY" in html and "build only on the ones you USE" in html and 'id="prdLong"' in html
-    # RS34: relevance check wired in — fail-open note, hidden-count line with 'show them', off-topic cards hidden by filter
-    assert 'fetch("/api/relevance"' in html and "function relevanceGate" in html and "Couldn\\u2019t check relevance" in html
-    assert 'id="showOff"' in html and 'data-off="' in html and "window.__showOff" in html
+    # RS34: relevance check wired in, silent — off-topic repos are left out, no on-screen note; outcome kept in data-gate
+    assert 'fetch("/api/relevance"' in html and "function relevanceGate" in html and 'setAttribute("data-gate"' in html
+    for gone in ("Couldn\\u2019t check relevance", "AI hid", 'id="showOff"', "free AI checks are used up", "gate-note"):
+        assert gone not in html, gone
     # RS24 richness: cursor tilt + star count-up are native (no extra library)
     assert "attachTilt" in html and 'class="cnt"' in html
     for t in ("portfolio website", "iPhone app", "trip planner", "practice app"):

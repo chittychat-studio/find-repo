@@ -316,11 +316,7 @@
     font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;transition:border-color .18s,color .18s,background .18s}
   .rfilter:hover,.rsel:hover{border-color:var(--accent);color:var(--accent-ink)}
   .rsel{margin-left:auto}
-  .gate-note{font-size:12.5px;margin:2px 4px 12px}
-  .gate-code{opacity:.7;font-size:11px}
   .ts-box:empty{display:none} .ts-box{margin:6px 0}
-  .offtag{font-size:11.5px;font-weight:600;color:var(--warn);margin:0 0 6px}
-  .rcard[data-off="1"]{opacity:.62}
   .rsel.on{border-color:var(--accent);color:var(--accent-ink)}
   .rfilter.on{background:linear-gradient(135deg,var(--accent),var(--accent-ink));border-color:transparent;color:#fff}
   .res-more-hint{text-align:center;color:var(--muted);font-size:12.5px;margin:10px 4px 2px;min-height:18px}
@@ -823,8 +819,7 @@ function licenseVerdict(spdx){
 function cardHtml(r,i,qtokens){
   var free=freeText(r.spdx), paid=lu(r.spdx), v=licenseVerdict(r.spdx);
   var okCom=v.c==="t-good"?1:0;   // one "free for commercial use" flag = the green verdict (permissive + weak copyleft)
-  return '<article class="rcard" data-com="'+okCom+'" data-starter="'+(r.starter?1:0)+'" data-off="'+(r.off?1:0)+'">'+
-    (r.off?'<div class="offtag" title="Judged off-topic by the AI relevance check">Off-topic: '+esc(r.offWhy||"doesn't fit")+'</div>':'')+
+  return '<article class="rcard" data-com="'+okCom+'" data-starter="'+(r.starter?1:0)+'">'+
     (i!=null?'<span class="rank">#'+(i+1)+'</span>':'')+
     '<span class="stars">★ <span class="cnt" data-v="'+r.stars+'">'+kstars(r.stars)+'</span></span>'+
     '<div class="name"><a href="'+esc(r.url)+'" target="_blank" rel="noopener">'+esc(r.name)+'</a></div>'+
@@ -885,10 +880,9 @@ function render(top, queries, excluded, totalMatches, qtokens, heading, note, ga
   if(!top.length){ return '<div class="panel"><p class="err">No repository matched.</p>'+
     '<p class="mut">Searches: '+esc(queries.join("; "))+'. Try fewer or broader words, or lower the minimum stars.</p></div>'; }
   var more=(totalMatches||top.length)-top.length;   // >0 only if we hit the render cap (rare)
-  var keptN=top.filter(function(r){ return !r.off; }).length;
+  var keptN=top.length;
   var h='<div class="res-head"><h2>'+(heading?esc(heading):'Top matches')+'</h2>'+
       '<span class="res-count mut">'+keptN+' result'+(keptN===1?'':'s')+'</span></div>'+
-    gateLine(gate)+
     (note?'<p class="res-note mut">'+note+'</p>':'')+  /* note is pre-built HTML: repo name already escaped, rest is our own markup */
     filterBar()+
     '<div class="grid">'+top.map(function(r,i){return cardHtml(r,i,qtokens);}).join("")+'</div>'+
@@ -908,8 +902,7 @@ function applyResultFilter(){
   var cards=out.querySelectorAll(".rcard"), f=window.__resFilter||"all", limit=window.__resLimit||10, shown=0, matched=0;
   for(var i=0;i<cards.length;i++){ var c=cards[i];
     var ok = (f==="all" || (f==="com"&&c.getAttribute("data-com")==="1")
-      || (f==="starter"&&c.getAttribute("data-starter")==="1"))
-      && (window.__showOff || c.getAttribute("data-off")!=="1");   // RS34: off-topic hidden unless shown
+      || (f==="starter"&&c.getAttribute("data-starter")==="1"));
     if(ok){ matched++; if(shown<limit){ c.style.display=""; shown++; } else c.style.display="none"; }
     else c.style.display="none";
   }
@@ -937,27 +930,10 @@ function watchMore(){ var s=document.querySelector("#out #resMore"); if(!s) retu
   window.__moreObs=new IntersectionObserver(function(es){
     for(var i=0;i<es.length;i++) if(es[i].isIntersecting){ revealMore(); break; } },{rootMargin:"0px 0px 400px 0px"});
   window.__moreObs.observe(s); }
-function initResultFilter(){ window.__resFilter="all"; window.__resLimit=10; window.__showOff=false; applyResultFilter(); watchMore(); checkMore(); }
-// RS34: "5 hours 20 minutes" / "12 minutes" / "a minute" — rounded up, never 0, never over 24 hours
-function fmtWait(sec){ sec=Math.min(86400,Math.max(60,Math.round(+sec||0))); var h=Math.floor(sec/3600), m=Math.ceil((sec%3600)/60);
-  if(m===60){ h++; m=0; } var hs=h+(h===1?" hour":" hours"), ms=m+(m===1?" minute":" minutes");
-  if(h) return m?hs+" "+ms:hs; return m<=1?"a minute":ms; }
-// RS34: one honest line about the AI relevance check
-function gateLine(g){ if(!g) return "";
-  if(!g.ok){
-    if(g.error==="llm_daily_limit") return '<p class="gate-note gate-wait mut">Today\u2019s free AI checks are used up \u2014 showing keyword matches, some may be off-topic. '+
-      'They reset in '+fmtWait(g.resetsIn)+'.</p>';
-    if(g.error==="llm_rate_limited") return '<p class="gate-note gate-wait mut">The AI check is busy right now \u2014 showing keyword matches, some may be off-topic. '+
-      'Try again in '+fmtWait(g.resetsIn||60)+'.</p>';
-    if(g.error==="bot_check_failed") return '<p class="gate-note mut">Couldn\u2019t confirm this browser, so showing keyword matches \u2014 some may be off-topic.</p>';
-    return '<p class="gate-note mut">Couldn\u2019t check relevance right now \u2014 showing keyword matches, some may be off-topic.'+
-      (g.error?' <span class="gate-code">(code: '+String(g.error).replace(/[^a-z0-9_]/gi,"").slice(0,40)+')</span>':'')+'</p>'; }
-  if(!g.hidden) return '<p class="gate-note mut">🧠 AI checked these for fit.</p>';
-  return '<p class="gate-note mut">🧠 AI hid '+g.hidden+' off-topic repo'+(g.hidden===1?'':'s')+'. '+
-    '<button type="button" class="link-btn" id="showOff">Show them</button></p>'; }
-// RS34: ask the same-origin function which repos don't fit; "off" when not set up, {fail} on any failure (fail open, labelled)
+function initResultFilter(){ window.__resFilter="all"; window.__resLimit=10; applyResultFilter(); watchMore(); checkMore(); }
+// RS34: ask the same-origin function which repos don't fit; "off" when not set up, {fail} on any failure (fail open, silent)
 // RS34c: Cloudflare Turnstile bot check, loaded from challenges.cloudflare.com only when the owner set a site key.
-// Resolves null = no bot check configured; "" = no token (the function then refuses and the page shows a note).
+// Resolves null = no bot check configured; "" = no token (the function then refuses; the page shows keyword results).
 // Every wait has a deadline so a stalled Cloudflare can never hang the search (RS7); a failed load is retried
 // on the next search; token requests are queued so each search gets its own single-use token.
 var __ts=null, __tsQ=Promise.resolve();
@@ -1229,9 +1205,12 @@ async function run(){
       if(gen!==window.__runGen) return;
       if(drops==="off"){ gate=null; }
       else if(drops&&drops.fail){ gate={ok:false,error:drops.error,resetsIn:drops.resetsInSec}; }
-      else if(drops){ top=top.slice(0,30); drops.forEach(function(d){ var r=top[d.i]; if(r){ r.off=1; r.offWhy=d.why; } });
+      else if(drops){ var dropped={}; drops.forEach(function(d){ dropped[d.i]=1; });   // RS34: off-topic repos are simply left out
+        top=top.slice(0,30).filter(function(r,i){ return !dropped[i]; });
         gate={ok:true,hidden:drops.length}; } }
     out.innerHTML=render(top,queries,excluded,ranked.length,qtok,heading,window.__likeNote||"",gate);
+    // RS34: no on-screen note about the AI check; its outcome is kept as an attribute for diagnosis only
+    out.setAttribute("data-gate", !gate?"off":gate.ok?"ok:"+gate.hidden:String(gate.error||"fail").replace(/[^a-z0-9_]/gi,"").slice(0,40));
     animateCards(out); initResultFilter(); st.textContent=""; saveResults(); syncClearQ();
   }catch(e){ if(gen!==window.__runGen) return; st.textContent=""; out.innerHTML='<div class="panel"><p class="err">'+esc(e.message)+'</p></div>'; }
   finally{ if(gen===window.__runGen){ setGoBusy(false); window.__busy=false; } }
@@ -1368,7 +1347,6 @@ document.addEventListener("keydown",function(e){ if(e.key==="Escape") closeModal
     var fb=t.closest&&t.closest(".rfilter");
     if(fb){ window.__resFilter=fb.getAttribute("data-f"); window.__resLimit=10; applyResultFilter(); checkMore(); return; }
     if(t.closest&&t.closest("#resClear")){ window.__resFilter="all"; window.__resLimit=10; applyResultFilter(); checkMore(); return; }
-    if(t.closest&&t.closest("#showOff")){ window.__showOff=true; t.closest("#showOff").remove(); applyResultFilter(); checkMore(); return; }
     if(t.closest&&t.closest("#resSelAll")){ var bx=shownPickBoxes(), all=bx.every(function(x){ return x.checked; });
       bx.forEach(function(x){ if(x.checked===all){ x.checked=!all; x.dispatchEvent(new Event("change",{bubbles:true})); } });
       syncSelAll(); } });
@@ -1463,7 +1441,7 @@ function showHome(){
   if(window.__resetPicks) window.__resetPicks();
 }
 // remember the last results so a page refresh brings them back (cached locally, no new API call)
-var LAST="findrepo_last", CACHE_V="5";  // bump when saved markup changes, so stale caches are dropped
+var LAST="findrepo_last", CACHE_V="6";  // bump when saved markup changes, so stale caches are dropped
 // strip any inline opacity/transform the animation left on cards, so the cache never stores invisible cards
 function cleanCards(root){ var c=root.querySelectorAll(".rcard"); for(var i=0;i<c.length;i++){ c[i].style.opacity=""; c[i].style.transform=""; } }
 function saveResults(){ try{ var out=document.getElementById("out"); cleanCards(out);
@@ -1482,8 +1460,6 @@ function restoreResults(){
   if(d.starters!=null) document.getElementById("starters").value=d.starters;
   if(d.stack!=null) setStack(d.stack);
   var out=document.getElementById("out");
-  [].forEach.call(out.querySelectorAll(".gate-wait"),function(n){   // RS34: a saved countdown would be stale
-    n.textContent="The AI check wasn\u2019t available for these results \u2014 some may be off-topic. Search again to re-check."; });
   cleanCards(out);   // ensure restored cards are visible even if an old cache baked in opacity:0
   document.getElementById("status").textContent="Restored your last results — tap ✕ in the search bar to start over.";
   animateCards(out); initResultFilter(); syncClearQ();
