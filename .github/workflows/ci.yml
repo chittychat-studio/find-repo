@@ -16,5 +16,9 @@ jobs:
           python-version: "3.11"
       - run: pip install -r requirements-dev.txt
       - run: python -m pytest -q
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
       - run: node tests/test_web_logic.js
+      - run: node tests/test_relevance_fn.mjs  # RS34 relevance function (fake LLM, no network)
       - run: python evals/run.py  # RS5: goal-based fit-ranking evals must pass

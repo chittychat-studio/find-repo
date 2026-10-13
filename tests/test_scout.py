@@ -630,6 +630,9 @@ def test_web_page_is_safe_static(monkeypatch):
     # RS28a: 'Select all shown' acts on visible cards only; the prompt makes the AI triage USE / REFERENCE ONLY / REJECT
     assert 'id="resSelAll"' in html and "function shownPickBoxes" in html and 'style.display!=="none"' in html
     assert "USE, REFERENCE ONLY" in html and "build only on the ones you USE" in html and 'id="prdLong"' in html
+    # RS34: relevance check wired in — fail-open note, hidden-count line with 'show them', off-topic cards hidden by filter
+    assert 'fetch("/api/relevance"' in html and "function relevanceGate" in html and "Couldn\\u2019t check relevance" in html
+    assert 'id="showOff"' in html and 'data-off="' in html and "window.__showOff" in html
     # RS24 richness: cursor tilt + star count-up are native (no extra library)
     assert "attachTilt" in html and 'class="cnt"' in html
     for t in ("portfolio website", "iPhone app", "trip planner", "practice app"):
@@ -693,9 +696,10 @@ def test_privacy_notice_matches_what_the_code_does():
         assert banned not in html, banned
     # only these hosts are contacted; PRIVACY.md names each of them
     hosts = set(re.findall(r"https://([a-z0-9.-]+)", html))
-    allowed = {"api.github.com", "github.com", "claude.ai", "claude.com", "replore.pages.dev"}
+    allowed = {"api.github.com", "github.com", "claude.ai", "claude.com", "replore.pages.dev", "groq.com"}  # groq.com: RS34 provider terms link
     assert hosts <= allowed, hosts - allowed
-    for named in ("api.github.com", "Cloudflare", "claude.ai", "security.log", "200 characters", "off by default"):
+    for named in ("api.github.com", "Cloudflare", "claude.ai", "security.log", "200 characters", "off by default",
+                  "Groq", "relevance check", "stores nothing"):  # RS34 data flow must be disclosed
         assert named in priv, named
     # the hook really writes only on a match, at most 200 chars, locally
     hook = (ROOT / "hooks" / "security_log.py").read_text()

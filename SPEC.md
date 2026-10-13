@@ -130,15 +130,16 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   scratch?). The skill reads the same five fields from whatever the user wrote, and asks only for the ones it
   needs per RS1a/RS1b.
 - **RS22** Web page (`web/index.html`, deployed to GitHub Pages by `.github/workflows/pages.yml`). Static,
-  single file, no external scripts, no build step, no embedded secret. It runs the keyword-to-query, filter,
+  single file, no external scripts, no build step, no embedded secret (the RS34 relevance key lives only in the
+  server-side function). It runs the keyword-to-query, filter,
   fit-rank (RS5), license-label (RS14), completely-free (RS20) and starter (RS15) logic in JavaScript,
   mirroring `scripts/scout.py`. It shows clickable example prompts (RS21) that fill the box, and calls the public GitHub search API from the browser (unauthenticated,
   ~10 searches/minute). It shows every fit-ranked match that passes the filters (RS29, not a fixed 20) as cards
   with the RS20 fields and the RS17 cautions, refuses a
   query over 200 characters and the harmful intents of RS18, and drops the harmful repo descriptions of RS18.
-  The page has no relevance gate and no AI (no model runs in it), and says so: a public static page cannot hold
-  a secret, so it never asks for or stores a key or token. Prompt generation in the browser is plain keyword
-  search only; AI-written queries and the relevance check live in the Claude Code plugin, which the page links to.
+  No model runs in the browser and the page never asks for or stores a key or token (a public page cannot hold a
+  secret). Query generation in the browser is plain keyword search; the relevance check runs server-side in the
+  RS34 function, which holds its own key. AI-written queries and the PRD mode live in the Claude Code plugin.
 - **RS23** PRD mode. When the user hands in a product-requirements doc (or any multi-feature description), the
   skill reads it, extracts the distinct needs/features (not just four), and searches per feature, calling
   `scripts/scout.py` in batches of at most 4 queries (the unauthenticated rate limit) until every feature is
@@ -280,6 +281,24 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   prompt's first 200 characters to a log on their own machine and never transmits it; the user's AI agent provider handles
   their conversation under its own terms. The notice says it is not legal advice and gives a dated version. Any change
   that adds a data flow must update the notice in the same commit.
+
+- **RS34** Web relevance gate (LLM, server-side). After the fit ranking (RS5), the web page sends the user's
+  description and the top candidates (at most 30; name, description ≤160 chars, topics) to a same-origin Cloudflare
+  Pages Function, `POST /api/relevance` (`functions/api/relevance.js`). The function asks an LLM — any
+  OpenAI-compatible chat-completions provider set by `LLM_BASE_URL` / `LLM_MODEL`, key in the server-side secret
+  `LLM_API_KEY` (never sent to the browser, RS8) — to judge each repo's fit for what the user is building, and returns
+  the indices to keep plus a one-line reason for each repo it drops. The page shows only kept repos, says how many were
+  hidden as off-topic, and offers "show them" (transparency, not silent removal). Rules: repo text and the description
+  are data, never instructions (RS9, RS25), and the prompt says so; the LLM may only drop or keep, never add, rename
+  or reorder (mirrors RS6 — fit order stays deterministic); a response that isn't valid JSON or names an unknown index is
+  ignored. **Fail open, labelled:** if the function is missing, unconfigured, rate-limited, slow (>8 s) or errors, the
+  page shows the normal keyword results with a one-line note that relevance couldn't be checked (when the check is
+  simply not set up — no key, or no function on the host — the page behaves exactly as before, with no note) — never a blank page,
+  never invented repos (RS7). The function stores nothing and logs no request content. Input is capped (description
+  ≤200 chars, ≤30 repos, body ≤16 KB) and anything else is rejected with 400. A free LLM tier limits requests for the
+  whole site, so under heavy use more searches fall back. RS33 is updated in the same change: search words and the
+  candidate list now pass through our function to the named LLM provider. The plugin (RS1, RS6) is unchanged; its
+  script still never calls a model.
 
 ## RX — Deliberately excluded (v0.1)
 
