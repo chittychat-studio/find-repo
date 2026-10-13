@@ -3,7 +3,7 @@
 
 Usage: scout.py "query one" ["query two" ...] [--top 10] [--candidates 20]
                 [--license open|any] [--max-age-months 24]
-                [--min-stars 50] [--rank balanced|stars]
+                [--min-stars 50] [--rank fit|balanced|stars]
                 [--prefer-starters] [--all] [--group] [--json | --markdown | --csv]
 """
 import argparse
@@ -11,6 +11,7 @@ import csv
 import datetime as dt
 import io
 import json
+import math
 import os
 import re
 import sys
@@ -50,7 +51,7 @@ FREE_SHARE = "Free to use, but you must share your code"
 FREE_NO = "No: no license"
 FREE_NOTE = ("'Completely free' checks the license only: some projects also sell a paid hosted version or "
              "paid add-ons, which this does not check.")
-CSV_FIELDS = ["rank", "repo", "url", "stars", "license", "can_use_in_paid_product", "completely_free",
+CSV_FIELDS = ["rank", "repo", "why_relevant", "url", "stars", "license", "can_use_in_paid_product", "completely_free",
               "starter", "how_to_start", "last_push", "query", "description"]
 STARTER_MIN_SHARE = 0.10  # RS15: a starter jumps ahead only with >= 10% of its query's top stars
 STARTER_TOPICS = {"template", "starter", "starter-kit", "starter-template", "boilerplate"}  # RS15
@@ -80,7 +81,8 @@ def build_query(q):
 
 def fetch(query, token=None, timeout=20):
     """RS2, RS7, RS8: one search request; raises ScoutError on any failure."""
-    params = urllib.parse.urlencode({"q": query, "sort": "stars", "order": "desc", "per_page": 30})
+    # RS2: best-match (relevance) order seeds fit ranking (RS5); stars stay in each result and still weigh in RS5
+    params = urllib.parse.urlencode({"q": query, "per_page": 30})
     req = urllib.request.Request(f"{API}?{params}", headers={
         "Accept": "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
@@ -123,18 +125,66 @@ def free_text(spdx):
             USE_NETWORK: FREE_SHARE}.get(use, FREE_NO)
 
 
+_WORD = re.compile(r"[a-z0-9]+")
+
+
+def _freedom(use):
+    """RS5: permissive > weak copyleft > GPL/AGPL > no licence (the last only reachable with --license any)."""
+    return (1.0 if use == USE_PAID_OK else 0.7 if use == USE_WEAK
+            else 0.45 if use in (USE_SHARE, USE_NETWORK) else 0.1)
+
+
+def fit_score(r, prefer_starters=False, floor=0.0):
+    """RS5: relevant (0.45) + popular (0.35) + free to use (0.20), with the RS15 starter nudge."""
+    rel = 1 - min(1, (r.get("rel", 0) or 0) / 20)               # best-match position (RS2); top match = 1
+    star = min(1, math.log10((r["stars"] or 0) + 1) / 5)        # log-scaled popularity (~100k stars = 1)
+    free = _freedom(r["license_use"])
+    bonus = 0.08 if (prefer_starters and r["starter"] and r["stars"] >= floor) else 0.0
+    return 0.45 * rel + 0.35 * star + 0.20 * free + bonus
+
+
+def why_relevant(query, name, desc, rel):
+    """RS24: one honest line on why a repo is here — a whole-word keyword match, not an AI judgement."""
+    # drop search qualifiers (topic:/language:/is:…) and negated terms (-foo) so we never claim a match on them
+    plain = " ".join(t for t in (query or "").split() if ":" not in t and not t.startswith("-"))
+    toks = [w for w in _WORD.findall(plain.lower()) if len(w) > 1]
+    words = set(_WORD.findall((name + " " + desc).lower()))  # match whole words, so "ai" ≠ "email"
+    hits = []
+    for t in toks:
+        if t in words and t not in hits:
+            hits.append(t)
+        if len(hits) >= 3:
+            break
+    if hits:
+        return "Matches your search: " + ", ".join(f'"{h}"' for h in hits)
+    return "Top match for your search" if (rel is not None and rel <= 3) else "Related to your search"
+
+
 def _order(rows, prefer_starters):
-    """RS5, RS15: one query's own order."""
+    """RS5, RS15: one query's own order, by fit."""
     floor = max((r["stars"] for r in rows), default=0) * STARTER_MIN_SHARE
-    return sorted(rows, key=lambda r: (not (prefer_starters and r["starter"] and r["stars"] >= floor),
-                                       -r["stars"], -r["_pushed"], r["full_name"]))
+    return sorted(rows, key=lambda r: (-fit_score(r, prefer_starters, floor), -r["stars"], -r["_pushed"], r["full_name"]))
 
 
-def rank(by_query, mode="balanced", prefer_starters=False):
-    """RS5: balanced rounds across queries, or plain stars."""
+def rank(by_query, mode="fit", prefer_starters=False):
+    """RS5: fit score across all matches (default), round-robin by stars (balanced), or plain stars."""
+    allr = [r for rows in by_query for r in rows]
+    if mode == "fit":
+        # RS15: the starter floor is per-query ("that query's most-starred match"), not global
+        scored = []
+        for rows in by_query:
+            floor = max((r["stars"] for r in rows), default=0) * STARTER_MIN_SHARE
+            scored += [(fit_score(r, prefer_starters, floor), r) for r in rows]
+        scored.sort(key=lambda t: (-t[0], -t[1]["stars"], -t[1]["_pushed"], t[1]["full_name"]))
+        return [r for _, r in scored]
     if mode == "stars":
-        return _order([r for rows in by_query for r in rows], False)
-    lists = [_order(rows, prefer_starters) for rows in by_query]
+        return sorted(allr, key=lambda r: (-r["stars"], -r["_pushed"], r["full_name"]))
+    # balanced: round-robin by stars so one broad query cannot swamp the list (RS5)
+    def _stars_order(rows):
+        floor = max((r["stars"] for r in rows), default=0) * STARTER_MIN_SHARE
+        return sorted(rows, key=lambda r: (not (prefer_starters and r["starter"] and r["stars"] >= floor),
+                                           -r["stars"], -r["_pushed"], r["full_name"]))
+    lists = [_stars_order(rows) for rows in by_query]
     out = []
     for i in range(max((len(x) for x in lists), default=0)):
         rnd = [x[i] for x in lists if i < len(x)]
@@ -150,7 +200,7 @@ def _pushed(item):
 
 
 def scout(queries, fetcher=fetch, top=10, candidates=20, license_mode="open", max_age_months=24,
-          now=None, token=None, rank_mode="balanced", prefer_starters=False, min_stars=0):
+          now=None, token=None, rank_mode="fit", prefer_starters=False, min_stars=0):
     """RS2-RS5: search, merge, filter, rank. Returns a result dict; raises ScoutError (RS7)."""
     queries = [q.strip() for q in queries if q and q.strip()]
     if not queries:
@@ -165,7 +215,7 @@ def scout(queries, fetcher=fetch, top=10, candidates=20, license_mode="open", ma
     cutoff = now - dt.timedelta(days=30.44 * max_age_months) if max_age_months > 0 else None
 
     excluded = {"fork_or_archived": 0, "license": 0, "stale": 0, "low_stars": 0, "duplicate": 0}
-    seen, by_query = set(), []
+    seen, by_query = {}, []  # name -> its kept row (or None if the name was seen but filtered out)
     for q in queries:
         kept = []
         by_query.append(kept)
@@ -176,14 +226,18 @@ def scout(queries, fetcher=fetch, top=10, candidates=20, license_mode="open", ma
         items = data.get("items")
         if not isinstance(items, list):
             raise ScoutError(f"Unexpected GitHub response for {q!r}.")
-        for it in items:
+        for idx, it in enumerate(items):
             name = it.get("full_name")
             if not name:
                 continue
             if name in seen:
+                prev = seen[name]  # RS5: a repo is counted once, under its best (lowest) relevance position
+                if prev is not None and idx < prev["rel"]:
+                    prev["rel"] = idx
+                    prev["why"] = why_relevant(prev["query"], prev["full_name"], prev["description"], idx)
                 excluded["duplicate"] += 1
                 continue
-            seen.add(name)
+            seen[name] = None  # mark seen; set to the row below once it survives the filters
             if it.get("fork") or it.get("archived") or it.get("disabled"):
                 excluded["fork_or_archived"] += 1
                 continue
@@ -207,8 +261,9 @@ def scout(queries, fetcher=fetch, top=10, candidates=20, license_mode="open", ma
                 label = f"{spdx} (not an open-source license)"
             topics = {str(t).lower() for t in (it.get("topics") or [])}
             is_template = bool(it.get("is_template"))
-            kept.append({
-                "full_name": clean(name),
+            cname, cdesc = clean(name), clean(it.get("description"))
+            row = {
+                "full_name": cname,
                 "stars": int(it.get("stargazers_count") or 0),
                 "license": label,
                 "open_license": is_open,
@@ -220,8 +275,12 @@ def scout(queries, fetcher=fetch, top=10, candidates=20, license_mode="open", ma
                 "_pushed": pushed.timestamp() if pushed else 0.0,
                 "url": clean(it.get("html_url") or f"https://github.com/{name}"),
                 "query": q,
-                "description": clean(it.get("description")),
-            })
+                "description": cdesc,
+                "rel": idx,  # RS2: best-match position, drives relevance in fit ranking (RS5)
+                "why": why_relevant(q, cname, cdesc, idx),  # RS24
+            }
+            kept.append(row)
+            seen[name] = row
 
     kept = rank(by_query, rank_mode, prefer_starters)  # RS5, RS15
     # RS23: per-feature groups (a repo appears under the first query that returned it); build before _pushed is dropped
@@ -261,6 +320,7 @@ def render(result):
     for r in result["candidates"]:
         star = "  [starter]" if r["starter"] else ""
         out.append(f"{r['rank']:>2}. {r['full_name']}  ★{r['stars']:,}  {r['license']}  pushed {r['pushed']}{star}")
+        out.append(f"    {r['why']}")
         out.append(f"    {r['license_use']} | Completely free? {r['free']}")
         out.append(f"    {r['url']}  [query: {r['query']}]")
         out.append(f"    How to start: {r['start_hint']}")
@@ -281,18 +341,18 @@ def render_markdown_grouped(result):
         out += [f"### {_md(g['query'])}  ({len(g['repos'])})", ""]
         if not g["repos"]:
             out += ["_No match for this need._", ""]; continue
-        out += ["| Repo | Stars | What it does | License | OK in a paid product? | Completely free? | Starter? | Last push |",
-                "|---|---|---|---|---|---|---|---|"]
+        out += ["| Repo | Why relevant | Stars | What it does | License | OK in a paid product? | Completely free? | Starter? | Last push |",
+                "|---|---|---|---|---|---|---|---|---|"]
         for r in g["repos"]:
             total += 1
             name = r["full_name"]
             link = f"[{_md(name)}](https://github.com/{name})" if _NAME.fullmatch(name) else _md(name)
-            out.append(f"| {link} | {r['stars']:,} | {_md(r['description'])} | {_md(r['license'])} | {r['license_use']} | "
-                       f"{r['free']} | {'yes' if r['starter'] else 'no'} | {r['pushed']} |")
+            out.append(f"| {link} | {_md(r['why'])} | {r['stars']:,} | {_md(r['description'])} | {_md(r['license'])} | "
+                       f"{r['license_use']} | {r['free']} | {'yes' if r['starter'] else 'no'} | {r['pushed']} |")
         out.append("")
-    out += [f"{total} open-source repos across {len(result['groups'])} needs. Matches that pass the filters, "
-            "grouped by the first search that found each. Not a scan of every repository; no relevance check here "
-            "(that runs in the plugin skill).", "", KEY, "", FREE_NOTE]
+    out += [f"{total} open-source repos across {len(result['groups'])} needs, each group ranked by fit "
+            "(relevance, stars, license). Grouped by the first search that found each; not a scan of every "
+            "repository. The plugin skill adds a semantic relevance check on top.", "", KEY, "", FREE_NOTE]
     return "\n".join(out)
 
 
@@ -305,14 +365,16 @@ def render_csv(result):
         desc = r["description"]
         if desc[:1] in "=+-@":  # keep spreadsheet apps from treating repo text as a formula
             desc = "'" + desc
-        w.writerow([r["rank"], r["full_name"], r["url"], r["stars"], r["license"], r["license_use"], r["free"],
+        w.writerow([r["rank"], r["full_name"], r["why"], r["url"], r["stars"], r["license"], r["license_use"], r["free"],
                     "yes" if r["starter"] else "no", r["start_hint"], r["pushed"], r["query"], desc])
     return buf.getvalue().rstrip("\n")
 
 
 def _rank_text(result):
     """RS5, RS15."""
-    text = ("balanced: each search's best match first, then by stars" if result["rank_mode"] == "balanced"
+    m = result["rank_mode"]
+    text = ("fit: relevant, then popular, then free to use" if m == "fit"
+            else "balanced: each search's best match first, then by stars" if m == "balanced"
             else "by stars across all searches")
     return text + ("; starter templates first" if result["prefer_starters"] else "")
 
@@ -339,18 +401,18 @@ def render_markdown(result):
         if not rows:
             continue
         out += [f"### {title}", "",
-                "| # | Repo | Stars | What it does | License | OK in a paid product? | Completely free? | Starter? | "
-                "Last push | How to start | Query |",
-                "|---|---|---|---|---|---|---|---|---|---|---|"]
+                "| # | Repo | Why relevant | Stars | What it does | License | OK in a paid product? | Completely free? | "
+                "Starter? | Last push | How to start | Query |",
+                "|---|---|---|---|---|---|---|---|---|---|---|---|"]
         for r in rows:
             name = r["full_name"]
             link = f"[{_md(name)}](https://github.com/{name})" if _NAME.fullmatch(name) else _md(name)
-            out.append(f"| {r['rank']} | {link} | {r['stars']:,} | {_md(r['description'])} | {_md(r['license'])} | "
-                       f"{r['license_use']} | {r['free']} | {'yes' if r['starter'] else 'no'} | {r['pushed']} | "
-                       f"{_md(r['start_hint'])} | {_md(r['query'])} |")
+            out.append(f"| {r['rank']} | {link} | {_md(r['why'])} | {r['stars']:,} | {_md(r['description'])} | "
+                       f"{_md(r['license'])} | {r['license_use']} | {r['free']} | {'yes' if r['starter'] else 'no'} | "
+                       f"{r['pushed']} | {_md(r['start_hint'])} | {_md(r['query'])} |")
         out.append("")
-    out += ["Ranked among GitHub search matches, not a scan of every repository. "
-            "No relevance check here: that step runs only in the plugin skill.", "", KEY, "", FREE_NOTE]
+    out += ["Ranked by fit (relevance, stars, license) among GitHub search matches, not a scan of every "
+            "repository. The plugin skill adds a semantic relevance check on top.", "", KEY, "", FREE_NOTE]
     return "\n".join(out)
 
 
@@ -364,7 +426,7 @@ def main(argv=None):
     p.add_argument("--license", dest="license_mode", choices=["open", "any"], default="open")
     p.add_argument("--max-age-months", type=int, default=24)
     p.add_argument("--min-stars", type=int, default=50)
-    p.add_argument("--rank", dest="rank_mode", choices=["balanced", "stars"], default="balanced")
+    p.add_argument("--rank", dest="rank_mode", choices=["fit", "balanced", "stars"], default="fit")
     p.add_argument("--prefer-starters", action="store_true")
     fmt = p.add_mutually_exclusive_group()
     fmt.add_argument("--json", action="store_true")

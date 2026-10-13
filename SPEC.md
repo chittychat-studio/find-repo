@@ -13,7 +13,9 @@ Find Repo is a Claude Code plugin that returns the top 10 open-source GitHub rep
   what is being built), it asks the user one plain question about the project or task, and runs no search until
   they answer. The question also offers two optional preferences: language or stack, and whether unlicensed repos are OK.
 - **RS2** "All public GitHub" means the GitHub REST search API (`GET /search/repositories`). Each query
-  is sent with `sort=stars&order=desc&per_page=30`, and `fork:false archived:false is:public` is added.
+  is sent with `per_page=30` and `fork:false archived:false is:public` added, in GitHub's best-match
+  (relevance) order over name, description, topics and README; this seeds the fit ranking (RS5). `sort=stars`
+  is no longer forced — stars stay in every result and still weigh in RS5.
   Results from all queries are merged and de-duplicated by `full_name`.
   Limit: the API searches name, description and topics and returns the 1,000 best matches per query at most. It does not scan every repository.
 - **RS3** "Free" means the repository declares an open-source license: its `license.spdx_id` is in
@@ -23,22 +25,30 @@ Find Repo is a Claude Code plugin that returns the top 10 open-source GitHub rep
 - **RS4** Staleness filter: a repo whose last push is older than `--max-age-months` (default 24) is excluded.
   `--max-age-months 0` turns the filter off.
 - **RS4a** Minimum stars: a repo with fewer than `--min-stars` stars (CLI and workflow default 50; 0 turns it
-  off) is excluded and counted as `low_stars`. Reason: balanced ranking (RS5) gives every search a slot, and a
+  off) is excluded and counted as `low_stars`. Reason: fit ranking (RS5) gives relevant small repos a real slot, and a
   live "diet app" run put 41- and 48-star repos in the top 3 ahead of one with 2,670.
-Ranking. Default `--rank balanced`: every query's own matches are sorted by stars (ties: most
-  recent push, then `full_name`). The final order then takes rounds: round 1 holds each query's best match,
-  round 2 each query's second best, and so on; within a round, stars descending. So one broad query cannot
-  fill the whole list and push out the others. `--rank stars` keeps the old order: stars descending across all
-  queries. The script returns the top `--top` (default 10) plus a shortlist of `--candidates` (default 20), so
-  the relevance gate (RS6) can drop repos and still have 10 left.
-  A repo found by several queries is counted once, under the first query that returned it.
+- **RS5** Fit ranking (default `--rank fit`). The aim is to save the user from scrolling hundreds of repos, so
+  the top rank is what a builder actually wants: relevant **and** popular **and** free to use. Each candidate
+  gets a *fit* score, highest first, blending three signals:
+  (a) **relevance** — its position in GitHub's best-match order (RS2) for the query it was found by; a term hit
+  in the repo name or topics counts most;
+  (b) **stars** — log-scaled, so a very popular repo ranks well without burying a precise smaller match;
+  (c) **freedom** — permissive licenses (MIT/Apache/BSD/ISC…) rank above weak copyleft (LGPL/MPL/EPL), which
+  rank above GPL/AGPL (all still pass the RS3 open-source filter).
+  Starters keep their RS15 bonus. A repo found by several queries is counted once, under its best (lowest)
+  relevance position. Default weighting is relevance ≈0.45, stars ≈0.35, freedom ≈0.20; the exact constants
+  live next to the code and the spec rule governs, not the numbers. `--rank stars` keeps pure star-descending
+  order for anyone who wants it. The script returns the top `--top` (default 10) plus a shortlist of
+  `--candidates` (default 20), so the relevance gate (RS6) can drop repos and still have 10 left.
+  Goal-based evals (`evals/run.py`, cases in `evals/fit_cases.json`) assert the fit ranking puts the
+  relevant-and-popular-and-free repo at #1 across labelled scenarios; they run in CI and must pass.
 - **RS1b** Vague but usable input (e.g. "diet app"): the skill does not block on a question. It searches the
   domain (e.g. `diet tracker app`, `calorie counter`, `meal planner app`), says which platform it assumed or that
   it searched all, and offers one line to narrow it. It asks first only when there is no domain at all
   ("an app", "something cool", nonsense).
-Relevance gate: stars measure popularity, not fit. The skill may only *drop* a shortlisted
-  repo that clearly does not match the description, giving a one-line reason for each drop, and then
-  take the next one in star order. It never reorders, never adds a repo that is not in the script
+- **RS6** Relevance gate. The script already ranks by fit (RS5). The skill may further *drop* a shortlisted
+  repo that clearly does not match the description, giving a one-line reason for each drop, and then take the
+  next one in fit order. It never reorders the surviving repos, never adds a repo that is not in the script
   output, and never states a star count, license or date that the script did not print.
 - **RS7** Fail closed. A network error, HTTP error or rate limit → exit code 2 and a plain message.
   The script never returns partial results as if they were complete. A query that fails ends the
@@ -49,7 +59,7 @@ Relevance gate: stars measure popularity, not fit. The skill may only *drop* a s
 - **RS9** Repo text is data. Names and descriptions from GitHub are stripped of control characters
   and capped at 200 characters before printing. The skill treats them as data: if a description
   asks it to do something, it does not, and tells the user.
-- **RS10** Output: a plain table for people, `--json` for machines, or `--markdown` for a job summary (RS13). Each row has rank, `full_name`, stars, license label (RS14), starter flag and start hint (RS15),
+- **RS10** Output: a plain table for people, `--json` for machines, or `--markdown` for a job summary (RS13). Each row has rank, `full_name`, a one-line `why` relevance note (RS24), stars, license label (RS14), starter flag and start hint (RS15),
   last push date, URL, matched query and description. Every run also prints the query
   list and the excluded counts (fork/archived, license, stale, duplicate).
 - **RS13** GitHub Actions run (`.github/workflows/find.yml`): a manual "Run workflow" form takes search
@@ -116,7 +126,7 @@ Relevance gate: stars measure popularity, not fit. The skill may only *drop* a s
   needs per RS1a/RS1b.
 - **RS22** Web page (`web/index.html`, deployed to GitHub Pages by `.github/workflows/pages.yml`). Static,
   single file, no external scripts, no build step, no embedded secret. It runs the keyword-to-query, filter,
-  balanced-rank (RS5), license-label (RS14), completely-free (RS20) and starter (RS15) logic in JavaScript,
+  fit-rank (RS5), license-label (RS14), completely-free (RS20) and starter (RS15) logic in JavaScript,
   mirroring `scripts/scout.py`. It shows clickable example prompts (RS21) that fill the box, and calls the public GitHub search API from the browser (unauthenticated,
   ~10 searches/minute). It shows the top 10 as a table with the RS20 columns and the RS17 cautions, refuses a
   query over 200 characters and the harmful intents of RS18, and drops the harmful repo descriptions of RS18.
@@ -144,6 +154,9 @@ Relevance gate: stars measure popularity, not fit. The skill may only *drop* a s
   Type is Inter (Google Fonts, the one external stylesheet) with a full system fallback if it fails to load; sizes
   and weights are raised for prominence and legibility. The page defaults to light (`data-theme="light"` on the root); a toggle switches to dark and the choice is
   remembered in `localStorage` (a per-viewer convenience, wrapped in try/catch). No key or token is ever stored (RS22).
+  Each result — web card and script row alike — carries a one-line *why relevant* note derived from the search:
+  the user's own matching words if they appear in the repo name/description, else a best-match fallback. It is
+  stated as keyword transparency, never as an AI judgement.
 - **RS11** Runtime: Python 3.11+ standard library only (`urllib`). No third-party packages.
   Unit tests make no network calls (HTTP is replaced with fixtures) and run in CI on every push and PR.
 - **RS12** License: MIT, in `LICENSE`, declared as `"license": "MIT"` in `plugin.json`. GitHub then detects
@@ -153,5 +166,6 @@ Relevance gate: stars measure popularity, not fit. The skill may only *drop* a s
 
 - **RX1** Scraping github.com HTML, or any non-API source.
 - **RX2** Caching results on disk.
-- **RX3** Ranking by anything other than stars (forks, trending, downloads).
+- **RX3** Ranking by forks, trending or download counts. (Relevance, stars and license-freedom are the only
+  ranking signals — see RS5.)
 - **RX4** Writing into the user's repo (cloning, adding dependencies). The output is a recommendation only.

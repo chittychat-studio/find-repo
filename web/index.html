@@ -14,7 +14,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" async crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Spectral:wght@600;700;800&display=swap">
 <style>
   :root{
     /* warm clay-orange accents on a half-white cream background */
@@ -51,7 +51,9 @@
   .right{min-height:0;display:flex;flex-direction:column}
 
   .brand{display:flex;align-items:baseline;gap:10px}
-  h1{font-size:31px;font-weight:800;margin:0;letter-spacing:-.02em;
+  /* serif display family for headings (matches the earthy, editorial reference); body stays Inter */
+  h1,.res-head h2,.group-h,.sheet h2{font-family:"Spectral",Georgia,"Times New Roman",serif}
+  h1{font-size:34px;font-weight:800;margin:0;letter-spacing:-.01em;
     background:linear-gradient(135deg,var(--accent-ink),var(--accent));-webkit-background-clip:text;
     background-clip:text;color:transparent}
   .by{font-size:12px;color:var(--muted)}
@@ -111,7 +113,7 @@
   .results{flex:1;overflow:auto;border-radius:16px;padding:4px;min-height:0;perspective:1200px}
   .results::-webkit-scrollbar{width:10px}.results::-webkit-scrollbar-thumb{background:var(--line);border-radius:9px}
   .res-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:2px 4px 12px}
-  .res-head h2{font-size:20px;font-weight:800;margin:0}
+  .res-head h2{font-size:24px;font-weight:800;margin:0;letter-spacing:-.01em}
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:12px}
   .rcard{position:relative;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;
     box-shadow:0 14px 30px -22px rgba(var(--shadow),.6);transform-style:preserve-3d;
@@ -128,6 +130,8 @@
     color:#fff;font-size:12px;font-weight:700;border-radius:999px;padding:2px 9px;box-shadow:0 6px 14px -6px rgba(192,83,44,.8)}
   .rcard .stars{position:absolute;top:12px;right:12px;font-weight:800;font-size:14px;color:var(--accent-ink)}
   .rcard .name{font-weight:800;font-size:16px;line-height:1.3;margin:10px 56px 5px 0;word-break:break-word}
+  .rcard .why{font-size:12px;font-weight:600;color:var(--accent-ink);margin:8px 56px 7px 0;line-height:1.35}
+  .rcard .why::before{content:"✦ "}
   .rcard .desc{font-size:13.5px;line-height:1.5;color:var(--muted);margin:0 0 11px;
     display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;min-height:2.6em}
   .rcard .tags{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
@@ -145,7 +149,7 @@
       border-top:1px dashed var(--line);padding-top:8px}
     .rcard .desc{-webkit-line-clamp:4}
   }
-  .group-h{font-size:14px;font-weight:700;margin:16px 4px 8px;color:var(--accent-ink)}
+  .group-h{font-size:18px;font-weight:800;margin:18px 4px 8px;color:var(--accent-ink)}
   .group-h span{color:var(--muted);font-weight:500}
   .err{color:var(--warn);font-weight:600}
   .excl{font-size:11.5px;color:var(--muted);margin:14px 4px 4px}
@@ -171,9 +175,13 @@
   .modal.open{display:flex}
   .sheet{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;max-width:540px;width:100%;
     box-shadow:0 40px 80px -30px rgba(var(--shadow),.7);max-height:88vh;overflow:auto}
-  .sheet h2{margin:0 0 8px;font-size:19px;color:var(--accent-ink)}
+  .sheet h2{margin:0 0 8px;font-size:23px;font-weight:800;color:var(--accent-ink);letter-spacing:-.01em}
   .cmd{background:var(--offbg);border:1px solid var(--line);border-radius:10px;padding:12px;margin:10px 0;
     font:12.5px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre-wrap;overflow-x:auto}
+  .guide{margin:10px 0 0;padding-left:22px}
+  .guide li{margin:0 0 12px;line-height:1.55;font-size:14.5px}
+  .guide li::marker{color:var(--accent-ink);font-weight:700}
+  .guide .cmd{margin:6px 0 0}
   .x{float:right;background:none;border:0;font-size:20px;cursor:pointer;color:var(--muted);line-height:1}
   .cta-inline{margin-top:12px;background:linear-gradient(135deg,rgba(192,83,44,.1),transparent);
     border:1px solid var(--accent);border-radius:12px;padding:12px}
@@ -195,6 +203,7 @@
         <div class="nav">
           <button id="homeBtn" class="nav-btn" title="Back to the start">⌂ Home</button>
           <button id="tourBtn" class="nav-btn" title="Watch how it works">▶ Tour</button>
+          <button id="setupBtn" class="nav-btn" title="Step-by-step: use the plugin in Claude Code">⌘ Setup</button>
           <button id="theme" class="theme-toggle" title="Switch light / dark" aria-label="Switch light / dark"></button>
         </div></div>
       <p class="sub">Describe what you're building — get the top open-source GitHub repos that fit, by stars.</p>
@@ -252,14 +261,24 @@
 
 <div class="modal" id="pluginModal"><div class="sheet">
   <button class="x" data-close>&times;</button>
-  <h2>Use in Claude Code (full version)</h2>
-  <p class="mut">The plugin writes smarter searches with AI, runs a relevance check, reads a whole PRD, and shows
-    every suitable repo — not just 10. Free &amp; open-source (MIT).</p>
-  <pre class="cmd">/plugin marketplace add chittychat-studio/find-repo
-/plugin install find-repo@find-repo
-/find-repo:find &lt;what you are building&gt;</pre>
-  <p class="mut">Needs <a href="https://claude.com/claude-code" target="_blank" rel="noopener">Claude Code</a> and
-    Python 3.11+. Full guide:
+  <h2>Use Find Repo in Claude Code</h2>
+  <p class="mut">New to this? Do these once. The plugin writes smarter searches with AI, checks each result
+    actually fits, reads a whole PRD feature by feature, and shows every suitable repo — not just 10. Free &amp; open-source.</p>
+  <ol class="guide">
+    <li><b>Get Claude Code</b> — a free AI coding assistant that runs in your terminal. Install it from
+      <a href="https://claude.com/claude-code" target="_blank" rel="noopener">claude.com/claude-code</a> and sign in.</li>
+    <li><b>Check Python 3.11+</b> — in your terminal, run <code>python3 --version</code>. If it's missing: on Windows
+      install from python.org (tick <i>"Add python.exe to PATH"</i>); on a Mac run <code>brew install python</code>.</li>
+    <li><b>Open Claude Code</b> in any folder — type <code>claude</code> in your terminal and press Enter.</li>
+    <li><b>Add the plugin</b> — paste each line and press Enter:
+      <pre class="cmd">/plugin marketplace add chittychat-studio/find-repo
+/plugin install find-repo@find-repo</pre></li>
+    <li><b>Find repos</b> — describe what you're building in plain words:
+      <pre class="cmd">/find-repo:find a diet app for iPhone, starting from scratch</pre></li>
+    <li><b>Read the results</b> — you get a table: the repo, how popular it is (stars), whether it's free to use
+      in a paid product, and <i>why</i> it fits. Pick one and start building.</li>
+  </ol>
+  <p class="mut" style="margin-top:12px">Stuck? Full guide:
     <a href="https://github.com/chittychat-studio/find-repo" target="_blank" rel="noopener">github.com/chittychat-studio/find-repo</a>.</p>
 </div></div>
 
@@ -309,7 +328,8 @@ function freeText(spdx){ var u=lu(spdx);
  if(u.indexOf("OK in a paid")===0)return"Yes, but changes to its files must stay open";
  if(u.indexOf("You must share")===0)return"Free to use, but you must share your code";
  return"No: no license"; }
-function esc(s){var d=document.createElement("div");d.textContent=s==null?"":s;return d.innerHTML;}
+function esc(s){var d=document.createElement("div");d.textContent=s==null?"":s;
+  return d.innerHTML.replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
 function clean(s){return (s||"").replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁦-⁩]/g," ").trim().slice(0,200);}
 function kstars(n){return n>=1000?(n/1000).toFixed(n>=10000?0:1)+"k":""+n;}
 
@@ -332,8 +352,9 @@ function keywordQueries(text, platform){
 }
 
 async function search(q){
+  // best-match (relevance) order seeds the fit ranking (RS2/RS5); stars are still in each result and weigh in RS5
   var url="https://api.github.com/search/repositories?q="+encodeURIComponent(q+" fork:false archived:false is:public")
-    +"&sort=stars&order=desc&per_page=30";
+    +"&per_page=30";
   var r=await fetch(url,{headers:{"Accept":"application/vnd.github+json"}});
   if(r.status===403||r.status===429) throw new Error("GitHub rate limit reached (10 searches/minute without a token). Wait a minute and try again.");
   if(r.status===422) throw new Error("GitHub rejected the search “"+q+"”. Use fewer words.");
@@ -344,9 +365,15 @@ async function search(q){
 function harmful(text){ for(var i=0;i<HARM_INTENT.length;i++) if(HARM_INTENT[i].test(text)) return true; return false; }
 function harmfulRepo(desc){ for(var i=0;i<HARM.length;i++) if(HARM[i].test(desc)) return true; return false; }
 
-function keep(items, minStars, platform, excluded){
+function keep(items, minStars, platform, excluded, seen){
+  seen = seen || {};  // name -> kept row (or null if seen but filtered out); shared across queries for RS5 rel
   var cutoff=Date.now()-MAX_AGE_MONTHS*30.44*864e5, out=[];
   for(var i=0;i<items.length;i++){ var it=items[i], name=it.full_name; if(!name) continue;
+    var cname=clean(name);
+    if(Object.prototype.hasOwnProperty.call(seen,cname)){ var prev=seen[cname];  // RS5: best (lowest) rel wins
+      if(prev && i<prev.rel) prev.rel=i;
+      continue; }
+    seen[cname]=null;  // mark seen; set to the row below once it survives the filters
     if(it.fork||it.archived||it.disabled){excluded.fork++;continue;}
     var spdx=it.license&&it.license.spdx_id;
     if(!OPEN.has(spdx)){excluded.license++;continue;}
@@ -357,25 +384,49 @@ function keep(items, minStars, platform, excluded){
     if(harmfulRepo(desc)){excluded.harm++;continue;}
     var topics=(it.topics||[]).map(function(t){return String(t).toLowerCase();});
     var starter=!!it.is_template||topics.some(function(t){return STARTER_TOPICS.has(t);});
-    out.push({name:clean(name),stars:it.stargazers_count||0,spdx:spdx,pushed:(it.pushed_at||"").slice(0,10),
-      url:it.html_url||("https://github.com/"+name),desc:desc,starter:starter});
+    var row={name:cname,stars:it.stargazers_count||0,spdx:spdx,pushed:(it.pushed_at||"").slice(0,10),
+      url:it.html_url||("https://github.com/"+name),desc:desc,starter:starter,rel:i};
+    out.push(row); seen[cname]=row;
   }
   return out;
 }
 
-function balanced(lists, preferStarters){
-  function order(rows){ var floor=rows.reduce(function(m,r){return Math.max(m,r.stars);},0)*STARTER_MIN_SHARE;
-    return rows.slice().sort(function(a,b){
-      if(preferStarters){ var as=(a.starter&&a.stars>=floor)?0:1, bs=(b.starter&&b.stars>=floor)?0:1; if(as!==bs)return as-bs; }
-      return b.stars-a.stars || a.name.localeCompare(b.name); }); }
-  var ord=lists.map(order), out=[], max=Math.max.apply(null,ord.map(function(x){return x.length;}).concat([0]));
-  for(var i=0;i<max;i++){ var round=[]; for(var j=0;j<ord.length;j++) if(i<ord[j].length) round.push(ord[j][i]);
-    round.sort(function(a,b){return b.stars-a.stars||a.name.localeCompare(b.name);}); out=out.concat(round); }
+// ---- fit ranking (RS5): relevant + popular + free to use at the top ----
+function fitScore(r, preferStarters, floor){
+  var relScore=1-Math.min(1,(r.rel||0)/20);                           // best-match position (RS2); top match = 1
+  var starScore=Math.min(1,Math.log10((r.stars||0)+1)/5);             // log-scaled popularity (~100k stars = 1)
+  var freeScore=PERMISSIVE.has(r.spdx)?1:(WEAK.has(r.spdx)?0.7:0.45); // permissive > weak copyleft > GPL/AGPL
+  var bonus=(preferStarters && r.starter && r.stars>=floor)?0.08:0;   // RS15 starter nudge
+  return 0.45*relScore+0.35*starScore+0.20*freeScore+bonus;
+}
+function rankByFit(lists, preferStarters){
+  var all=[];
+  for(var i=0;i<lists.length;i++){  // RS15: starter floor is per-query (that query's top repo), not global
+    var floor=lists[i].reduce(function(m,r){return Math.max(m,r.stars);},0)*STARTER_MIN_SHARE;
+    for(var j=0;j<lists[i].length;j++){ lists[i][j].fit=fitScore(lists[i][j],preferStarters,floor); all.push(lists[i][j]); }
+  }
+  all.sort(function(a,b){ return b.fit-a.fit || b.stars-a.stars || a.name.localeCompare(b.name); });
+  return all;
+}
+
+// significant (non-stopword) words from what the user typed — used to explain the match
+function sigTokens(text){ var out=[], seen={};
+  (text||"").toLowerCase().replace(/[^a-z0-9 +#.]/g," ").split(/\s+/).forEach(function(w){
+    if(w && w.length>1 && !STOP.has(w) && !seen[w]){ seen[w]=1; out.push(w); } });
   return out;
+}
+// one honest line on why a repo is in the list (whole-word keyword match, not AI understanding)
+function whyRelevant(r, qtokens){
+  var words={}; ((r.name||"")+" "+(r.desc||"")).toLowerCase().replace(/[^a-z0-9 +#.]/g," ").split(/\s+/)
+    .forEach(function(w){ if(w) words[w]=1; });  // match whole words, so "ai" never fires on "email"
+  var hit=[];
+  for(var i=0;i<(qtokens||[]).length && hit.length<3;i++) if(words[qtokens[i]]) hit.push(qtokens[i]);
+  if(hit.length) return 'Matches your words: '+hit.map(function(w){return '“'+w+'”';}).join(", ");
+  return (r.rel!=null&&r.rel<=3) ? 'Top match for your search' : 'Related to your search';
 }
 
 // ---- card rendering (3D) ----
-function cardHtml(r,i){
+function cardHtml(r,i,qtokens){
   var free=freeText(r.spdx), paid=lu(r.spdx);
   var paidTag=paid.indexOf("OK to use")===0?'t-good':'t-warn', freeTag=free==="Yes"?'t-good':'t-warn';
   var paidShort=paid.indexOf("OK to use")===0?"Paid-use OK":(paid.indexOf("OK in a paid")===0?"Paid OK*":"Share code");
@@ -383,6 +434,7 @@ function cardHtml(r,i){
     (i!=null?'<span class="rank">#'+(i+1)+'</span>':'')+
     '<span class="stars">★ <span class="cnt" data-v="'+r.stars+'">'+kstars(r.stars)+'</span></span>'+
     '<div class="name"><a href="'+esc(r.url)+'" target="_blank" rel="noopener">'+esc(r.name)+'</a></div>'+
+    '<div class="why">'+esc(whyRelevant(r,qtokens))+'</div>'+
     '<p class="desc">'+esc(r.desc||"—")+'</p>'+
     '<div class="tags">'+
       '<span class="tag '+paidTag+'" title="'+esc(paid)+'">'+paidShort+'</span>'+
@@ -427,12 +479,12 @@ var PLUGIN_CTA='<div class="cta-inline"><b>Need more than the top 10?</b> This p
   'Run the plugin in Claude Code for every suitable repo — and a PRD read feature by feature. '+
   '<button class="link-btn" onclick="openModal(\'pluginModal\')">Show commands →</button></div>';
 
-function render(top, queries, excluded, totalMatches){
+function render(top, queries, excluded, totalMatches, qtokens){
   if(!top.length){ return '<div class="panel"><p class="err">No repository matched.</p>'+
     '<p class="mut">Searches: '+esc(queries.join("; "))+'. Try fewer or broader words, or lower the minimum stars.</p></div>'; }
   var more=(totalMatches||top.length)-top.length;
-  var h='<div class="res-head"><h2>Top '+top.length+' matches</h2><span class="mut">ranked by stars</span></div>'+
-    '<div class="grid">'+top.map(function(r,i){return cardHtml(r,i);}).join("")+'</div>'+
+  var h='<div class="res-head"><h2>Top '+top.length+' matches</h2><span class="mut">best fit · relevant, popular, free</span></div>'+
+    '<div class="grid">'+top.map(function(r,i){return cardHtml(r,i,qtokens);}).join("")+'</div>'+
     '<p class="excl">Searches: '+esc(queries.join("; "))+' · Excluded — not open-source: '+excluded.license+
     ', too old: '+excluded.stale+', too few stars: '+excluded.low+', forks/archived: '+excluded.fork+
     ', harmful: '+excluded.harm+'</p>';
@@ -495,26 +547,28 @@ function renderGrouped(groups, excluded, note){
   var h='<div class="res-head"><h2>Grouped by need</h2><span class="mut">'+total+' repos</span></div>'+
     '<p class="mut" style="margin:0 4px 8px">'+esc(note||"")+'</p>';
   groups.forEach(function(g){
+    var gtokens=sigTokens(g.query);
     h+='<div class="group-h">'+esc(g.query)+' <span>('+g.repos.length+')</span></div>';
     if(!g.repos.length){ h+='<p class="mut" style="margin:0 4px">No match.</p>'; return; }
-    h+='<div class="grid">'+g.repos.map(function(r){return cardHtml(r,null);}).join("")+'</div>';
+    h+='<div class="grid">'+g.repos.map(function(r){return cardHtml(r,null,gtokens);}).join("")+'</div>';
   });
   h+='<p class="excl">'+total+' open-source repos across '+groups.length+' needs. Excluded — not open-source: '+
-    excluded.license+', too old: '+excluded.stale+', too few stars: '+excluded.low+', harmful: '+excluded.harm+
+    excluded.license+', too old: '+excluded.stale+', too few stars: '+excluded.low+', forks/archived: '+excluded.fork+
+    ', harmful: '+excluded.harm+
     '. Every suitable match that passed the filters, grouped by the first search that found it — not every repo on GitHub.</p>'+
     PLUGIN_CTA;
   return h;
 }
 
 async function runFeatures(features, minStars, platform, preferStarters, out, st){
-  var ex2=platform==="ios"?" -topic:macos":"", excluded={license:0,stale:0,low:0,fork:0,harm:0}, seen=new Set(), groups=[];
+  var ex2=platform==="ios"?" -topic:macos":"", excluded={license:0,stale:0,low:0,fork:0,harm:0}, seen={}, groups=[];
   for(var i=0;i<features.length;i++){ st.textContent="Searching feature "+(i+1)+"/"+features.length+"…";
     var items=await search((features[i]+ex2).trim());
     var fresh=items.filter(function(it){ if(!it.full_name||seen.has(it.full_name))return false; seen.add(it.full_name); return true; });
     var kept=keep(fresh,minStars,platform,excluded);
     var floor=kept.reduce(function(m,r){return Math.max(m,r.stars);},0)*STARTER_MIN_SHARE;
-    kept.sort(function(a,b){ if(preferStarters){var as=(a.starter&&a.stars>=floor)?0:1,bs=(b.starter&&b.stars>=floor)?0:1; if(as!==bs)return as-bs;}
-      return b.stars-a.stars||a.name.localeCompare(b.name); });
+    kept.forEach(function(r){ r.fit=fitScore(r,preferStarters,floor); });
+    kept.sort(function(a,b){ return b.fit-a.fit||b.stars-a.stars||a.name.localeCompare(b.name); });
     groups.push({query:features[i],repos:kept});
   }
   out.innerHTML=renderGrouped(groups,excluded,
@@ -539,13 +593,12 @@ async function run(){
   try{
     var queries=keywordQueries(text,platform);
     if(!queries.length) throw new Error("Couldn't build a search. Try different words.");
-    var excluded={license:0,stale:0,low:0,fork:0,harm:0}, seen=new Set(), lists=[];
+    var excluded={license:0,stale:0,low:0,fork:0,harm:0}, seen={}, lists=[];
     for(var i=0;i<queries.length;i++){ st.textContent="Searching ("+(i+1)+"/"+queries.length+")…";
       var items=await search(queries[i]);
-      var fresh=items.filter(function(it){ if(!it.full_name||seen.has(it.full_name))return false; seen.add(it.full_name); return true; });
-      lists.push(keep(fresh,minStars,platform,excluded)); }
-    var ranked=balanced(lists,preferStarters), top=ranked.slice(0,10);
-    out.innerHTML=render(top,queries,excluded,ranked.length);
+      lists.push(keep(items,minStars,platform,excluded,seen)); }
+    var ranked=rankByFit(lists,preferStarters), top=ranked.slice(0,10);
+    out.innerHTML=render(top,queries,excluded,ranked.length,sigTokens(text));
     animateCards(out); st.textContent="Done."; saveResults();
   }catch(e){ st.textContent=""; out.innerHTML='<div class="panel"><p class="err">'+esc(e.message)+'</p></div>'; }
   finally{ go.disabled=false; }
@@ -575,6 +628,7 @@ function openModal(id){ document.getElementById(id).classList.add("open"); if(id
 function closeModals(){ var m=document.querySelectorAll(".modal"); for(var i=0;i<m.length;i++) m[i].classList.remove("open"); }
 document.getElementById("howBtn").addEventListener("click",function(){ openModal("howModal"); });
 document.getElementById("pluginBtn").addEventListener("click",function(){ openModal("pluginModal"); });
+document.getElementById("setupBtn").addEventListener("click",function(){ openModal("pluginModal"); });
 document.getElementById("aboutBtn").addEventListener("click",function(){ openModal("aboutModal"); });
 document.querySelectorAll("[data-close]").forEach(function(b){ b.addEventListener("click",closeModals); });
 document.querySelectorAll(".modal").forEach(function(m){ m.addEventListener("click",function(e){ if(e.target===m) closeModals(); }); });

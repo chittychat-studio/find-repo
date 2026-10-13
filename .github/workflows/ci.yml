@@ -17,3 +17,4 @@ jobs:
       - run: pip install -r requirements-dev.txt
       - run: python -m pytest -q
       - run: node tests/test_web_logic.js
+      - run: python evals/run.py  # RS5: goal-based fit-ranking evals must pass

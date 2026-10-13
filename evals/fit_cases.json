@@ -1,0 +1,71 @@
+{
+  "description": "Goal-based evals for Find Repo's fit ranking (RS5). The product promise: a vibe coder gets the repo they actually want at #1 — relevant AND popular AND free to use — not just the most-starred keyword hit. Each case lists candidate repos with rel (position in GitHub best-match results, 0 = top), stars and SPDX license, and names the repo that SHOULD rank #1. These express the GOAL and tolerate weight tweaks; exact orderings are locked separately in tests/.",
+  "threshold": 1.0,
+  "cases": [
+    {
+      "name": "relevance beats a tangential giant",
+      "goal": "A precise match at the top of the search outranks a hugely popular off-topic repo.",
+      "candidates": [
+        {"name": "tiny/exact", "rel": 0, "stars": 300, "spdx": "MIT"},
+        {"name": "big/tangential", "rel": 12, "stars": 150000, "spdx": "MIT"}
+      ],
+      "expect_top": "tiny/exact"
+    },
+    {
+      "name": "relevance dominates when the giant is very far down",
+      "goal": "Even a 300k-star repo should not win if it is a weak keyword match.",
+      "candidates": [
+        {"name": "me/exact", "rel": 0, "stars": 500, "spdx": "MIT"},
+        {"name": "me/giant", "rel": 18, "stars": 300000, "spdx": "MIT"}
+      ],
+      "expect_top": "me/exact"
+    },
+    {
+      "name": "popularity decides among equally relevant repos",
+      "goal": "When two repos match equally well, the more widely used one wins.",
+      "candidates": [
+        {"name": "small/match", "rel": 0, "stars": 100, "spdx": "MIT"},
+        {"name": "popular/match", "rel": 0, "stars": 50000, "spdx": "MIT"}
+      ],
+      "expect_top": "popular/match"
+    },
+    {
+      "name": "free-to-use breaks a tie over copyleft",
+      "goal": "At equal relevance and stars, a permissive licence (free in a paid product) ranks above AGPL.",
+      "candidates": [
+        {"name": "a/permissive", "rel": 0, "stars": 5000, "spdx": "MIT"},
+        {"name": "a/copyleft", "rel": 0, "stars": 5000, "spdx": "AGPL-3.0"}
+      ],
+      "expect_top": "a/permissive"
+    },
+    {
+      "name": "free-to-use lifts a repo over a more-popular copyleft one",
+      "goal": "A permissive repo can outrank a somewhat more popular AGPL repo — the 'free to use' promise.",
+      "candidates": [
+        {"name": "a/mit", "rel": 0, "stars": 3000, "spdx": "MIT"},
+        {"name": "a/agpl", "rel": 0, "stars": 8000, "spdx": "AGPL-3.0"}
+      ],
+      "expect_top": "a/mit"
+    },
+    {
+      "name": "from-scratch: a solid starter leads a bigger library",
+      "goal": "With prefer_starters, a real template jumps a bigger non-template library (but only if it has enough stars — RS15).",
+      "prefer_starters": true,
+      "candidates": [
+        {"name": "lib/big", "rel": 0, "stars": 8000, "spdx": "MIT", "starter": false},
+        {"name": "tpl/starter", "rel": 1, "stars": 2000, "spdx": "MIT", "starter": true}
+      ],
+      "expect_top": "tpl/starter"
+    },
+    {
+      "name": "the ideal: relevant AND popular AND free wins outright",
+      "goal": "When a repo is the top match, widely used, and permissively licensed, it is #1 — the headline case.",
+      "candidates": [
+        {"name": "the/ideal", "rel": 0, "stars": 20000, "spdx": "MIT"},
+        {"name": "popular/copyleft", "rel": 0, "stars": 25000, "spdx": "GPL-3.0"},
+        {"name": "small/exact", "rel": 0, "stars": 400, "spdx": "MIT"}
+      ],
+      "expect_top": "the/ideal"
+    }
+  ]
+}

@@ -11,6 +11,7 @@ Claude Code plugin: free-text project description → top 3 most-starred open-so
 
 ## Commands
 - `python -m pytest` — unit tests (no network)
+- `python evals/run.py` — goal-based fit-ranking evals (RS5; must pass, runs in CI)
 - `python scripts/scout.py "<query>" ... [--json]` — live search (GitHub API, free, rate-limited)
 - `claude plugin validate .` — manifest check
 
