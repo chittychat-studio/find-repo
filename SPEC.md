@@ -1,7 +1,7 @@
 # Replore — Specification v0.1
 
 Status: draft v0.1, 2026-10-12. Every line of code traces to a rule ID below.
-Replore is a Claude Code plugin that returns the top 10 open-source GitHub repos for a described project. Moved out of chittychat-studio/Governance-manager
+Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos for a described project. Moved out of chittychat-studio/Governance-manager
 (where it was drafted as "Repo Scout", later named "Find Top Skill") into its own repository, so it ships and installs on its own.
 
 ## RS — Behaviour
@@ -39,7 +39,7 @@ Replore is a Claude Code plugin that returns the top 10 open-source GitHub repos
   relevance position. Default weighting is relevance ≈0.45, stars ≈0.35, freedom ≈0.20; the exact constants
   live next to the code and the spec rule governs, not the numbers. `--rank stars` keeps pure star-descending
   order for anyone who wants it. The script returns the top `--top` (default 10) plus a shortlist of
-  `--candidates` (default 20), so the relevance gate (RS6) can drop repos and still have 10 left.
+  `--candidates` (default 40), so the relevance gate (RS6) can drop repos and still have 20 left.
   Goal-based evals (`evals/run.py`, cases in `evals/fit_cases.json`) assert the fit ranking puts the
   relevant-and-popular-and-free repo at #1 across labelled scenarios; they run in CI and must pass.
 - **RS1b** Vague but usable input (e.g. "diet app"): the skill does not block on a question. It searches the
@@ -116,7 +116,7 @@ Replore is a Claude Code plugin that returns the top 10 open-source GitHub repos
   this checks the license only: some projects also sell a paid hosted version or paid add-ons, which the plugin does
   not check. `--csv` prints the same rows as CSV (rank, repo, url, stars, license, can_use_in_paid_product,
   completely_free, starter, how_to_start, last_push, query, description) for Excel or Google Sheets. The skill
-  answers with a comparison table of up to 10 repos with these columns: #, Repo, Stars, What it does, Relevance,
+  answers with a comparison table of up to 20 repos with these columns: #, Repo, Stars, What it does, Relevance,
   License, OK in a paid product?, Completely free?, Starter?, Last update, How to start. "What it does" is taken
   from the description only. "Relevance" is High/Medium/Low with a short reason; it is the skill's judgment from
   the description and is labelled as such.
@@ -128,7 +128,7 @@ Replore is a Claude Code plugin that returns the top 10 open-source GitHub repos
   single file, no external scripts, no build step, no embedded secret. It runs the keyword-to-query, filter,
   fit-rank (RS5), license-label (RS14), completely-free (RS20) and starter (RS15) logic in JavaScript,
   mirroring `scripts/scout.py`. It shows clickable example prompts (RS21) that fill the box, and calls the public GitHub search API from the browser (unauthenticated,
-  ~10 searches/minute). It shows the top 10 as a table with the RS20 columns and the RS17 cautions, refuses a
+  ~10 searches/minute). It shows the top 20 as a table with the RS20 columns and the RS17 cautions, refuses a
   query over 200 characters and the harmful intents of RS18, and drops the harmful repo descriptions of RS18.
   The page has no relevance gate and no AI (no model runs in it), and says so: a public static page cannot hold
   a secret, so it never asks for or stores a key or token. Prompt generation in the browser is plain keyword
@@ -192,6 +192,13 @@ Replore is a Claude Code plugin that returns the top 10 open-source GitHub repos
   Copy is the guaranteed path and is always offered, and the link is dropped when the URL would exceed a safe
   length. The prompt instructs Claude to use only the listed repos and invent no libraries, versions, or
   statistics (evidence-only, mirrors RS9/RS14). Selection resets on a new search or Home.
+- **RS29** Result-side filters + top-20 (RS22 web page). A search renders up to the **top 20** fit-ranked
+  matches; the page shows the first 10 and a "Show more" reveals the rest — nothing is re-fetched (RS7
+  unaffected, no new API call). Above the results a row of **plain-English filter chips** — All / ✅ Paid-use
+  OK / 🆓 Completely free / 🧩 Starters — shows or hides the already-fetched cards client-side (raw SPDX codes
+  are deliberately not a filter). An empty filtered set shows a "clear filter" message. Filters apply only to
+  the single top-matches list, not the grouped PRD view. The plugin CLI default is also `--top 20` (candidates
+  `40`), and all user-facing copy says "top 20".
 
 ## RX — Deliberately excluded (v0.1)
 
