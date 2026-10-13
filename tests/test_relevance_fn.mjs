@@ -206,7 +206,7 @@ console.log("example cache ok");
   const tenv = { AI, TURNSTILE_SECRET: "ts-SECRET", TURNSTILE_SITE_KEY: "0xSITE" };
   let sv = null;
   const verifier = (success) => async (url, init) => {
-    if (url.includes("siteverify")) { sv = { url, form: init.body }; return new Response(JSON.stringify({ success })); }
+    if (url.includes("siteverify")) { sv = { url, form: init.body }; return new Response(JSON.stringify({ success, hostname: "replore.pages.dev" })); }
     throw new Error("unexpected fetch " + url); };
   aiCalls = 0;
   let r = await fn.onRequestPost({ request: req(), env: tenv }, verifier(true));
@@ -226,3 +226,28 @@ console.log("example cache ok");
   assert.deepStrictEqual(await (await fn.onRequestGet({ env: {} })).json(), { turnstile: null });
 }
 console.log("bot check ok");
+
+// second-review regressions (RS34b/RS34c)
+{ const AI = { run: async () => ({ response: '{"drop":[]}' }) };
+  const req = (headers = {}, ct = "application/json") => new Request("https://replore.pages.dev/api/relevance", { method: "POST",
+    headers: { "Content-Type": ct, ...headers }, body: JSON.stringify({ query: "q", repos }) });
+  // token issued for another hostname is refused
+  const other = async () => new Response(JSON.stringify({ success: true, hostname: "evil.example" }));
+  assert.strictEqual((await fn.onRequestPost({ request: req({ "CF-Turnstile-Token": "t" }), env: { AI, TURNSTILE_SECRET: "s" } }, other)).status, 403);
+  // config is never cached (switching Turnstile on takes effect at once)
+  assert.strictEqual((await fn.onRequestGet({ env: {} })).headers.get("Cache-Control"), "no-store");
+  // MIME parsed strictly: text/plain;charset=application/json (form-POST trick) is refused
+  assert.strictEqual((await fn.onRequestPost({ request: req({}, "text/plain; charset=application/json"), env: { AI } })).status, 415);
+  assert.strictEqual((await fn.onRequestPost({ request: req({}, "application/json; charset=utf-8"), env: { AI } })).status, 200);
+  // only the first provider's answer is cached; key lives on the site's own origin; flags never leave the function
+  const store = new Map();
+  const cache = { match: async k => store.has(k.url) ? new Response(store.get(k.url)) : undefined, put: async (k, r) => { store.set(k.url, await r.text()); } };
+  const ex = fn.EXAMPLE_QUERIES[1];
+  const down = { run: async () => { throw new Error("used up your daily free allocation of 10,000 neurons"); } };
+  await fn.cachedJudge(ex, repos, { AI: down, LLM_API_KEY: "k" }, fakeLLM('{"drop":[]}'), cache, "https://replore.pages.dev");
+  assert.strictEqual(store.size, 0, "fallback answer is not cached");
+  await fn.cachedJudge(ex, repos, { AI }, fetch, cache, "https://replore.pages.dev");
+  assert.ok([...store.keys()][0].startsWith("https://replore.pages.dev/__relevance-cache/v1/"));
+  const r = await fn.onRequestPost({ request: req(), env: { AI } }); const body = await r.json();
+  assert.ok(!("first" in body) && !("cached" in body)); }
+console.log("second review regressions ok");

@@ -145,7 +145,7 @@ export async function judgeChain(query, repos, env, fetchImpl = fetch, budgetMs 
     const left = end - Date.now();
     if (left < 1000) break;
     const out = await steps[k](k < steps.length - 1 ? Math.min(left, Math.round(budgetMs * 0.6)) : left);  // keep time for the fallback
-    if (out.status === 200) return out;
+    if (out.status === 200) return k === 0 ? { ...out, first: true } : out;
     fails.push(out);
   }
   if (!fails.length) return { status: 504, error: "llm_unreachable" };
@@ -175,20 +175,20 @@ export const EXAMPLE_QUERIES = [
 ];
 const EXAMPLE_SET = new Set(EXAMPLE_QUERIES);
 const CACHE_TTL = 86400;
-export async function cacheKey(query, repos) {
+export async function cacheKey(query, repos, origin = "https://replore.pages.dev") {
   const data = new TextEncoder().encode(JSON.stringify([1, query, repos.map(r => [r.name, r.description || "", r.topics || []])]));
   const hex = [...new Uint8Array(await crypto.subtle.digest("SHA-256", data))].map(b => b.toString(16).padStart(2, "0")).join("");
-  return new Request(`https://replore-relevance.cache/v1/${hex}`);
+  return new Request(`${origin}/__relevance-cache/v1/${hex}`);   // own origin: the Cache API is scoped to the zone
 }
-export async function cachedJudge(query, repos, env, fetchImpl = fetch, cache = globalThis.caches && globalThis.caches.default) {
+export async function cachedJudge(query, repos, env, fetchImpl = fetch, cache = globalThis.caches && globalThis.caches.default, origin) {
   const usable = cache && EXAMPLE_SET.has(query);
   let key;
   if (usable) {
-    try { key = await cacheKey(query, repos); const hit = await cache.match(key); if (hit) return { status: 200, body: await hit.json(), cached: true }; }
+    try { key = await cacheKey(query, repos, origin); const hit = await cache.match(key); if (hit) return { status: 200, body: await hit.json(), cached: true }; }
     catch { key = null; }   // a cache problem never blocks the check
   }
   const out = await judgeChain(query, repos, env, fetchImpl);
-  if (usable && key && out.status === 200) {
+  if (usable && key && out.status === 200 && out.first) {   // cache only the primary provider's answer
     try { await cache.put(key, new Response(JSON.stringify(out.body), { headers: { "Content-Type": "application/json", "Cache-Control": `max-age=${CACHE_TTL}` } })); } catch {}
   }
   return out;
@@ -216,7 +216,7 @@ export async function verifyTurnstile(request, env, fetchImpl = fetch) {
   try {
     const res = await fetchImpl("https://challenges.cloudflare.com/turnstile/v0/siteverify", { method: "POST", body: form, signal: ctl.signal });
     const j = await res.json();
-    return !!(j && j.success === true);
+    return !!(j && j.success === true && j.hostname === new URL(request.url).hostname);   // token issued for this site
   } catch { return false; } finally { clearTimeout(timer); }
 }
 
@@ -224,22 +224,22 @@ export async function onRequestPost({ request, env }, fetchImpl = fetch) {
   if (!env.LLM_API_KEY && !(env.AI && typeof env.AI.run === "function")) return json(503, { error: "not_configured" });
   if (!sameOrigin(request)) return json(403, { error: "bad_origin" });
   const ct = request.headers.get("Content-Type") || "";
-  if (!ct.includes("application/json")) return json(415, { error: "json_only" });
+  if (ct.split(";")[0].trim().toLowerCase() !== "application/json") return json(415, { error: "json_only" });
   const raw = await request.text();
   if (raw.length > MAX_BODY) return json(413, { error: "too_large" });
   let body; try { body = JSON.parse(raw); } catch { return json(400, { error: "invalid_json" }); }
   const bad = validate(body);
   if (bad) return json(400, { error: bad });
   if (!(await verifyTurnstile(request, env, fetchImpl))) return json(403, { error: "bot_check_failed" });
-  const out = await cachedJudge(body.query, body.repos, env, fetchImpl);
-  return out.status === 200 ? json(200, out.body)
+  const out = await cachedJudge(body.query, body.repos, env, fetchImpl, undefined, new URL(request.url).origin);
+  return out.status === 200 ? json(200, out.body)   // body only: internal flags (first, cached) never leave
     : json(out.status, out.resetsInSec ? { error: out.error, resetsInSec: out.resetsInSec } : { error: out.error });
 }
 
 // RS34c: the page asks which bot check to load (the site key is public by design; the secret never leaves here)
 export async function onRequestGet({ env }) {
   return new Response(JSON.stringify({ turnstile: env.TURNSTILE_SITE_KEY || null }), {
-    headers: { "Content-Type": "application/json", "Cache-Control": "public, max-age=300", "X-Content-Type-Options": "nosniff" },
+    headers: { "Content-Type": "application/json", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" },
   });
 }
 export async function onRequest() { return json(405, { error: "post_only" }); }

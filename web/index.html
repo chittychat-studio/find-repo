@@ -461,8 +461,8 @@
       </div>
 
       <div id="quickpicks" class="quickpicks" aria-label="Quick examples to try"></div>
-      <p class="privacy-note">🔒 No account, no tracking, nothing stored. Your search goes to GitHub, and to an AI that checks
-        which repos fit — we don't keep either. <button type="button" class="link-btn" onclick="openModal('privacyModal')">Privacy</button></p>
+      <p class="privacy-note">🔒 No account, no tracking, nothing you type is stored. Your search goes to GitHub, and to an AI that
+        checks which repos fit — we don't keep either. <button type="button" class="link-btn" onclick="openModal('privacyModal')">Privacy</button></p>
 
       <div id="status" class="status"></div>
       <div id="tsBox" class="ts-box"></div>
@@ -937,31 +937,45 @@ function gateLine(g){ if(!g) return "";
     '<button type="button" class="link-btn" id="showOff">Show them</button></p>'; }
 // RS34: ask the same-origin function which repos don't fit; "off" when not set up, {fail} on any failure (fail open, labelled)
 // RS34c: Cloudflare Turnstile bot check, loaded from challenges.cloudflare.com only when the owner set a site key.
-// Resolves null = no bot check configured; "" = configured but no token (the function then refuses, page shows a note).
-var __ts=null;
-function turnstileToken(){
-  if(!__ts) __ts=(async function(){
-    try{ var c=await (await fetch("/api/relevance",{method:"GET"})).json(); if(!c||typeof c.turnstile!=="string"||!c.turnstile) return null;
-      var cfg={key:c.turnstile,id:null,resolve:null};
-      try{ await new Promise(function(ok,no){ var s=document.createElement("script");
+// Resolves null = no bot check configured; "" = no token (the function then refuses and the page shows a note).
+// Every wait has a deadline so a stalled Cloudflare can never hang the search (RS7); a failed load is retried
+// on the next search; token requests are queued so each search gets its own single-use token.
+var __ts=null, __tsQ=Promise.resolve();
+function tsDeadline(p,ms,v){ return Promise.race([p,new Promise(function(ok){ setTimeout(function(){ ok(v); },ms); })]); }
+function loadTurnstile(){
+  if(!__ts) __ts=tsDeadline((async function(){
+      var c=await (await fetch("/api/relevance",{method:"GET",cache:"no-store"})).json();
+      if(!c||typeof c.turnstile!=="string"||!c.turnstile) return {off:true};
+      if(!window.turnstile) await new Promise(function(ok,no){ var s=document.createElement("script");
         s.src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"; s.async=true; s.onload=ok; s.onerror=no;
-        document.head.appendChild(s); }); }catch(e){ cfg.broken=true; }
-      return cfg;
-    }catch(e){ return null; } })();   // no function / old deploy / not JSON -> no bot check
-  return __ts.then(function(cfg){
-    if(!cfg) return null;
-    if(cfg.broken||!window.turnstile) return "";
-    return new Promise(function(ok){
-      var t=setTimeout(function(){ cfg.resolve=null; ok(""); },6000);
-      cfg.resolve=function(tok){ clearTimeout(t); cfg.resolve=null; ok(tok||""); };
+        document.head.appendChild(s); });
+      return window.turnstile?{key:c.turnstile,id:null}:null;
+    })().catch(function(){ return null; }),8000,null)
+    .then(function(cfg){ if(!cfg) __ts=null; return cfg; });   // null = failed: try again next search
+  return __ts;
+}
+function turnstileToken(){
+  return loadTurnstile().then(function(cfg){
+    if(cfg&&cfg.off) return null;
+    if(!cfg) return "";
+    var run=__tsQ.then(function(){ return new Promise(function(ok){
+      var done=false, t=null, st=document.getElementById("status");
+      function fin(tok){ if(done) return; done=true; clearTimeout(t); cfg.fin=cfg.arm=null; ok(tok||""); }
+      function arm(ms){ clearTimeout(t); t=setTimeout(function(){ fin(""); },ms); }
+      cfg.fin=fin; cfg.arm=arm; arm(8000);
       try{
         if(cfg.id==null) cfg.id=window.turnstile.render(document.getElementById("tsBox"),{sitekey:cfg.key,execution:"execute",
-          appearance:"interaction-only",callback:function(tok){ if(cfg.resolve) cfg.resolve(tok); },
-          "error-callback":function(){ if(cfg.resolve) cfg.resolve(""); }});
+          appearance:"interaction-only",
+          callback:function(tok){ cfg.fin&&cfg.fin(tok); },
+          "error-callback":function(){ cfg.fin&&cfg.fin(""); },
+          "before-interactive-callback":function(){ cfg.arm&&cfg.arm(90000);   // a person needs time to click
+            if(st) st.textContent="Quick check: please confirm you\u2019re human below."; }});
         else window.turnstile.reset(cfg.id);   // tokens are single-use
         window.turnstile.execute(cfg.id);
-      }catch(e){ cfg.resolve&&cfg.resolve(""); }
-    });
+      }catch(e){ fin(""); }
+    }); });
+    __tsQ=run.catch(function(){});
+    return run;
   });
 }
 async function relevanceGate(query, repos){
