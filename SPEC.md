@@ -330,8 +330,9 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   **Failure log (RS34d):** when a check fails (any non-200 except `not_configured`), the function records one event:
   outcome code, HTTP status, each provider's code in order, milliseconds taken, and whether the query was a built-in
   example — never the search words, the repo list, the IP address, the bot-check token or any provider message text.
-  It prints that line to the Cloudflare log and, when the Analytics Engine binding `RELEVANCE_LOG` exists, writes it
-  there so it is kept (Cloudflare's retention applies). Successful checks are not logged. `PRIVACY.md` says so. Input is capped (description
+  It prints that line to the Cloudflare log (visible in the Pages real-time logs, not stored) and, when the Analytics
+  Engine binding `RELEVANCE_LOG` exists, writes it there so it is kept (Cloudflare's retention applies). The binding is
+  off in `wrangler.toml` until the owner enables Analytics Engine on the account (adding it first failed the deploy). Successful checks are not logged. `PRIVACY.md` says so. Input is capped (description
   ≤200 chars, ≤30 repos, body ≤16 KB) and anything else is rejected with 400. The free LLM tiers limit requests for the
   whole site, so under heavy use more searches fall back. RS33 is updated in the same change: search words and the
   candidate list now pass through our function to the LLM providers named in RS34a and PRIVACY.md. The plugin (RS1, RS6) is unchanged; its
