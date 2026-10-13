@@ -288,6 +288,11 @@
   .primary-cta:hover{transform:translateY(-1px);box-shadow:0 16px 30px -12px rgba(192,83,44,.9);text-decoration:none}
   @media (max-width:700px){ .prd-bar{left:12px;right:12px;transform:none;justify-content:space-between} }
   /* desktop = expanded format: wider cards that spell out the license meaning in full */
+  @media (max-width:999px){
+    body.has-results .hero .eyebrow, body.has-results .hero-title, body.has-results .hero .sub,
+    body.has-results .modes, body.has-results #quickpicks{display:none}
+    body.has-results .hero{margin-bottom:6px}
+  }
   @media (min-width:1000px){
     .grid{grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
     .rcard{padding:16px}
@@ -1214,15 +1219,10 @@ async function run(){
       else if(drops){ top=top.slice(0,30); drops.forEach(function(d){ var r=top[d.i]; if(r){ r.off=1; r.offWhy=d.why; } });
         gate={ok:true,hidden:drops.length}; } }
     out.innerHTML=render(top,queries,excluded,ranked.length,qtok,heading,window.__likeNote||"",gate);
-    animateCards(out); initResultFilter(); st.textContent=""; saveResults(); syncClearQ(); showResultsOnPhone(out);
+    animateCards(out); initResultFilter(); st.textContent=""; saveResults(); syncClearQ();
   }catch(e){ if(gen!==window.__runGen) return; st.textContent=""; out.innerHTML='<div class="panel"><p class="err">'+esc(e.message)+'</p></div>'; }
   finally{ if(gen===window.__runGen){ setGoBusy(false); window.__busy=false; } }
 }
-// RS24: below the 1000px two-column layout the results sit under the search form; bring them into view once a search finishes
-function showResultsOnPhone(out){
-  try{ if(!matchMedia("(max-width: 999px)").matches || !out.scrollIntoView) return;
-    var reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
-    out.scrollIntoView({behavior:reduce?"auto":"smooth",block:"start"}); }catch(e){} }
 document.getElementById("go").addEventListener("click",run);
 document.getElementById("prd").addEventListener("change",function(e){
   var f=e.target.files&&e.target.files[0]; if(!f) return;
@@ -1491,7 +1491,9 @@ function resetAll(){
 }
 function syncClearQ(){ var x=document.getElementById("clearQ"); if(!x) return;
   x.hidden = !((document.getElementById("q").value||"").trim() || (document.getElementById("like").value||"").trim()
-    || document.querySelector("#out .rcard, #out .group-h, #out .err")); }   // results on screen also count
+    || document.querySelector("#out .rcard, #out .group-h, #out .err"));   // results on screen also count
+  // RS24: with results on a single-column screen, fold the intro so the search bar sits right above the matches
+  document.body.classList.toggle("has-results", !!document.querySelector("#out .rcard, #out .group-h")); }
 (function(){ var brand=document.getElementById("brandHome"), x=document.getElementById("clearQ");
   if(brand){ brand.addEventListener("click",resetAll);
     brand.addEventListener("keydown",function(e){ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); resetAll(); } }); }
