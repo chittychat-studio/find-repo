@@ -1,6 +1,7 @@
 # Replore
 
-A Claude Code plugin. Describe your project in plain words and get the open-source GitHub repos that
+A repo finder for your AI coding agent — a one-command plugin for **Claude Code**, and the same script for
+**Codex, Cursor, Cline or any other agent** (see `AGENTS.md`). Describe your project in plain words and get the open-source GitHub repos that
 **best fit** it — ranked by relevance, popularity, and how freely you can use the license — as a comparison
 table: stars, what it does, relevance, license, whether you can use it in a paid product, whether it's
 completely free, and how to start.
@@ -57,7 +58,7 @@ A static page at `web/index.html` powers it. It auto-deploys to [replore.pages.d
 
 It calls the public GitHub search API from the browser (about 10 searches a minute, no login, no key) and runs
 the same filters, ranking and license labels as the plugin. It uses basic keyword search; AI-written queries
-and the relevance check live in the Claude Code plugin — a public static page can't hold an API key, so the
+and the relevance check live in the plugin (Claude Code, or the script in any AI agent) — a public static page can't hold an API key, so the
 AI step stays in the plugin.
 
 ## Install (Claude Code)
@@ -68,6 +69,42 @@ AI step stays in the plugin.
 ```
 
 Needs Python 3.11+ (the plugin tells you how to install it if it's missing). Once installed, it is available in every project.
+
+## Use in any other AI agent
+
+Replore is model-agnostic. The `/plugin install` command above is Claude Code-only; every other agent loads the
+same engine as an **MCP server** (Model Context Protocol — the plugin standard Codex, Cursor, Gemini CLI,
+VS Code Copilot, Windsurf and Cline all support), whatever model it runs. Python 3.11+, no API key.
+
+```
+git clone https://github.com/chittychat-studio/replore
+```
+
+Then point your agent at `scripts/mcp_server.py` (use the full path to your clone):
+
+| Agent | Where | Add |
+|---|---|---|
+| Codex CLI | `~/.codex/config.toml` | `[mcp_servers.replore]`<br>`command = "python3"`<br>`args = ["/path/to/replore/scripts/mcp_server.py"]` |
+| Cursor | `~/.cursor/mcp.json` | `{"mcpServers": {"replore": {"command": "python3", "args": ["/path/to/replore/scripts/mcp_server.py"]}}}` |
+| Gemini CLI | `~/.gemini/settings.json` | `{"mcpServers": {"replore": {"command": "python3", "args": ["/path/to/replore/scripts/mcp_server.py"]}}}` |
+| VS Code (Copilot) | `.vscode/mcp.json` | `{"servers": {"replore": {"type": "stdio", "command": "python3", "args": ["/path/to/replore/scripts/mcp_server.py"]}}}` |
+| Windsurf / Cline | their MCP settings file | same `mcpServers` shape as Cursor |
+| Claude Code (MCP instead of the plugin) | terminal | `claude mcp add replore -- python3 /path/to/replore/scripts/mcp_server.py` |
+
+On Windows use `python` (or `py`) and a `C:\...` path. Then just ask: *"find repos for a diet app for iPhone"* —
+the agent calls the `find_repos` tool and shows the comparison table. These config locations are each agent's
+documented MCP setup at the time of writing; if one has moved, check that agent's MCP docs — the command and
+argument stay the same.
+
+**No MCP support?** Open the cloned folder in your agent: it reads [`AGENTS.md`](AGENTS.md) and runs
+`scripts/scout.py` itself. Or run it by hand:
+
+```
+python3 scripts/scout.py "diet tracker app" "calorie counter" --markdown
+```
+
+Same filters, ranking and license labels in every path. Browser-only chats with no local tools can't run it — use
+the [web page](https://replore.pages.dev) there.
 
 ## How it works (rules in `SPEC.md`)
 

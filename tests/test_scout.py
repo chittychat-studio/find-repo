@@ -595,20 +595,24 @@ def test_web_page_is_safe_static(monkeypatch):
     assert "never uploaded" in html
     # RS22: how-to-run-in-Claude-Code and the >10 edge-case CTA both point to the plugin
     assert "/plugin install replore@replore" in html and "/replore:find" in html
-    assert "Use in Claude Code" in html and "PLUGIN_CTA" in html
+    assert "Use the plugin" in html and "PLUGIN_CTA" in html
+    # RS31/RS32: the plugin modal has two tabs — Claude Code one-command, and any other agent via MCP / AGENTS.md
+    assert 'data-tab="cc"' in html and 'data-tab="other"' in html and "mcp_server.py" in html and "AGENTS.md" in html
     assert "passed the filters" in html  # the "want every suitable repo?" plugin banner
-    # RS29c: results-time disclosure that the page is keyword/lexical search, with a link to the plugin
-    assert "LEXICAL_NOTE" in html and "keyword search" in html
+    # RS29c (retired): the per-results keyword-search banner is gone
+    assert "LEXICAL_NOTE" not in html
     # RS29: the redundant "Paid-use OK"/"Completely free" filter chips are collapsed into one commercial-use chip
     assert "Free for commercial use" in html and "data-com=" in html
     assert 'data-paid=' not in html and 'data-free=' not in html
     # RS30: a "Next steps" menu item opens a guidance modal (no model call, points to the plugin)
     assert 'id="nextBtn"' in html and 'id="nextModal"' in html and "Next steps" in html
-    assert "Generate plan" in html and "Build it in Claude Code" in html
+    assert "Generate plan" in html and "Build it with your AI agent" in html
     # RS27a: similar-repo requires text and is narrowed by it (no silent drop); "find similar" alone is blocked
     assert "RS27a" in html and "· matching" in html and "Add a few words too" in html
     # RS29: a persistent "Clear filter" button appears when a non-All filter is active
     assert 'id="resClearBtn"' in html and "Clear filter" in html
+    # search-bar ✕ resets everything (text, similar repo, filters, picks, results) — shared with the logo
+    assert 'id="clearQ"' in html and "function resetAll" in html and 'addEventListener("click",resetAll)' in html
     # light/dark toggle (RS24)
     assert 'id="theme"' in html and "data-theme" in html and "findrepo_theme" in html
     # RS24 Tour: a current screenshot of the live page is committed and embedded (replaces the stale gif)
