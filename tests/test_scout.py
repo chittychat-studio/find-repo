@@ -587,8 +587,9 @@ def test_web_page_is_safe_static(monkeypatch):
     assert "max 200 characters" in html  # RS19 length guard
     # RS24 cards surface the license meaning, free answer and starter flag (short labels + full text in titles)
     assert "OK to use in a paid product" in html and "Starter" in html and "Completely free?" in html
-    # RS21 clickable example prompts fill the box
-    assert 'id="examples"' in html and "EXAMPLES" in html and "click to fill" in html
+    # RS21 clickable example prompts (quick-picks under the search bar) fill the box and run
+    assert 'id="quickpicks"' in html and "EXAMPLES" in html and "buildQuickpicks" in html
+    assert "function pickExample" in html and "pickExample(ex)" in html
     # RS23 PRD upload is client-side only (FileReader, never uploaded)
     assert 'id="prd"' in html and "FileReader" in html and "prdFeatures" in html
     assert "never uploaded" in html
