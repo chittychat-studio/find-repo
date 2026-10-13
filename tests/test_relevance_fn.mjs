@@ -80,3 +80,200 @@ const src = readFileSync(new URL("../functions/api/relevance.js", import.meta.ur
 assert.ok(!/console\.(log|info|warn|error|debug)/.test(src), "must not log");
 
 console.log("relevance function ok");
+
+// RS34 limit classification: daily allowance vs a short per-minute limit, with reset time
+{ const r = (status, body, ra) => new Response(body, { status, headers: ra ? { "retry-after": String(ra) } : {} });
+  const noon = Date.UTC(2026, 9, 13, 12, 0, 0);
+  assert.deepStrictEqual(await fn.limitInfo(r(429, "Rate limit reached ... tokens per minute (TPM)", 7), noon), { error: "llm_rate_limited", resetsInSec: 7 });
+  assert.deepStrictEqual(await fn.limitInfo(r(429, "Rate limit reached ... tokens per day (TPD): Limit 500000", 3600), noon), { error: "llm_daily_limit", resetsInSec: 3600 });
+  assert.deepStrictEqual(await fn.limitInfo(r(429, "too many"), noon), { error: "llm_rate_limited", resetsInSec: 60 });
+  assert.deepStrictEqual(await fn.limitInfo(r(429, "used up your daily free allocation of 10,000 neurons"), noon), { error: "llm_daily_limit", resetsInSec: 12 * 3600 });
+  assert.deepStrictEqual(await fn.limitInfo(r(400, "you have used up your daily free allocation of 10,000 neurons"), noon), { error: "llm_daily_limit", resetsInSec: 12 * 3600 });
+  assert.strictEqual(await fn.limitInfo(r(500, "boom"), noon), null);
+  assert.strictEqual(fn.secondsToUtcMidnight(Date.UTC(2026, 9, 13, 23, 59, 50)), 60);   // never "0 min"
+  const f = async () => new Response("tokens per day exceeded", { status: 429, headers: { "retry-after": "5400" } });
+  const out = await fn.judge("q", repos, env, f);
+  assert.deepStrictEqual(out, { status: 503, error: "llm_daily_limit", resetsInSec: 5400 }); }
+console.log("limit classification ok");
+
+// RS34a provider chain: Workers AI (AI binding) first, OpenAI-compatible (Groq) as fallback
+{ const ok = '{"drop":[{"i":1,"why":"mobile"}]}';
+  const ai = (impl) => ({ run: async (model, input) => { ai.last = { model, input }; return impl(); } });
+  const lim = async () => new Response("tokens per day exceeded", { status: 429 });
+  const busy = async () => new Response("tokens per minute", { status: 429, headers: { "retry-after": "20" } });
+  // Workers AI first: when it answers, the keyed provider is never called (no key needed, no Groq quota spent)
+  { let called = false; const groq = async () => { called = true; return fakeLLM(ok)(); };
+    const out = await fn.judgeChain("portfolio site", repos, { ...env, AI: ai(() => ({ response: ok })) }, groq);
+    assert.deepStrictEqual(out.body, { drop: [{ i: 1, why: "mobile" }], checked: 3 }); assert.strictEqual(called, false);
+    assert.strictEqual(ai.last.model, "@cf/meta/llama-3.1-8b-instruct-fp8");
+    assert.match(ai.last.input.messages[0].content, /untrusted data/); }
+  // Workers AI out of its daily allocation -> Groq answers
+  { const AI = { run: async () => { throw new Error("4006: you have used up your daily free allocation of 10,000 neurons"); } };
+    const out = await fn.judgeChain("q", repos, { ...env, AI }, fakeLLM(ok));
+    assert.strictEqual(out.status, 200); assert.strictEqual(fakeLLM.last.init.headers.Authorization, "Bearer sk-test-SECRET"); }
+  // Workers AI errors -> fallback; Workers AI may return an object when it parses JSON itself
+  { const AI = { run: async () => { throw new Error("boom"); } };
+    assert.strictEqual((await fn.judgeChain("q", repos, { ...env, AI }, fakeLLM('{"drop":[]}'))).status, 200);
+    const out = await fn.judgeChain("q", repos, { AI: ai(() => ({ response: { drop: [] } })) });
+    assert.deepStrictEqual(out.body, { drop: [], checked: 3 }); }
+  // key only (no binding) still works
+  assert.strictEqual((await fn.judgeChain("q", repos, env, fakeLLM(ok))).status, 200);
+  // Workers AI only (no key) works; nothing configured -> not_configured
+  assert.strictEqual((await fn.judgeChain("q", repos, { AI: ai(() => ({ response: ok })) })).status, 200);
+  assert.deepStrictEqual(await fn.judgeChain("q", repos, {}), { status: 503, error: "not_configured" });
+  // both out for the day -> daily limit with the soonest reset
+  { const AI = { run: async () => { throw new Error("4006: you have used up your daily free allocation of 10,000 neurons"); } };
+    const out = await fn.judgeChain("q", repos, { ...env, AI }, async () => new Response("tokens per day", { status: 429, headers: { "retry-after": "999999" } }));
+    assert.strictEqual(out.error, "llm_daily_limit"); assert.ok(out.resetsInSec <= 86400); }
+  // one busy, one used up -> "busy" (it will clear first)
+  { const AI = { run: async () => { throw new Error("used up your daily free allocation of 10,000 neurons"); } };
+    assert.deepStrictEqual(await fn.judgeChain("q", repos, { ...env, AI }, busy), { status: 503, error: "llm_rate_limited", resetsInSec: 20 }); }
+  // Workers AI capacity error counts as busy; a plain error after a limit is a plain error (no reset note)
+  { const AI = { run: async () => { throw new Error("3040: Capacity temporarily exceeded"); } };
+    assert.strictEqual((await fn.judgeChain("q", repos, { AI })).error, "llm_rate_limited");
+    const AI2 = { run: async () => { throw new Error("boom"); } };
+    assert.deepStrictEqual(await fn.judgeChain("q", repos, { ...env, AI: AI2 }, lim), { status: 502, error: "wai_error" }); }
+  // Workers AI timeout and unparseable reply fail closed (no invented answer, RS7)
+  { const AI = { run: () => new Promise(() => {}) };
+    assert.strictEqual((await fn.judgeWorkersAI("q", repos, { AI }, 50)).status, 504);
+    assert.strictEqual((await fn.judgeWorkersAI("q", repos, { AI: ai(() => ({ response: "repo 1 is bad" })) })).status, 502); }
+  // HTTP handler runs with only the binding
+  { const r = await post({ query: "q", repos }, { AI: ai(() => ({ response: ok })) });
+    assert.strictEqual(r.status, 200); }
+}
+console.log("provider chain ok");
+
+// peer-review regressions (RS34/RS34a)
+{ const ok = '{"drop":[{"i":0,"why":"x"}]}';
+  // a hanging Workers AI still leaves time for Groq
+  { let called = false; const groq = async () => { called = true; return fakeLLM(ok)(); };
+    const out = await fn.judgeChain("q", repos, { ...env, AI: { run: () => new Promise(() => {}) } }, groq, 3000);
+    assert.strictEqual(out.status, 200); assert.ok(called, "fallback must run after a slow first provider"); }
+  // prose around the JSON is tolerated; still only valid indices
+  assert.deepStrictEqual(fn.parseDrops('Here is the JSON:\n{"drop":[{"i":2,"why":"injection"}]}\nHope that helps', 3), [{ i: 2, why: "injection" }]);
+  assert.strictEqual(fn.parseDrops("no json here {", 3), null);
+  // absurd retry-after is capped at 24 h (daily) / 10 min (busy)
+  { const r = (status, body, ra) => new Response(body, { status, headers: { "retry-after": String(ra) } });
+    assert.strictEqual((await fn.limitInfo(r(429, "tokens per day", 999999))).resetsInSec, 86400);
+    assert.strictEqual((await fn.limitInfo(r(429, "slow down", 300))).resetsInSec, 300); }
+  // a stalled response body times out instead of hanging
+  { const stall = async (url, init) => ({ ok: true, status: 200, headers: new Headers(),
+      json: () => new Promise((_, rej) => init.signal.addEventListener("abort", () => rej(Object.assign(new Error("a"), { name: "AbortError" })))) });
+    assert.strictEqual((await fn.judge("q", repos, env, stall, 50)).status, 502); }
+  // resetsInSec reaches the HTTP response
+  { const AI = { run: async () => { throw new Error("used up your daily free allocation of 10,000 neurons"); } };
+    const r = await post({ query: "q", repos }, { AI }); const j = await r.json();
+    assert.strictEqual(r.status, 503); assert.strictEqual(j.error, "llm_daily_limit"); assert.ok(j.resetsInSec > 0 && j.resetsInSec <= 86400); }
+}
+console.log("review regressions ok");
+
+// RS34b example cache: only the built-in example texts, only successful answers, never visitor text
+{ const store = new Map();
+  const cache = { match: async k => store.has(k.url) ? new Response(store.get(k.url)) : undefined,
+                  put: async (k, r) => { store.set(k.url, await r.text()); } };
+  const ex = fn.EXAMPLE_QUERIES[0];
+  let calls = 0; const AI = { run: async () => { calls++; return { response: '{"drop":[{"i":1,"why":"mobile"}]}' }; } };
+  const a = await fn.cachedJudge(ex, repos, { AI }, fetch, cache);
+  const b = await fn.cachedJudge(ex, repos, { AI }, fetch, cache);
+  assert.strictEqual(calls, 1, "second example tap is served from cache"); assert.deepStrictEqual(a.body, b.body); assert.ok(b.cached);
+  // different candidate list -> different key -> fresh check
+  await fn.cachedJudge(ex, repos.slice(0, 2), { AI }, fetch, cache); assert.strictEqual(calls, 2);
+  // visitor text is never cached
+  store.clear(); calls = 0;
+  await fn.cachedJudge("my secret startup idea", repos, { AI }, fetch, cache);
+  await fn.cachedJudge("my secret startup idea", repos, { AI }, fetch, cache);
+  assert.strictEqual(calls, 2); assert.strictEqual(store.size, 0);
+  // failures are not cached; a broken cache never blocks the check
+  const bad = { run: async () => { throw new Error("boom"); } };
+  await fn.cachedJudge(ex, repos, { AI: bad }, fetch, cache); assert.strictEqual(store.size, 0);
+  const broken = { match: async () => { throw new Error("x"); }, put: async () => { throw new Error("x"); } };
+  assert.strictEqual((await fn.cachedJudge(ex, repos, { AI }, fetch, broken)).status, 200);
+  assert.strictEqual((await fn.cachedJudge(ex, repos, { AI }, fetch, undefined)).status, 200);
+  // the cache key never contains the text itself
+  const k = await fn.cacheKey(ex, repos); assert.ok(!k.url.includes("portfolio")); }
+console.log("example cache ok");
+
+// RS34c bot check: cross-site Origin refused; with TURNSTILE_SECRET a verified token is required before any model call
+{ const ok = '{"drop":[]}';
+  let aiCalls = 0; const AI = { run: async () => { aiCalls++; return { response: ok }; } };
+  const req = (headers = {}) => new Request("https://replore.pages.dev/api/relevance", { method: "POST",
+    headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify({ query: "q", repos }) });
+  // origin
+  assert.strictEqual((await fn.onRequestPost({ request: req({ Origin: "https://evil.example" }), env: { AI } })).status, 403);
+  assert.strictEqual((await fn.onRequestPost({ request: req({ Origin: "https://replore.pages.dev" }), env: { AI } })).status, 200);
+  assert.strictEqual((await fn.onRequestPost({ request: req({ Origin: "null" }), env: { AI } })).status, 403);
+  // Turnstile on
+  const tenv = { AI, TURNSTILE_SECRET: "ts-SECRET", TURNSTILE_SITE_KEY: "0xSITE" };
+  let sv = null;
+  const verifier = (success) => async (url, init) => {
+    if (url.includes("siteverify")) { sv = { url, form: init.body }; return new Response(JSON.stringify({ success, hostname: "replore.pages.dev" })); }
+    throw new Error("unexpected fetch " + url); };
+  aiCalls = 0;
+  let r = await fn.onRequestPost({ request: req(), env: tenv }, verifier(true));
+  assert.strictEqual(r.status, 403); assert.strictEqual((await r.json()).error, "bot_check_failed"); assert.strictEqual(aiCalls, 0, "no token -> no AI spend");
+  r = await fn.onRequestPost({ request: req({ "CF-Turnstile-Token": "bad" }), env: tenv }, verifier(false));
+  assert.strictEqual(r.status, 403); assert.strictEqual(aiCalls, 0);
+  r = await fn.onRequestPost({ request: req({ "CF-Turnstile-Token": "good", "CF-Connecting-IP": "203.0.113.9" }), env: tenv }, verifier(true));
+  assert.strictEqual(r.status, 200); assert.strictEqual(aiCalls, 1);
+  assert.strictEqual(sv.form.get("secret"), "ts-SECRET"); assert.strictEqual(sv.form.get("response"), "good"); assert.strictEqual(sv.form.get("remoteip"), "203.0.113.9");
+  assert.ok(!(await r.text()).includes("SECRET"));
+  // siteverify unreachable -> fail closed on spend
+  r = await fn.onRequestPost({ request: req({ "CF-Turnstile-Token": "good" }), env: tenv }, async () => { throw new TypeError("net"); });
+  assert.strictEqual(r.status, 403); assert.strictEqual(aiCalls, 1);
+  // GET returns only the public site key
+  const g = await (await fn.onRequestGet({ env: tenv })).text();
+  assert.deepStrictEqual(JSON.parse(g), { turnstile: "0xSITE" }); assert.ok(!g.includes("ts-SECRET"));
+  assert.deepStrictEqual(await (await fn.onRequestGet({ env: {} })).json(), { turnstile: null });
+}
+console.log("bot check ok");
+
+// second-review regressions (RS34b/RS34c)
+{ const AI = { run: async () => ({ response: '{"drop":[]}' }) };
+  const req = (headers = {}, ct = "application/json") => new Request("https://replore.pages.dev/api/relevance", { method: "POST",
+    headers: { "Content-Type": ct, ...headers }, body: JSON.stringify({ query: "q", repos }) });
+  // token issued for another hostname is refused
+  const other = async () => new Response(JSON.stringify({ success: true, hostname: "evil.example" }));
+  assert.strictEqual((await fn.onRequestPost({ request: req({ "CF-Turnstile-Token": "t" }), env: { AI, TURNSTILE_SECRET: "s" } }, other)).status, 403);
+  // config is never cached (switching Turnstile on takes effect at once)
+  assert.strictEqual((await fn.onRequestGet({ env: {} })).headers.get("Cache-Control"), "no-store");
+  // MIME parsed strictly: text/plain;charset=application/json (form-POST trick) is refused
+  assert.strictEqual((await fn.onRequestPost({ request: req({}, "text/plain; charset=application/json"), env: { AI } })).status, 415);
+  assert.strictEqual((await fn.onRequestPost({ request: req({}, "application/json; charset=utf-8"), env: { AI } })).status, 200);
+  // only the first provider's answer is cached; key lives on the site's own origin; flags never leave the function
+  const store = new Map();
+  const cache = { match: async k => store.has(k.url) ? new Response(store.get(k.url)) : undefined, put: async (k, r) => { store.set(k.url, await r.text()); } };
+  const ex = fn.EXAMPLE_QUERIES[1];
+  const down = { run: async () => { throw new Error("used up your daily free allocation of 10,000 neurons"); } };
+  await fn.cachedJudge(ex, repos, { AI: down, LLM_API_KEY: "k" }, fakeLLM('{"drop":[]}'), cache, "https://replore.pages.dev");
+  assert.strictEqual(store.size, 0, "fallback answer is not cached");
+  await fn.cachedJudge(ex, repos, { AI }, fetch, cache, "https://replore.pages.dev");
+  assert.ok([...store.keys()][0].startsWith("https://replore.pages.dev/__relevance-cache/v1/"));
+  const r = await fn.onRequestPost({ request: req(), env: { AI } }); const body = await r.json();
+  assert.ok(!("first" in body) && !("cached" in body)); }
+console.log("second review regressions ok");
+
+// RS34 diagnostics: specific codes, never provider message text
+{ const thrower = m => ({ AI: { run: async () => { throw new Error(m); } } });
+  assert.strictEqual((await fn.judgeWorkersAI("q", repos, thrower("AiError: 5007: No such model @cf/x secret-ish text"))).error, "wai_error_5007");
+  assert.strictEqual((await fn.judgeWorkersAI("q", repos, thrower("weird failure"))).error, "wai_error");
+  assert.strictEqual((await fn.judgeWorkersAI("q", repos, { AI: { run: () => new Promise(() => {}) } }, 30)).error, "wai_timeout");
+  assert.strictEqual((await fn.judgeWorkersAI("q", repos, { AI: { run: async () => ({ response: "nope" }) } })).error, "wai_unparseable");
+  const r = await post({ query: "q", repos }, thrower("AiError: 5007: No such model @cf/x"));
+  const t = await r.text(); assert.ok(!t.includes("No such model")); }
+console.log("diagnostic codes ok");
+
+// live regression: Workers AI retired the default model (5028) -> next model in the list answers
+{ const seen = [];
+  const AI = { run: async (model) => { seen.push(model);
+    if (model === "@cf/meta/llama-3.1-8b-instruct-fp8") throw new Error("AiError: 5028: model deprecated");
+    return { response: '{"drop":[]}' }; } };
+  const out = await fn.judgeWorkersAI("q", repos, { AI });
+  assert.strictEqual(out.status, 200); assert.deepStrictEqual(seen, fn.WAI_MODELS);
+  // other errors don't burn a second model
+  seen.length = 0;
+  const AI2 = { run: async (m) => { seen.push(m); throw new Error("AiError: 3010: bad input"); } };
+  assert.strictEqual((await fn.judgeWorkersAI("q", repos, { AI: AI2 })).error, "wai_error_3010"); assert.strictEqual(seen.length, 1);
+  // env override, comma-separated
+  seen.length = 0;
+  await fn.judgeWorkersAI("q", repos, { AI, WORKERS_AI_MODEL: "@cf/a, @cf/b" }); assert.deepStrictEqual(seen, ["@cf/a"]); }
+console.log("model fallback ok");

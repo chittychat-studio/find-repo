@@ -13,7 +13,7 @@ global.window = global;
 const s = {};
 new Function("document", "localStorage",
   code + "; this.keywordQueries=keywordQueries; this.rankByFit=rankByFit; this.fitScore=fitScore; this.whyRelevant=whyRelevant; this.esc=esc; this.lu=lu; this.freeText=freeText;" +
-  " this.keep=keep; this.harmful=harmful; this.harmfulRepo=harmfulRepo; this.prdFeatures=prdFeatures;").call(s, document, global.localStorage || {getItem:()=>null,setItem(){},removeItem(){}});
+  " this.keep=keep; this.harmful=harmful; this.harmfulRepo=harmfulRepo; this.prdFeatures=prdFeatures; this.fmtWait=fmtWait; this.gateLine=gateLine;").call(s, document, global.localStorage || {getItem:()=>null,setItem(){},removeItem(){}});
 
 // RS16: iOS excludes macOS
 // RS16: expansions are specific on-topic phrases, never a bare category (live regression: "website" -> "frontend framework"
@@ -94,3 +94,27 @@ const f = s.prdFeatures(prd);
 assert.ok(f.length >= 2 && f.length <= 6, "features: " + f.length);
 assert.ok(f.some(x => x.includes("authentication")) && f.some(x => x.includes("payment")), f.join(" | "));
 console.log("prd ok:", f.join(" | "));
+
+// RS34 limit note: wait wording (rounded up, never 0, capped at 24 h) and the three failure lines
+{ const w = s.fmtWait;
+  assert.strictEqual(w(0), "a minute"); assert.strictEqual(w(NaN), "a minute"); assert.strictEqual(w(-5), "a minute");
+  assert.strictEqual(w(60), "a minute"); assert.strictEqual(w(61), "2 minutes"); assert.strictEqual(w(3540), "59 minutes");
+  assert.strictEqual(w(3600), "1 hour"); assert.strictEqual(w(3660), "1 hour 1 minute"); assert.strictEqual(w(19200), "5 hours 20 minutes");
+  assert.strictEqual(w(1e12), "24 hours");
+  const g = s.gateLine;
+  assert.match(g({ok:false,error:"llm_daily_limit",resetsIn:19200}), /gate-wait.*used up.*They reset in 5 hours 20 minutes\./);
+  assert.match(g({ok:false,error:"llm_rate_limited",resetsIn:20}), /gate-wait.*busy right now.*Try again in a minute\./);
+  assert.match(g({ok:false,error:"llm_error"}), /Couldn.t check relevance/);
+  assert.match(g({ok:false,error:"wai_error_5007"}), /\(code: wai_error_5007\)/);
+  assert.match(g({ok:false,error:"<img src=x>"}), /\(code: imgsrcx\)/);
+  assert.ok(!/gate-wait/.test(g({ok:false,error:"llm_error"})));
+  assert.strictEqual(g(null), "");
+  console.log("limit note ok"); }
+
+// RS34b: the function's cached example list is exactly the page's quick-pick texts
+{ const src = fs.readFileSync(path.join(__dirname, "..", "functions", "api", "relevance.js"), "utf8");
+  const block = src.match(/EXAMPLE_QUERIES = \[([\s\S]*?)\];/)[1];
+  const fnList = [...block.matchAll(/"((?:[^"\\]|\\.)*)"/g)].map(m => m[1]);
+  const pageList = [...html.match(/var EXAMPLES=\[([\s\S]*?)\];/)[1].matchAll(/text:"((?:[^"\\]|\\.)*)"/g)].map(m => m[1]);
+  assert.deepStrictEqual(fnList, pageList);
+  console.log("example list in sync"); }

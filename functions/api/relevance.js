@@ -1,6 +1,6 @@
 // SPEC RS34 — web relevance gate. Cloudflare Pages Function: POST /api/relevance
-// Asks an OpenAI-compatible LLM which candidate repos do NOT fit what the user is building.
-// The key lives only here (env.LLM_API_KEY, a Pages secret) and is never sent to the browser (RS8).
+// Asks an LLM (Cloudflare Workers AI, then an OpenAI-compatible provider as fallback — RS34a) which candidate repos do NOT fit what the user is building.
+// The key lives only here (env.LLM_API_KEY, a Pages secret; Workers AI needs none) and is never sent to the browser (RS8).
 // Stores nothing and logs no request content (RS33). Fails open: any problem -> an error status, and the page
 // shows its normal keyword results with a note (never a blank page, never invented repos — RS7).
 
@@ -48,7 +48,9 @@ export function buildMessages(query, repos) {
 // Parse the model's reply; anything malformed is ignored (keep everything) rather than trusted.
 export function parseDrops(text, n) {
   let obj;
-  try { obj = JSON.parse(String(text).replace(/^```(?:json)?\s*|\s*```$/g, "")); } catch { return null; }
+  const t = String(text), a = t.indexOf("{"), b = t.lastIndexOf("}");   // small models often wrap JSON in prose
+  if (a < 0 || b < a) return null;
+  try { obj = JSON.parse(t.slice(a, b + 1)); } catch { return null; }
   if (!obj || !Array.isArray(obj.drop)) return null;
   const seen = new Set(), drop = [];
   for (const d of obj.drop) {
@@ -59,46 +61,201 @@ export function parseDrops(text, n) {
   return drop;
 }
 
-export async function judge(query, repos, env, fetchImpl = fetch) {
+// RS34: classify a provider limit. Daily allowance used up -> resets at the provider's retry-after, else next
+// 00:00 UTC (Workers AI / Groq daily quotas reset then). Short per-minute limits -> "busy, try again shortly".
+export function secondsToUtcMidnight(now = Date.now()) {
+  const d = new Date(now); return Math.max(60, Math.ceil((Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1) - now) / 1000));
+}
+const DAILY = /per day|daily|tokens per day|requests per day|\bTPD\b|\bRPD\b|neurons|free allocation/i;
+export function classifyLimit(status, text, retryAfter, now = Date.now()) {
+  const dailyWords = DAILY.test(text);
+  if (status !== 429 && !dailyWords) return null;
+  const daily = dailyWords || (retryAfter !== null && retryAfter > 600);
+  if (!daily) return { error: "llm_rate_limited", resetsInSec: Math.min(retryAfter || 60, 600) };
+  return { error: "llm_daily_limit", resetsInSec: Math.min(retryAfter && retryAfter > 600 ? retryAfter : secondsToUtcMidnight(now), 86400) };
+}
+export async function limitInfo(res, now = Date.now()) {
+  let text = ""; try { text = (await res.text()).slice(0, 2000); } catch {}
+  const ra = Number(res.headers.get("retry-after"));
+  return classifyLimit(res.status, text, Number.isFinite(ra) && ra > 0 ? Math.ceil(ra) : null, now);
+}
+
+export async function judge(query, repos, env, fetchImpl = fetch, ms = TIMEOUT_MS) {
   const base = String(env.LLM_BASE_URL || "https://api.groq.com/openai/v1").replace(/\/+$/, "");
   const model = env.LLM_MODEL || "llama-3.1-8b-instant";
   const payload = { model, messages: buildMessages(query, repos), temperature: 0, max_tokens: 900 };
   if (env.LLM_JSON_MODE !== "0") payload.response_format = { type: "json_object" };
-  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), TIMEOUT_MS);
-  let res;
-  try {
-    res = await fetchImpl(`${base}/chat/completions`, {
-      method: "POST", signal: ctl.signal,
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${env.LLM_API_KEY}` },
-      body: JSON.stringify(payload),
-    });
-  } catch (e) {
-    return { status: e && e.name === "AbortError" ? 504 : 502, error: "llm_unreachable" };
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), ms);
+  let res, data;
+  try {   // the timer stays armed until the body is read, so a stalled body can't outlast the budget
+    try {
+      res = await fetchImpl(`${base}/chat/completions`, {
+        method: "POST", signal: ctl.signal,
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${env.LLM_API_KEY}` },
+        body: JSON.stringify(payload),
+      });
+    } catch (e) {
+      return e && e.name === "AbortError" ? { status: 504, error: "llm_timeout" } : { status: 502, error: "llm_unreachable" };
+    }
+    if (!res.ok) {
+      const lim = await limitInfo(res);
+      if (lim) return { status: 503, error: lim.error, resetsInSec: lim.resetsInSec };
+      return { status: 502, error: "llm_error" };
+    }
+    try { data = await res.json(); } catch { return { status: 502, error: "llm_bad_response" }; }
   } finally { clearTimeout(timer); }
-  if (res.status === 429) return { status: 503, error: "llm_rate_limited" };
-  if (!res.ok) return { status: 502, error: "llm_error" };
-  let data; try { data = await res.json(); } catch { return { status: 502, error: "llm_bad_response" }; }
   const text = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
   const drop = parseDrops(text, repos.length);
   if (!drop) return { status: 502, error: "llm_unparseable" };
   return { status: 200, body: { drop, checked: repos.length } };
 }
 
+// RS34a: Cloudflare Workers AI through the Pages AI binding (no key) — tried first. Same prompt and parse rules as judge().
+const WAI_CAPACITY = /capacity|too many requests|rate limit/i;
+// Cloudflare retires models (live: 5028 for @cf/meta/llama-3.1-8b-instruct), so a model that is gone (5007 no such
+// model, 5028 retired) falls through to the next one. WORKERS_AI_MODEL may list several, comma-separated.
+export const WAI_MODELS = ["@cf/meta/llama-3.1-8b-instruct-fp8", "@cf/meta/llama-3.3-70b-instruct-fp8-fast"];
+const MODEL_GONE = /^wai_error_(5007|5028)$/;
+export async function judgeWorkersAI(query, repos, env, ms = TIMEOUT_MS) {
+  const models = env.WORKERS_AI_MODEL ? String(env.WORKERS_AI_MODEL).split(",").map(s => s.trim()).filter(Boolean) : WAI_MODELS;
+  const end = Date.now() + ms;
+  let out;
+  for (const model of models) {
+    const left = end - Date.now();
+    if (left < 500) break;
+    out = await runWorkersAI(model, query, repos, env, left);
+    if (!MODEL_GONE.test(out.error || "")) return out;
+  }
+  return out || { status: 504, error: "wai_timeout" };
+}
+async function runWorkersAI(model, query, repos, env, ms) {
+  let timer, out;
+  try {
+    out = await Promise.race([
+      env.AI.run(model, { messages: buildMessages(query, repos), temperature: 0, max_tokens: 900 }),
+      new Promise((_, rej) => { timer = setTimeout(() => rej(Object.assign(new Error("timeout"), { name: "AbortError" })), ms); }),
+    ]);
+  } catch (e) {
+    if (e && e.name === "AbortError") return { status: 504, error: "wai_timeout" };
+    const msg = String((e && e.message) || "").slice(0, 2000);
+    const lim = classifyLimit(WAI_CAPACITY.test(msg) ? 429 : 0, msg, null);
+    if (lim) return { status: 503, error: lim.error, resetsInSec: lim.resetsInSec };
+    const code = (msg.match(/\b(\d{4})\b/) || [])[1];   // Workers AI numeric error code only — never the message text
+    return { status: 502, error: code ? "wai_error_" + code : "wai_error" };
+  } finally { clearTimeout(timer); }
+  const r = out && out.response;
+  const drop = parseDrops(typeof r === "string" ? r : JSON.stringify(r), repos.length);
+  if (!drop) return { status: 502, error: "wai_unparseable" };
+  return { status: 200, body: { drop, checked: repos.length } };
+}
+
+// RS34a: try each configured provider in order within one time budget. A limit is reported only when every
+// provider failed: "busy" if any hit a short limit, else "used up" with the soonest reset.
+export async function judgeChain(query, repos, env, fetchImpl = fetch, budgetMs = TIMEOUT_MS) {
+  const steps = [];
+  if (env.AI && typeof env.AI.run === "function") steps.push(ms => judgeWorkersAI(query, repos, env, ms));
+  if (env.LLM_API_KEY) steps.push(ms => judge(query, repos, env, fetchImpl, ms));
+  if (!steps.length) return { status: 503, error: "not_configured" };
+  const end = Date.now() + budgetMs, fails = [];
+  for (let k = 0; k < steps.length; k++) {
+    const left = end - Date.now();
+    if (left < 1000) break;
+    const out = await steps[k](k < steps.length - 1 ? Math.min(left, Math.round(budgetMs * 0.6)) : left);  // keep time for the fallback
+    if (out.status === 200) return k === 0 ? { ...out, first: true } : out;
+    fails.push(out);
+  }
+  if (!fails.length) return { status: 504, error: "llm_timeout" };
+  const limits = fails.filter(f => f.resetsInSec);
+  if (limits.length === fails.length) {
+    const busy = limits.filter(f => f.error === "llm_rate_limited");
+    const pick = busy.length ? busy : limits;
+    return { status: 503, error: pick[0].error, resetsInSec: Math.min(...pick.map(f => f.resetsInSec)) };
+  }
+  return fails.find(f => !f.resetsInSec);
+}
+
+// RS34b: answers for the built-in example searches are cached at Cloudflare's edge for a day, so repeat visitors
+// tapping the same quick pick don't spend AI allowance. Only these fixed texts are cached — never what a visitor
+// types — so nothing a user writes is stored. Must match EXAMPLES in web/index.html (tested).
+export const EXAMPLE_QUERIES = [
+  "a portfolio website with smooth scroll animations",
+  "landing page for my SaaS in Next.js, I'll sell it",
+  "my first iPhone app, a habit tracker",
+  "a diet and calorie tracking app",
+  "a chatbot that answers questions from my PDFs, Python",
+  "dashboard to show my sales spreadsheet as charts",
+  "a simple 2D browser game engine for beginners",
+  "offline maps for my trip planner app",
+  "learn web security by hacking a practice app",
+  "generate PowerPoint decks from my notes",
+];
+const EXAMPLE_SET = new Set(EXAMPLE_QUERIES);
+const CACHE_TTL = 86400;
+export async function cacheKey(query, repos, origin = "https://replore.pages.dev") {
+  const data = new TextEncoder().encode(JSON.stringify([1, query, repos.map(r => [r.name, r.description || "", r.topics || []])]));
+  const hex = [...new Uint8Array(await crypto.subtle.digest("SHA-256", data))].map(b => b.toString(16).padStart(2, "0")).join("");
+  return new Request(`${origin}/__relevance-cache/v1/${hex}`);   // own origin: the Cache API is scoped to the zone
+}
+export async function cachedJudge(query, repos, env, fetchImpl = fetch, cache = globalThis.caches && globalThis.caches.default, origin) {
+  const usable = cache && EXAMPLE_SET.has(query);
+  let key;
+  if (usable) {
+    try { key = await cacheKey(query, repos, origin); const hit = await cache.match(key); if (hit) return { status: 200, body: await hit.json(), cached: true }; }
+    catch { key = null; }   // a cache problem never blocks the check
+  }
+  const out = await judgeChain(query, repos, env, fetchImpl);
+  if (usable && key && out.status === 200 && out.first) {   // cache only the primary provider's answer
+    try { await cache.put(key, new Response(JSON.stringify(out.body), { headers: { "Content-Type": "application/json", "Cache-Control": `max-age=${CACHE_TTL}` } })); } catch {}
+  }
+  return out;
+}
+
 const json = (status, obj) => new Response(JSON.stringify(obj), {
   status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" },
 });
 
-export async function onRequestPost({ request, env }) {
-  if (!env.LLM_API_KEY) return json(503, { error: "not_configured" });
+// RS34c: refuse cross-site callers, then (when configured) require a verified Cloudflare Turnstile token before any
+// model call. Fail closed on spend: if siteverify can't be reached, the AI isn't called.
+export function sameOrigin(request) {
+  const o = request.headers.get("Origin");
+  if (!o) return true;   // non-browser callers send none; the Turnstile check below is what stops scripts
+  try { return new URL(o).host === new URL(request.url).host; } catch { return false; }
+}
+export async function verifyTurnstile(request, env, fetchImpl = fetch) {
+  if (!env.TURNSTILE_SECRET) return true;
+  const token = request.headers.get("CF-Turnstile-Token") || "";
+  if (!token || token.length > 2048) return false;
+  const form = new FormData();
+  form.append("secret", env.TURNSTILE_SECRET); form.append("response", token);
+  const ip = request.headers.get("CF-Connecting-IP"); if (ip) form.append("remoteip", ip);
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 3000);
+  try {
+    const res = await fetchImpl("https://challenges.cloudflare.com/turnstile/v0/siteverify", { method: "POST", body: form, signal: ctl.signal });
+    const j = await res.json();
+    return !!(j && j.success === true && j.hostname === new URL(request.url).hostname);   // token issued for this site
+  } catch { return false; } finally { clearTimeout(timer); }
+}
+
+export async function onRequestPost({ request, env }, fetchImpl = fetch) {
+  if (!env.LLM_API_KEY && !(env.AI && typeof env.AI.run === "function")) return json(503, { error: "not_configured" });
+  if (!sameOrigin(request)) return json(403, { error: "bad_origin" });
   const ct = request.headers.get("Content-Type") || "";
-  if (!ct.includes("application/json")) return json(415, { error: "json_only" });
+  if (ct.split(";")[0].trim().toLowerCase() !== "application/json") return json(415, { error: "json_only" });
   const raw = await request.text();
   if (raw.length > MAX_BODY) return json(413, { error: "too_large" });
   let body; try { body = JSON.parse(raw); } catch { return json(400, { error: "invalid_json" }); }
   const bad = validate(body);
   if (bad) return json(400, { error: bad });
-  const out = await judge(body.query, body.repos, env);
-  return out.status === 200 ? json(200, out.body) : json(out.status, { error: out.error });
+  if (!(await verifyTurnstile(request, env, fetchImpl))) return json(403, { error: "bot_check_failed" });
+  const out = await cachedJudge(body.query, body.repos, env, fetchImpl, undefined, new URL(request.url).origin);
+  return out.status === 200 ? json(200, out.body)   // body only: internal flags (first, cached) never leave
+    : json(out.status, out.resetsInSec ? { error: out.error, resetsInSec: out.resetsInSec } : { error: out.error });
 }
 
+// RS34c: the page asks which bot check to load (the site key is public by design; the secret never leaves here)
+export async function onRequestGet({ env }) {
+  return new Response(JSON.stringify({ turnstile: env.TURNSTILE_SITE_KEY || null }), {
+    headers: { "Content-Type": "application/json", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" },
+  });
+}
 export async function onRequest() { return json(405, { error: "post_only" }); }

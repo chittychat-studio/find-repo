@@ -1,2 +1,7 @@
 name = "replore"
 pages_build_output_dir = "web"
+
+# RS34a: Workers AI runs the relevance check first (no key); Groq (LLM_API_KEY) is the fallback. On the Workers Free plan it stops at the daily
+# free allocation instead of billing; on Workers Paid, usage past the allocation is billed.
+[ai]
+binding = "AI"

@@ -62,10 +62,20 @@ the same filters, ranking and license labels as the plugin. The searches are key
 described, and hides them (with a "show them" link). If the check is unavailable or over its free limit, you get the
 keyword results with a note. AI-written searches and the feature-by-feature PRD mode live in the plugin.
 
-**Turning the relevance check on (maintainer, one-time):** in Cloudflare → your Pages project → Settings → Variables
-and Secrets, add a **secret** `LLM_API_KEY` (e.g. a free Groq API key from console.groq.com) and redeploy. Optional:
-`LLM_BASE_URL` (any OpenAI-compatible endpoint; default Groq) and `LLM_MODEL` (default `llama-3.1-8b-instant`). Without
-the key the page works exactly as before. Before switching provider, check its data-use terms and update `PRIVACY.md`.
+**How the relevance check runs (maintainer, SPEC RS34a):** `wrangler.toml` binds Cloudflare Workers AI as `AI`, so
+the check works on deploy with no key (optional variable `WORKERS_AI_MODEL`, comma-separated; default `@cf/meta/llama-3.1-8b-instruct-fp8`, then `@cf/meta/llama-3.3-70b-instruct-fp8-fast` if Cloudflare has retired the first).
+Keep the account on the Workers **Free** plan if you want it to stop at the daily free allocation rather than bill.
+**Optional fallback** for when Workers AI is over its allocation or failing: in Cloudflare → your Pages project →
+Settings → Variables and Secrets, add a **secret** `LLM_API_KEY` (e.g. a free Groq API key from console.groq.com) and
+redeploy; optional `LLM_BASE_URL` (any OpenAI-compatible endpoint; default Groq) and `LLM_MODEL` (default
+`llama-3.1-8b-instant`). With neither the binding nor the key, the page shows plain keyword results with no note.
+**Bot check (SPEC RS34c, recommended):** in Cloudflare → Turnstile, add a widget for your site's hostname
+(Invisible or Managed), then in the Pages project add the variable `TURNSTILE_SITE_KEY` (public) and the **secret**
+`TURNSTILE_SECRET`, and redeploy. Every AI check then needs a fresh Turnstile token. Also add a rate-limiting rule
+(Security → WAF → Rate limiting rules) on the path `/api/relevance`, per IP. On the Free plan, the worst that
+abuse can do is use up the day's allowance, never bill you.
+Before adding or switching a provider, check its data-use terms (free tiers intended for prototyping, such as GitHub
+Models, don't qualify) and update `PRIVACY.md`.
 
 ## Install (Claude Code)
 
@@ -170,7 +180,7 @@ python3 -m pytest
 
 No account, no database, no analytics, nothing stored: the makers of Replore never keep your ideas or searches.
 Search words go to GitHub to run the search; on the web page they also pass through a small relevance check to an AI
-provider (Groq) that hides off-topic repos. Fonts and scripts are served from the site itself. The plugin never uses
+provider (Cloudflare Workers AI, with Groq as fallback) that hides off-topic repos. Fonts and scripts are served from the site itself. The plugin never uses
 the relevance check. Details — including what the web page keeps in your browser and the plugin's optional,
 off-by-default local safety log — are in [`PRIVACY.md`](PRIVACY.md).
 

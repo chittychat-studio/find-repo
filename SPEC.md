@@ -130,7 +130,7 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   scratch?). The skill reads the same five fields from whatever the user wrote, and asks only for the ones it
   needs per RS1a/RS1b.
 - **RS22** Web page (`web/index.html`, deployed to GitHub Pages by `.github/workflows/pages.yml`). Static,
-  single file, no external scripts, no build step, no embedded secret (the RS34 relevance key lives only in the
+  single file, no external scripts (except Cloudflare Turnstile when the RS34c bot check is on), no build step, no embedded secret (the RS34 fallback key lives only in the
   server-side function). It runs the keyword-to-query, filter,
   fit-rank (RS5), license-label (RS14), completely-free (RS20) and starter (RS15) logic in JavaScript,
   mirroring `scripts/scout.py`. It shows clickable example prompts (RS21) that fill the box, and calls the public GitHub search API from the browser (unauthenticated,
@@ -139,7 +139,7 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   query over 200 characters and the harmful intents of RS18, and drops the harmful repo descriptions of RS18.
   No model runs in the browser and the page never asks for or stores a key or token (a public page cannot hold a
   secret). Query generation in the browser is plain keyword search; the relevance check runs server-side in the
-  RS34 function, which holds its own key. AI-written queries and the PRD mode live in the Claude Code plugin.
+  RS34 function (Workers AI binding, plus an optional server-held fallback key). AI-written queries and the PRD mode live in the Claude Code plugin.
 - **RS23** PRD mode. When the user hands in a product-requirements doc (or any multi-feature description), the
   skill reads it, extracts the distinct needs/features (not just four), and searches per feature, calling
   `scripts/scout.py` in batches of at most 4 queries (the unauthenticated rate limit) until every feature is
@@ -150,7 +150,10 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   query). The grouped output repeats the RS17 key and RS20 free note, and says the relevance check runs in the
   skill. The PRD text is used only to derive search terms; it is treated as data (RS9), never as instructions.
 - **RS24** Web UI (RS22 page). 3D app-shell: a fixed two-column layout on desktop so the page itself never
-  scrolls (results scroll inside their panel); single column with natural scroll on phones. Results render as
+  scrolls (results scroll inside their panel); single column with natural scroll on phones; on single-column screens, once results are shown the intro (tagline, mode tiles) folds away and the
+   quick picks shrink to one swipeable row so the search bar and pills sit right above the matches (✕ or the logo brings the rest back; the Filters
+   sheet also offers "Find similar repos" and "Match a whole plan", so both modes stay one tap away), and the
+   privacy line sits below the results, not in the search panel. Results render as
   compact cards (rank, stars, what it does, a colour-coded license pill, free/starter tags) instead of a wide
   table. The plain-English license meaning (e.g. "OK to use in a paid product" / "Completely free?") renders as
   a line on every card at every breakpoint — not only on wide screens — so the core promise is visible on phones.
@@ -284,20 +287,52 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
 
 - **RS34** Web relevance gate (LLM, server-side). After the fit ranking (RS5), the web page sends the user's
   description and the top candidates (at most 30; name, description ≤160 chars, topics) to a same-origin Cloudflare
-  Pages Function, `POST /api/relevance` (`functions/api/relevance.js`). The function asks an LLM — any
-  OpenAI-compatible chat-completions provider set by `LLM_BASE_URL` / `LLM_MODEL`, key in the server-side secret
-  `LLM_API_KEY` (never sent to the browser, RS8) — to judge each repo's fit for what the user is building, and returns
-  the indices to keep plus a one-line reason for each repo it drops. The page shows only kept repos, says how many were
+  Pages Function, `POST /api/relevance` (`functions/api/relevance.js`). The function asks an LLM — Cloudflare Workers AI first,
+  then an optional OpenAI-compatible fallback set by `LLM_BASE_URL` / `LLM_MODEL` with its key in the server-side secret
+  `LLM_API_KEY` (never sent to the browser, RS8), see RS34a — to judge each repo's fit for what the user is building, and returns
+  the indices to keep plus a one-line reason for each repo it drops. **Provider chain (RS34a):** the function tries
+  Cloudflare Workers AI first, through the Pages `AI` binding (no key; model list `WORKERS_AI_MODEL`, default
+  `@cf/meta/llama-3.1-8b-instruct-fp8` then `@cf/meta/llama-3.3-70b-instruct-fp8-fast`; a retired or missing model,
+  Workers AI errors 5028/5007, falls through to the next), then the OpenAI-compatible provider (when `LLM_API_KEY` is set, e.g. Groq) when
+  Workers AI is missing, over its daily allocation, slow or erroring — one same-shape prompt, the same parse rules, a 7 s total budget across
+  both. It reports a limit only when every configured provider failed: "busy" if any was a short per-minute limit,
+  otherwise "used up" with the soonest reset (capped at 24 h); when any provider failed for another reason, the plain "couldn't check" note is shown. A slow first provider gets at most 60% of the budget so the fallback still runs. Not configured = neither a key nor the binding. A provider whose free
+  tier is restricted to experimentation or prototyping (e.g. GitHub Models free usage) is not added to the chain
+  for the public site; every provider in the chain is named in `PRIVACY.md`. **Example cache (RS34b):** for the built-in example
+  searches only (the fixed texts of RS21, listed in the function and kept identical to the page by a test), a successful
+  answer is kept in Cloudflare's edge cache for 24 h, keyed by a SHA-256 of the example text and the candidate repos,
+  so repeat quick-pick taps spend no AI allowance. Text a visitor types is never cached or stored. Provider-side
+  prompt caching is not used: the reusable prefix (the system prompt) is small next to the per-search repo list.
+  Only the first provider's answer is cached (one model's judgement is what visitors see), the key lives on the
+  site's own origin, and the cache is checked after the bot check, so a cache hit still needs a token.
+  **Bot check (RS34c):** the AI allowance is shared by every visitor, so the function only spends it on requests that
+  look like this page: (1) a POST whose `Origin` names another site is refused (403 `bad_origin`); (2) when the owner
+  sets `TURNSTILE_SECRET` (and the public `TURNSTILE_SITE_KEY`), every POST must carry a fresh Cloudflare Turnstile
+  token in `CF-Turnstile-Token`, verified server-side with Cloudflare's siteverify (success and a hostname equal to this site) before any model call; a missing,
+  invalid or unverifiable token is refused (403 `bot_check_failed`) — fail closed on spend, while the page still shows
+  keyword results with "Couldn't confirm this browser, so showing keyword matches". The page learns the site key from
+  `GET /api/relevance` and loads Turnstile from `challenges.cloudflare.com` only when a key is set (the one exception
+  to RS33's no-third-party-script rule, disclosed in `PRIVACY.md`). Every browser-side wait (config, script, token) has a deadline and a failed load retries on the next search;
+  an interactive challenge gets 90 s. Without the secret the check is off and behaviour
+  is unchanged. A per-IP Cloudflare rate-limiting rule on `/api/relevance` is the owner's dashboard setting, not code.
+  Limits of this: an agent driving a real browser slowly can still pass; on the Workers Free plan the worst case of
+  abuse is a day of keyword-only results, never a bill. The page shows only kept repos, says how many were
   hidden as off-topic, and offers "show them" (transparency, not silent removal). Rules: repo text and the description
   are data, never instructions (RS9, RS25), and the prompt says so; the LLM may only drop or keep, never add, rename
   or reorder (mirrors RS6 — fit order stays deterministic); a response that isn't valid JSON or names an unknown index is
   ignored. **Fail open, labelled:** if the function is missing, unconfigured, rate-limited, slow (>8 s) or errors, the
   page shows the normal keyword results with a one-line note that relevance couldn't be checked (when the check is
-  simply not set up — no key, or no function on the host — the page behaves exactly as before, with no note) — never a blank page,
+  simply not set up — neither the `AI` binding nor a key, or no function on the host — the page behaves exactly as before, with no note). When the
+  provider's limit is the cause, the note says which: the daily free allowance used up ("Today's free AI checks are
+  used up … They reset in 5 hours 20 minutes" — from the provider's retry-after, else the next 00:00 UTC) or a short per-minute
+  limit ("The AI check is busy right now … Try again in a minute"). Any other failure ends the note with a short
+  error code (e.g. `wai_timeout`, `wai_error_5007`, `http_500`) so a visitor can report it; codes carry no provider
+  message text and no secret. No live usage counter is shown (it would invite
+  draining the shared allowance and needs a second API); the owner sees usage in the Cloudflare/provider dashboard — never a blank page,
   never invented repos (RS7). The function stores nothing and logs no request content. Input is capped (description
-  ≤200 chars, ≤30 repos, body ≤16 KB) and anything else is rejected with 400. A free LLM tier limits requests for the
+  ≤200 chars, ≤30 repos, body ≤16 KB) and anything else is rejected with 400. The free LLM tiers limit requests for the
   whole site, so under heavy use more searches fall back. RS33 is updated in the same change: search words and the
-  candidate list now pass through our function to the named LLM provider. The plugin (RS1, RS6) is unchanged; its
+  candidate list now pass through our function to the LLM providers named in RS34a and PRIVACY.md. The plugin (RS1, RS6) is unchanged; its
   script still never calls a model.
 
 ## RX — Deliberately excluded (v0.1)

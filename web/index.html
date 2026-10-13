@@ -110,6 +110,8 @@
 
   /* two clean mode tiles (like the reference's cards) */
   .modes{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  .fm-modes{display:flex;flex-direction:column;gap:8px;margin:4px 0 14px}
+  .fm-modes .mode-tile{width:100%;min-width:0}
   .mode-tile{display:inline-flex;align-items:center;gap:12px;text-align:left;background:var(--card);
     border:1px solid var(--line);border-radius:16px;padding:13px 18px;cursor:pointer;font:inherit;color:var(--ink);
     flex:1 1 0;min-width:0;max-width:360px;transition:border-color .18s,transform .12s,box-shadow .18s}
@@ -288,6 +290,16 @@
   .primary-cta:hover{transform:translateY(-1px);box-shadow:0 16px 30px -12px rgba(192,83,44,.9);text-decoration:none}
   @media (max-width:700px){ .prd-bar{left:12px;right:12px;transform:none;justify-content:space-between} }
   /* desktop = expanded format: wider cards that spell out the license meaning in full */
+  @media (max-width:999px){
+    body.has-results .hero .eyebrow, body.has-results .hero-title, body.has-results .hero .sub,
+    body.has-results .modes{display:none}
+    /* prompt pills stay, folded to one swipeable row */
+    body.has-results #quickpicks{flex-wrap:nowrap;justify-content:flex-start;overflow-x:auto;margin:10px 0 0;
+      padding:2px 0 6px;scrollbar-width:none;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity}
+    body.has-results #quickpicks::-webkit-scrollbar{display:none}
+    body.has-results #quickpicks .chip{flex:0 0 auto;white-space:nowrap;scroll-snap-align:start;font-size:14px;padding:9px 14px;min-height:40px}
+    body.has-results .hero{margin-bottom:6px}
+  }
   @media (min-width:1000px){
     .grid{grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
     .rcard{padding:16px}
@@ -297,7 +309,7 @@
   .group-h span{color:var(--muted);font-weight:500}
   .err{color:var(--warn);font-weight:600}
   .excl{font-size:11.5px;color:var(--muted);margin:14px 4px 4px}
-  .privacy-note{text-align:center;font-size:12.5px;color:var(--muted);margin:10px auto 0;max-width:620px;line-height:1.45}
+  .privacy-note{text-align:center;font-size:11.5px;color:var(--muted);margin:18px auto 8px;max-width:620px;line-height:1.45;opacity:.85}
   /* result-side filter chips + show-more */
   .res-filter{display:flex;flex-wrap:wrap;gap:8px;margin:0 4px 14px}
   .rfilter,.rsel{background:var(--offbg);border:1px solid var(--line);border-radius:999px;padding:7px 13px;font:inherit;
@@ -305,6 +317,8 @@
   .rfilter:hover,.rsel:hover{border-color:var(--accent);color:var(--accent-ink)}
   .rsel{margin-left:auto}
   .gate-note{font-size:12.5px;margin:2px 4px 12px}
+  .gate-code{opacity:.7;font-size:11px}
+  .ts-box:empty{display:none} .ts-box{margin:6px 0}
   .offtag{font-size:11.5px;font-weight:600;color:var(--warn);margin:0 0 6px}
   .rcard[data-off="1"]{opacity:.62}
   .rsel.on{border-color:var(--accent);color:var(--accent-ink)}
@@ -394,7 +408,7 @@
     .mode-tile{min-width:0;flex:1 1 100%}
     /* smaller chips so several prompt pills fit per row */
     .quickpicks{gap:6px}
-    .quickpicks .chip{font-size:11px;padding:5px 9px;line-height:1.3}
+    .quickpicks .chip{font-size:12.5px;padding:7px 11px;line-height:1.3}
     .demo-stage{height:210px}
     .demo-card .d{max-width:none}
 
@@ -460,15 +474,16 @@
       </div>
 
       <div id="quickpicks" class="quickpicks" aria-label="Quick examples to try"></div>
-      <p class="privacy-note">🔒 No account, no tracking, nothing stored. Your search goes to GitHub, and to an AI that checks
-        which repos fit — we don't keep either. <button type="button" class="link-btn" onclick="openModal('privacyModal')">Privacy</button></p>
 
       <div id="status" class="status"></div>
+      <div id="tsBox" class="ts-box"></div>
     </div>
   </section>
 
   <section class="out-wrap">
     <div id="out" class="results"></div>
+    <p class="privacy-note">🔒 Nothing you type is stored. Your search goes to GitHub and an AI fit-check; we keep neither.
+      <button type="button" class="link-btn" onclick="openModal('privacyModal')">Privacy</button></p>
   </section>
 </main>
 
@@ -501,6 +516,12 @@
 <div class="modal" id="filtersModal"><div class="sheet">
   <button class="x" data-close>&times;</button>
   <h2>Filters</h2>
+  <div class="fm-modes" aria-label="Other ways to search">
+    <button type="button" class="mode-tile" id="fmLike"><span class="mt-ico">✨</span>
+      <span class="mt-txt"><b>Find similar repos</b><small>A repo you like + a few words</small></span></button>
+    <label class="mode-tile" for="prd" id="fmPrd"><span class="mt-ico">📄</span>
+      <span class="mt-txt"><b>Match a whole plan</b><small>Upload a plan / PRD — read locally</small></span></label>
+  </div>
   <p class="mut">Narrow your search — all optional. These apply to your next search.</p>
   <div class="field"><label for="stackInput">Tech stack</label>
     <div class="ms" id="stackMS">
@@ -616,10 +637,16 @@
   <ul class="guide">
     <li><b>Your search words</b> go from your browser straight to <b>GitHub</b> (with your IP address) to run the search.</li>
     <li><b>To show only relevant repos</b>, your search words and the list of repos found go through our relevance check
-      to an AI provider (<b>Groq</b>), which judges which repos fit. We don't store or log them; Groq handles them under
-      <a href="https://groq.com" target="_blank" rel="noopener">its own terms</a>. If the check is unavailable you simply
+      to an AI provider (<b>Cloudflare Workers AI</b>, or <b>Groq</b> when that is unavailable or over its daily limit), which judges which repos fit.
+      We don't store or log them; each provider handles them under its own terms
+      (<a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Cloudflare</a>,
+      <a href="https://groq.com/privacy-policy/" target="_blank" rel="noopener">Groq</a>). If the check is unavailable you simply
       get the unfiltered keyword results.</li>
-    <li><b>When the page loads</b>, only Cloudflare (our host) sees your IP address — not what you search. Fonts and
+    <li><b>Bot check:</b> if we switch on Cloudflare Turnstile, your browser loads it from Cloudflare when you search, and
+      it checks that you're a person before the AI check runs. It usually needs no click. Cloudflare handles it under the
+      same <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">privacy policy</a>.</li>
+    <li><b>When the page loads</b>, only Cloudflare (our host) sees your IP address; loading the page doesn't reveal what
+      you search (the relevance check above does send your search words to Cloudflare). Fonts and
       scripts come from this site, not from Google or other CDNs. Searches are never put in the page address.</li>
     <li><b>On your device only:</b> your last search, results and filters, so a refresh brings them back. Tap <b>✕</b> in the
       search bar or the Replore logo to delete them.</li>
@@ -911,21 +938,78 @@ function watchMore(){ var s=document.querySelector("#out #resMore"); if(!s) retu
     for(var i=0;i<es.length;i++) if(es[i].isIntersecting){ revealMore(); break; } },{rootMargin:"0px 0px 400px 0px"});
   window.__moreObs.observe(s); }
 function initResultFilter(){ window.__resFilter="all"; window.__resLimit=10; window.__showOff=false; applyResultFilter(); watchMore(); checkMore(); }
+// RS34: "5 hours 20 minutes" / "12 minutes" / "a minute" — rounded up, never 0, never over 24 hours
+function fmtWait(sec){ sec=Math.min(86400,Math.max(60,Math.round(+sec||0))); var h=Math.floor(sec/3600), m=Math.ceil((sec%3600)/60);
+  if(m===60){ h++; m=0; } var hs=h+(h===1?" hour":" hours"), ms=m+(m===1?" minute":" minutes");
+  if(h) return m?hs+" "+ms:hs; return m<=1?"a minute":ms; }
 // RS34: one honest line about the AI relevance check
 function gateLine(g){ if(!g) return "";
-  if(!g.ok) return '<p class="gate-note mut">Couldn\u2019t check relevance right now \u2014 showing keyword matches, some may be off-topic.</p>';
+  if(!g.ok){
+    if(g.error==="llm_daily_limit") return '<p class="gate-note gate-wait mut">Today\u2019s free AI checks are used up \u2014 showing keyword matches, some may be off-topic. '+
+      'They reset in '+fmtWait(g.resetsIn)+'.</p>';
+    if(g.error==="llm_rate_limited") return '<p class="gate-note gate-wait mut">The AI check is busy right now \u2014 showing keyword matches, some may be off-topic. '+
+      'Try again in '+fmtWait(g.resetsIn||60)+'.</p>';
+    if(g.error==="bot_check_failed") return '<p class="gate-note mut">Couldn\u2019t confirm this browser, so showing keyword matches \u2014 some may be off-topic.</p>';
+    return '<p class="gate-note mut">Couldn\u2019t check relevance right now \u2014 showing keyword matches, some may be off-topic.'+
+      (g.error?' <span class="gate-code">(code: '+String(g.error).replace(/[^a-z0-9_]/gi,"").slice(0,40)+')</span>':'')+'</p>'; }
   if(!g.hidden) return '<p class="gate-note mut">🧠 AI checked these for fit.</p>';
   return '<p class="gate-note mut">🧠 AI hid '+g.hidden+' off-topic repo'+(g.hidden===1?'':'s')+'. '+
     '<button type="button" class="link-btn" id="showOff">Show them</button></p>'; }
-// RS34: ask the same-origin function which repos don't fit; null on any failure (fail open, labelled)
+// RS34: ask the same-origin function which repos don't fit; "off" when not set up, {fail} on any failure (fail open, labelled)
+// RS34c: Cloudflare Turnstile bot check, loaded from challenges.cloudflare.com only when the owner set a site key.
+// Resolves null = no bot check configured; "" = no token (the function then refuses and the page shows a note).
+// Every wait has a deadline so a stalled Cloudflare can never hang the search (RS7); a failed load is retried
+// on the next search; token requests are queued so each search gets its own single-use token.
+var __ts=null, __tsQ=Promise.resolve();
+function tsDeadline(p,ms,v){ return Promise.race([p,new Promise(function(ok){ setTimeout(function(){ ok(v); },ms); })]); }
+function loadTurnstile(){
+  if(!__ts) __ts=tsDeadline((async function(){
+      var c=await (await fetch("/api/relevance",{method:"GET",cache:"no-store"})).json();
+      if(!c||typeof c.turnstile!=="string"||!c.turnstile) return {off:true};
+      if(!window.turnstile) await new Promise(function(ok,no){ var s=document.createElement("script");
+        s.src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"; s.async=true; s.onload=ok; s.onerror=no;
+        document.head.appendChild(s); });
+      return window.turnstile?{key:c.turnstile,id:null}:null;
+    })().catch(function(){ return null; }),8000,null)
+    .then(function(cfg){ if(!cfg) __ts=null; return cfg; });   // null = failed: try again next search
+  return __ts;
+}
+function turnstileToken(){
+  return loadTurnstile().then(function(cfg){
+    if(cfg&&cfg.off) return null;
+    if(!cfg) return "";
+    var run=__tsQ.then(function(){ return new Promise(function(ok){
+      var done=false, t=null, st=document.getElementById("status");
+      function fin(tok){ if(done) return; done=true; clearTimeout(t); cfg.fin=cfg.arm=null; ok(tok||""); }
+      function arm(ms){ clearTimeout(t); t=setTimeout(function(){ fin(""); },ms); }
+      cfg.fin=fin; cfg.arm=arm; arm(8000);
+      try{
+        if(cfg.id==null) cfg.id=window.turnstile.render(document.getElementById("tsBox"),{sitekey:cfg.key,execution:"execute",
+          appearance:"interaction-only",
+          callback:function(tok){ cfg.fin&&cfg.fin(tok); },
+          "error-callback":function(){ cfg.fin&&cfg.fin(""); },
+          "before-interactive-callback":function(){ cfg.arm&&cfg.arm(90000);   // a person needs time to click
+            if(st) st.textContent="Quick check: please confirm you\u2019re human below."; }});
+        else window.turnstile.reset(cfg.id);   // tokens are single-use
+        window.turnstile.execute(cfg.id);
+      }catch(e){ fin(""); }
+    }); });
+    __tsQ=run.catch(function(){});
+    return run;
+  });
+}
 async function relevanceGate(query, repos){
+  var tok=await turnstileToken(), hdr={"Content-Type":"application/json"};
+  if(tok) hdr["CF-Turnstile-Token"]=tok;
   var ctl=window.AbortController?new AbortController():null, timer=ctl&&setTimeout(function(){ ctl.abort(); },8000);
-  try{ var res=await fetch("/api/relevance",{method:"POST",headers:{"Content-Type":"application/json"},signal:ctl&&ctl.signal,
-      body:JSON.stringify({query:String(query).slice(0,200),repos:repos.map(function(r){ return {name:r.name,description:(r.desc||"").slice(0,160),topics:r.topics||[]}; })})});
-    if(res.status===503||res.status===404||res.status===405||res.status===501){ var e=null; try{ e=(await res.json()).error; }catch(_){}
-      if(res.status!==503||e==="not_configured") return "off"; }   // check not set up (no key / no function): behave as before, no note
-    if(!res.ok) return null; var j=await res.json(); return Array.isArray(j.drop)?j.drop:null;
-  }catch(e){ return null; } finally{ if(timer) clearTimeout(timer); } }
+  try{ var res=await fetch("/api/relevance",{method:"POST",headers:hdr,signal:ctl&&ctl.signal,
+      body:JSON.stringify({query:String(query).slice(0,200),repos:repos.map(function(r){ return {name:r.name,description:(r.desc||"").slice(0,160),topics:(r.topics||[]).slice(0,8)}; })})});
+    if(!res.ok){ var er={}; try{ er=await res.json()||{}; }catch(_){}   // read the body once
+      if(res.status===404||res.status===405||res.status===501||(res.status===503&&er.error==="not_configured"))
+        return "off";   // check not set up (no key / no function): behave as before, no note
+      return {fail:true, error:er.error||("http_"+res.status), resetsInSec:+er.resetsInSec||0}; }   // RS34: say why, incl. when it resets
+    var j=await res.json(); return Array.isArray(j.drop)?j.drop:{fail:true,error:"bad_reply"};
+  }catch(e){ return {fail:true,error:e&&e.name==="AbortError"?"page_timeout":"network"}; } finally{ if(timer) clearTimeout(timer); } }
 
 // RS21: ready-made prompts the user can click to fill the box.
 var EXAMPLES=[
@@ -1144,8 +1228,9 @@ async function run(){
       var drops=await relevanceGate(like?(text+" (similar to "+like+")"):text, top.slice(0,30));
       if(gen!==window.__runGen) return;
       if(drops==="off"){ gate=null; }
+      else if(drops&&drops.fail){ gate={ok:false,error:drops.error,resetsIn:drops.resetsInSec}; }
       else if(drops){ top=top.slice(0,30); drops.forEach(function(d){ var r=top[d.i]; if(r){ r.off=1; r.offWhy=d.why; } });
-        gate={ok:true,hidden:drops.length}; } else gate={ok:false}; }
+        gate={ok:true,hidden:drops.length}; } }
     out.innerHTML=render(top,queries,excluded,ranked.length,qtok,heading,window.__likeNote||"",gate);
     animateCards(out); initResultFilter(); st.textContent=""; saveResults(); syncClearQ();
   }catch(e){ if(gen!==window.__runGen) return; st.textContent=""; out.innerHTML='<div class="panel"><p class="err">'+esc(e.message)+'</p></div>'; }
@@ -1225,6 +1310,9 @@ document.getElementById("pluginBtn").addEventListener("click",function(){ openMo
 // Filters chip and "Find similar repos" tile each open a popup window
 document.getElementById("optsBtn").addEventListener("click",function(){ openModal("filtersModal"); });
 document.getElementById("likeTile").addEventListener("click",function(){ openModal("likeModal"); });
+// RS24: the two search modes are also in Filters, so they stay reachable when the intro is folded away
+document.getElementById("fmLike").addEventListener("click",function(){ closeModals(); openModal("likeModal"); });
+document.getElementById("fmPrd").addEventListener("click",function(){ closeModals(); });   // the label opens the file picker
 // "Find similar →" in the modal runs the similar-repo search
 (function(){ var go=document.getElementById("likeGo"), like=document.getElementById("like");
   if(go) go.addEventListener("click",function(){ closeModals(); run(); });
@@ -1393,7 +1481,10 @@ function restoreResults(){
   if(d.minstars!=null) document.getElementById("minstars").value=d.minstars;
   if(d.starters!=null) document.getElementById("starters").value=d.starters;
   if(d.stack!=null) setStack(d.stack);
-  var out=document.getElementById("out"); cleanCards(out);   // ensure restored cards are visible even if an old cache baked in opacity:0
+  var out=document.getElementById("out");
+  [].forEach.call(out.querySelectorAll(".gate-wait"),function(n){   // RS34: a saved countdown would be stale
+    n.textContent="The AI check wasn\u2019t available for these results \u2014 some may be off-topic. Search again to re-check."; });
+  cleanCards(out);   // ensure restored cards are visible even if an old cache baked in opacity:0
   document.getElementById("status").textContent="Restored your last results — tap ✕ in the search bar to start over.";
   animateCards(out); initResultFilter(); syncClearQ();
   return true;
@@ -1416,7 +1507,9 @@ function resetAll(){
 }
 function syncClearQ(){ var x=document.getElementById("clearQ"); if(!x) return;
   x.hidden = !((document.getElementById("q").value||"").trim() || (document.getElementById("like").value||"").trim()
-    || document.querySelector("#out .rcard, #out .group-h, #out .err")); }   // results on screen also count
+    || document.querySelector("#out .rcard, #out .group-h, #out .err"));   // results on screen also count
+  // RS24: with results on a single-column screen, fold the intro so the search bar sits right above the matches
+  document.body.classList.toggle("has-results", !!document.querySelector("#out .rcard, #out .group-h")); }
 (function(){ var brand=document.getElementById("brandHome"), x=document.getElementById("clearQ");
   if(brand){ brand.addEventListener("click",resetAll);
     brand.addEventListener("keydown",function(e){ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); resetAll(); } }); }
