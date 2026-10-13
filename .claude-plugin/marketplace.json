@@ -6,7 +6,7 @@
     {
       "name": "replore",
       "source": "./",
-      "description": "Find the 10 most-starred open-source GitHub repos for a project you describe."
+      "description": "Find the open-source GitHub repos that best fit a project you describe — ranked by relevance, popularity, and license-freedom."
     }
   ]
 }

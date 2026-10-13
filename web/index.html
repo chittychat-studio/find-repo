@@ -257,7 +257,9 @@
   .t-good{background:var(--goodbg);color:var(--good)}
   .t-warn{background:var(--warnbg);color:var(--warn)}
   .t-star{background:var(--offbg);color:var(--accent-ink);font-weight:600}
-  .rcard .lfull{display:none}
+  /* plain-English license line — visible on every breakpoint (it's the core promise), not just desktop */
+  .rcard .lfull{display:block;font-size:11.5px;color:var(--muted);margin-top:8px;
+    border-top:1px dashed var(--line);padding-top:8px}
   .rcard .meta{font-size:11.5px;color:var(--muted);margin-top:8px}
   .rcard .pick{display:inline-flex;align-items:center;gap:7px;margin-top:10px;font-size:12.5px;font-weight:600;
     color:var(--accent-ink);cursor:pointer;user-select:none}
@@ -283,8 +285,6 @@
   @media (min-width:1000px){
     .grid{grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
     .rcard{padding:16px}
-    .rcard .lfull{display:block;font-size:11.5px;color:var(--muted);margin-top:8px;
-      border-top:1px dashed var(--line);padding-top:8px}
     .rcard .desc{-webkit-line-clamp:4}
   }
   .group-h{font-size:18px;font-weight:800;margin:18px 4px 8px;color:var(--accent-ink)}
@@ -406,12 +406,12 @@
 <main class="page">
   <section class="hero">
     <p class="eyebrow">✦ GitHub repo finder for vibe coders</p>
-    <h1 class="hero-title" id="heroTitle">Describe it.<br><em>Get repos that fit.</em></h1>
+    <h2 class="hero-title" id="heroTitle">Describe it.<br><em>Get repos that fit.</em></h2>
     <p class="sub">Popular, free to use, still maintained — so you stop scrolling GitHub and start shipping.</p>
 
     <div class="search">
       <div class="vibebar">
-        <span class="vb-ico" aria-hidden="true">+</span>
+        <span class="vb-ico" aria-hidden="true">✦</span>
         <textarea id="q" rows="1" placeholder="whats vibing?" aria-label="What are you building?"></textarea>
         <button id="optsBtn" class="vb-chip" type="button" aria-haspopup="dialog" title="Narrow by platform, stack, stars">⚙ Filters</button>
         <button id="go" class="go-btn" title="Find repos">Find <span class="arr">→</span></button>
@@ -424,7 +424,7 @@
         </button>
         <label class="mode-tile" for="prd">
           <span class="mt-ico">📄</span>
-          <span class="mt-txt"><b>Match a whole plan</b><small>Upload a PRD — read on your device</small></span>
+          <span class="mt-txt"><b>Match a whole plan</b><small>Upload a plan / PRD — read on your device; only short feature keywords are searched on GitHub</small></span>
         </label>
         <input id="prd" type="file" accept=".md,.markdown,.txt,.text,text/plain,text/markdown" hidden>
       </div>
@@ -444,20 +444,24 @@
 <div id="prdBar" class="prd-bar" hidden>
   <span id="prdCount" class="prd-count">0 selected</span>
   <button id="prdClear" class="link-btn">Clear</button>
-  <button id="prdGo" class="primary">Generate PRD →</button>
+  <button id="prdGo" class="primary">Generate plan →</button>
 </div>
 
 <!-- modals -->
 <div class="modal" id="prdModal"><div class="sheet">
   <button class="x" data-close>&times;</button>
-  <h2>Generate a PRD from your picks</h2>
-  <p class="mut">Replore doesn't write the PRD — your <b>own</b> Claude does, free and private. Copy this into Claude Code (with the Replore plugin) or paste it into Claude. It lists the repos you selected.</p>
+  <h2>Turn your picks into a build plan</h2>
+  <p class="mut">A build plan (a PRD — product requirements doc) your AI can code straight from. Replore doesn't
+    write it — your <b>own</b> Claude does, free and private. Copy the prompt below into Claude Code (with the
+    Replore plugin) or paste it into Claude. It lists the repos you selected.</p>
   <div class="prd-prompt">
     <pre class="cmd" id="prdPrompt" data-copy-ready="1" style="margin:0;max-height:240px;overflow:auto;white-space:pre-wrap;padding-right:46px"></pre>
     <button id="prdCopy" class="copy" title="Copy prompt" aria-label="Copy prompt">⧉</button>
   </div>
   <a id="prdOpen" class="primary-cta" href="#" target="_blank" rel="noopener">Open in Claude ↗</a>
-  <p class="mut" style="margin-top:10px"><b>Open in Claude</b> starts a new chat on your own claude.ai account with the prompt prefilled (unofficial link — if it doesn't fill, use Copy). New to the plugin? <button class="link-btn" onclick="openModal('pluginModal')">See setup</button>.</p>
+  <p class="mut" style="margin-top:10px"><b>Open in Claude</b> opens a new chat on your own claude.ai account
+    with the prompt ready to send. (If your browser doesn't pre-fill it, just tap the copy icon and paste.)
+    New to the plugin? <button class="link-btn" onclick="openModal('pluginModal')">See setup</button>.</p>
 </div></div>
 
 <div class="modal" id="filtersModal"><div class="sheet">
@@ -500,8 +504,9 @@
   <img src="tour.png" alt="The Replore page: describe your project, then get the open-source repos that fit"
     loading="lazy" style="width:100%;border:1px solid var(--line);border-radius:12px;margin:16px 0 4px">
   <p class="mut" style="margin:0">Describe your project, tap Find, and get the repos that fit — relevant, popular, free to use.</p>
-  <p class="mut" style="margin-top:12px"><b>Make a PRD:</b> tick the repos you like on the results, then tap <b>Generate PRD</b>.
-    Replore hands the picks to your <b>own</b> Claude (Copy prompt, or Open in Claude) — it writes the full PRD, free and private.</p>
+  <p class="mut" style="margin-top:12px"><b>Build a plan:</b> tick the repos you like on the results, then tap <b>Generate plan</b>.
+    Replore hands the picks to your <b>own</b> Claude (Copy, or Open in Claude), which writes a full build plan
+    (a PRD) you can code straight from — free and private.</p>
   <p class="mut" style="margin-top:12px">For AI-written searches, a relevance check, and a whole PRD read feature
     by feature, use the Claude Code plugin.</p>
 </div></div>
@@ -678,7 +683,7 @@ function whyRelevant(r, qtokens){
 function cardHtml(r,i,qtokens){
   var free=freeText(r.spdx), paid=lu(r.spdx);
   var paidTag=paid.indexOf("OK to use")===0?'t-good':'t-warn', freeTag=free==="Yes"?'t-good':'t-warn';
-  var paidShort=paid.indexOf("OK to use")===0?"Paid-use OK":(paid.indexOf("OK in a paid")===0?"Paid OK*":"Share code");
+  var paidShort=paid.indexOf("OK to use")===0?"Paid-use OK":(paid.indexOf("OK in a paid")===0?"Paid OK, see terms":"Share your code");
   return '<article class="rcard">'+
     (i!=null?'<span class="rank">#'+(i+1)+'</span>':'')+
     '<span class="stars">★ <span class="cnt" data-v="'+r.stars+'">'+kstars(r.stars)+'</span></span>'+
@@ -688,13 +693,13 @@ function cardHtml(r,i,qtokens){
     '<div class="tags">'+
       '<span class="tag '+paidTag+'" title="'+esc(paid)+'">'+paidShort+'</span>'+
       '<span class="tag '+freeTag+'" title="Completely free? '+esc(free)+'">Free '+(free==="Yes"?"✓":"⚠")+'</span>'+
-      (r.starter?'<span class="tag t-star">Starter</span>':'')+
-      '<span class="tag t-star">'+esc(r.spdx)+'</span>'+
+      (r.starter?'<span class="tag t-star" title="A ready-made template to start your project from">Starter</span>':'')+
+      '<span class="tag t-star" title="Its open-source license">License: '+esc(r.spdx)+'</span>'+
     '</div>'+
     '<div class="lfull">'+esc(paid)+' · Completely free? '+esc(free)+'</div>'+
     '<div class="meta">updated '+esc(r.pushed)+'</div>'+
     '<label class="pick"><input type="checkbox" class="pick-cb" data-name="'+esc(r.name)+'" data-url="'+esc(r.url)+
-      '" data-desc="'+esc(r.desc||"")+'"> Add to PRD</label>'+
+      '" data-desc="'+esc(r.desc||"")+'"> ＋ Add to plan</label>'+
   '</article>';
 }
 function animateCards(container){
@@ -897,6 +902,7 @@ function altQueries(meta, platform){
   return qs.slice(0,MAX_QUERIES).map(function(q){return (q+ex).trim();}); }
 
 async function run(){
+  if(window.__busy) return;                 // ignore re-entry while a search is in flight (rapid quick-pick clicks)
   var text=document.getElementById("q").value.trim();
   var platform=document.getElementById("platform").value;
   var minStars=Math.max(0,parseInt(document.getElementById("minstars").value,10)||0);
@@ -904,13 +910,13 @@ async function run(){
   var stack=(document.getElementById("stack").value||"").trim().slice(0,80);
   var like=(document.getElementById("like").value||"").trim();
   var st=document.getElementById("status"), out=document.getElementById("out"), go=document.getElementById("go");
-  out.innerHTML=""; if(window.__resetPicks) window.__resetPicks();
+  stopDemo("heroDemo"); out.innerHTML=""; if(window.__resetPicks) window.__resetPicks();
   if(!text && !like){ st.textContent="Type what you're building, or paste a repo to find similar ones."; return; }
   if(text.length>200){ st.textContent=""; out.innerHTML='<div class="panel"><p class="err">Too long — use a short sentence (max 200 characters).</p></div>'; return; }
   if(text && harmful(text)){ out.innerHTML='<div class="panel"><p class="err">I can’t help find tools for that.</p>'+
     '<p class="mut">For learning security on systems you own, try: "learn web security by hacking a practice app".</p></div>'; return; }
 
-  go.disabled=true; st.textContent="Working…";
+  window.__busy=true; go.disabled=true; st.textContent="Working…";
   try{
     var queries, heading=null, seen={}, qtok;
     if(like){
@@ -936,7 +942,7 @@ async function run(){
     out.innerHTML=render(top,queries,excluded,ranked.length,qtok,heading);
     animateCards(out); st.textContent="Done."; saveResults();
   }catch(e){ st.textContent=""; out.innerHTML='<div class="panel"><p class="err">'+esc(e.message)+'</p></div>'; }
-  finally{ go.disabled=false; }
+  finally{ go.disabled=false; window.__busy=false; }
 }
 document.getElementById("go").addEventListener("click",run);
 document.getElementById("prd").addEventListener("change",function(e){
@@ -961,12 +967,37 @@ document.getElementById("q").addEventListener("keydown",function(e){
   if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); run(); } });
 
 // ---- modals ----
-function openModal(id){ document.getElementById(id).classList.add("open");
-  if(id==="howModal") buildDemo(document.getElementById("howDemo"));
-  var focusId = id==="filtersModal" ? "stackInput" : (id==="likeModal" ? "like" : null);
-  if(focusId){ var f=document.getElementById(focusId); if(f) setTimeout(function(){ f.focus(); },30); }
+var __lastFocus=null;
+function focusables(el){ return Array.prototype.slice.call(el.querySelectorAll(
+    'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'))
+    .filter(function(n){ return n.offsetParent!==null; }); }
+function openModal(id){ var m=document.getElementById(id); if(!m) return;
+  __lastFocus=document.activeElement;                        // remember opener to restore focus on close
+  m.classList.add("open");
+  if(id==="howModal"){ var hd=document.getElementById("howDemo"); buildDemo(hd); if(hd&&hd.__playDemo) hd.__playDemo(); }
+  var focusId = id==="filtersModal" ? "stackInput" : (id==="likeModal" ? "like" : null), sheet=m.querySelector(".sheet");
+  setTimeout(function(){ var f=focusId&&document.getElementById(focusId);
+    if(!f){ var fs=focusables(sheet); f=fs[0]||sheet; } if(f&&f.focus) f.focus(); },30);
 }
-function closeModals(){ var m=document.querySelectorAll(".modal"); for(var i=0;i<m.length;i++) m[i].classList.remove("open"); }
+function closeModals(){ var any=false, m=document.querySelectorAll(".modal");
+  for(var i=0;i<m.length;i++){ if(m[i].classList.contains("open")) any=true; m[i].classList.remove("open"); }
+  stopDemo("howDemo");                                        // stop the Tour carousel when it closes
+  if(any && __lastFocus && __lastFocus.focus){ __lastFocus.focus(); __lastFocus=null; }
+}
+// modal a11y: mark sheets as dialogs, label the × buttons, and trap Tab within the open modal
+(function(){
+  var sheets=document.querySelectorAll(".modal .sheet");
+  for(var i=0;i<sheets.length;i++){ sheets[i].setAttribute("role","dialog"); sheets[i].setAttribute("aria-modal","true"); }
+  var xs=document.querySelectorAll(".modal .x"); for(var j=0;j<xs.length;j++) xs[j].setAttribute("aria-label","Close");
+  document.addEventListener("keydown",function(e){ if(e.key!=="Tab") return;
+    var open=document.querySelector(".modal.open"); if(!open) return;
+    var sheet=open.querySelector(".sheet"), fs=focusables(sheet); if(!fs.length) return;
+    var first=fs[0], last=fs[fs.length-1];
+    if(e.shiftKey && document.activeElement===first){ e.preventDefault(); last.focus(); }
+    else if(!e.shiftKey && document.activeElement===last){ e.preventDefault(); first.focus(); }
+    else if(!sheet.contains(document.activeElement)){ e.preventDefault(); first.focus(); }
+  });
+})();
 document.getElementById("pluginBtn").addEventListener("click",function(){ openModal("pluginModal"); });
 // Filters chip and "Find similar repos" tile each open a popup window
 document.getElementById("optsBtn").addEventListener("click",function(){ openModal("filtersModal"); });
@@ -1050,7 +1081,7 @@ var STEPS=[
   {ico:"✍️",t:"1 · Describe",d:"Say what you're building"},
   {ico:"🔍",t:"2 · We search GitHub",d:"Open-source &amp; maintained"},
   {ico:"✨",t:"3 · Ranked by fit",d:"Relevant, popular &amp; free to use"},
-  {ico:"📝",t:"4 · Make a PRD",d:"Tick repos → your own Claude writes the PRD, free &amp; private"}
+  {ico:"📝",t:"4 · Build a plan",d:"Tick repos → your own Claude writes a build plan (PRD), free &amp; private"}
 ];
 function buildSteps(host){
   if(!host || host.dataset.built) return;
@@ -1091,13 +1122,17 @@ function buildDemo(host){
     cur=(n+cards.length)%cards.length; cards[cur].classList.add("on"); dots[cur].classList.add("on"); }
   function stop(){ if(timer){ clearInterval(timer); timer=null; } }
   function play(){ stop(); if(!reduce && cards.length>1) timer=setInterval(function(){ show(cur+1); },2600); }
+  host.__stopDemo=stop; host.__playDemo=play;   // let the view/modal clear this timer so it can't leak
   for(var i=0;i<dots.length;i++){ (function(d){ d.addEventListener("click",function(){ show(+d.getAttribute("data-i")); play(); }); })(dots[i]); }
   host.addEventListener("mouseenter",stop); host.addEventListener("mouseleave",play);
   play();
 }
+// stop a carousel's interval (used before its host is replaced, or when the Tour modal closes)
+function stopDemo(id){ var h=document.getElementById(id); if(h&&h.__stopDemo) h.__stopDemo(); }
 // empty-state in the results panel: the animated demo carousel (home view)
 function showHome(){
   var out=document.getElementById("out");
+  stopDemo("heroDemo");   // clear any previous carousel before replacing it
   out.innerHTML='<div class="explain"><p class="lead">Type what you’re building above, or tap a quick pick. Here’s what happens:</p>'+
     '<div id="heroDemo" class="demo"></div></div>';
   buildDemo(document.getElementById("heroDemo"));
@@ -1123,7 +1158,7 @@ function restoreResults(){
   if(d.starters!=null) document.getElementById("starters").value=d.starters;
   if(d.stack!=null) setStack(d.stack);
   var out=document.getElementById("out"); cleanCards(out);   // ensure restored cards are visible even if an old cache baked in opacity:0
-  document.getElementById("status").textContent="Restored your last results — press Home to start over.";
+  document.getElementById("status").textContent="Restored your last results — click the Replore logo (top-left) to start over.";
   animateCards(out);
   return true;
 }

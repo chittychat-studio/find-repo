@@ -145,12 +145,15 @@ Replore is a Claude Code plugin that returns the top 10 open-source GitHub repos
 - **RS24** Web UI (RS22 page). 3D app-shell: a fixed two-column layout on desktop so the page itself never
   scrolls (results scroll inside their panel); single column with natural scroll on phones. Results render as
   compact cards (rank, stars, what it does, a colour-coded license pill, free/starter tags) instead of a wide
-  table. Motion comes from GSAP, loaded from cdnjs at a pinned version as the one external script; every GSAP
+  table. The plain-English license meaning (e.g. "OK to use in a paid product" / "Completely free?") renders as
+  a line on every card at every breakpoint — not only on wide screens — so the core promise is visible on phones.
+  Motion comes from GSAP, loaded from cdnjs at a pinned version as the one external script; every GSAP
   use is guarded so the page works fully without it, and all motion is disabled under prefers-reduced-motion.
   Cards are cursor-reactive (a pointer-driven 3D tilt with a light glare, skipped on touch and under reduced
   motion) and the star counts tween up on reveal, all with the already-loaded GSAP and CSS (no extra library).
-  An in-page animated "How it works" explainer (three steps, looping) stands in for a video and is also shown
-  as the results panel's empty state; a short recorded GIF walkthrough is committed under `web/` and linked.
+  An in-page animated "How it works" explainer (a looping step carousel) stands in for a video and is also
+  shown as the results panel's empty state; a current screenshot of the live page (`web/tour.png`) is committed
+  under `web/` and shown in the Tour.
   Type is Inter (Google Fonts, the one external stylesheet) with a full system fallback if it fails to load; sizes
   and weights are raised for prominence and legibility. The page defaults to light (`data-theme="light"` on the root); a toggle switches to dark and the choice is
   remembered in `localStorage` (a per-viewer convenience, wrapped in try/catch). No key or token is ever stored (RS22).
