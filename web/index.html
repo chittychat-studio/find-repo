@@ -55,11 +55,17 @@
     background:linear-gradient(135deg,var(--accent-ink),var(--accent));-webkit-background-clip:text;
     background-clip:text;color:transparent}
   .by{font-size:12px;color:var(--muted)}
-  .theme-toggle{margin-left:auto;background:var(--offbg);border:1px solid var(--line);border-radius:999px;
+  .theme-toggle{background:var(--offbg);border:1px solid var(--line);border-radius:999px;
     width:34px;height:34px;cursor:pointer;font-size:15px;color:var(--ink);line-height:1;
     transition:transform .14s,border-color .18s,background .18s}
   .theme-toggle:hover{border-color:var(--accent);transform:rotate(-18deg) scale(1.06)}
-  .brand{width:100%}
+  .nav-btn{background:var(--offbg);border:1px solid var(--line);border-radius:999px;padding:6px 12px;
+    font:inherit;font-size:12.5px;font-weight:600;color:var(--ink);cursor:pointer;line-height:1;white-space:nowrap;
+    transition:border-color .18s,color .18s,transform .12s,box-shadow .18s}
+  .nav-btn:hover{border-color:var(--accent);color:var(--accent-ink);transform:translateY(-1px);
+    box-shadow:0 4px 12px -4px rgba(192,83,44,.4)}
+  .nav{margin-left:auto;display:flex;gap:8px;align-items:center}
+  .brand{width:100%;flex-wrap:wrap;align-items:center}
   .sub{color:var(--muted);margin:2px 0 0;font-size:14.5px}
 
   .panel{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;
@@ -81,6 +87,7 @@
   button.primary:active{transform:translateY(0) scale(.99)}
   button.primary:disabled{opacity:.6;cursor:default;transform:none}
 
+  .example-pick{margin-top:8px}
   .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
   .gallery{margin-top:20px;max-width:620px;width:100%}
   .gallery-label{font-size:13px;color:var(--muted);margin:0 0 4px;text-align:center}
@@ -185,13 +192,20 @@
   <div class="left">
     <div>
       <div class="brand"><h1>Find Repo</h1><span class="by">open-source finder</span>
-        <button id="theme" class="theme-toggle" title="Switch light / dark" aria-label="Switch light / dark"></button></div>
+        <div class="nav">
+          <button id="homeBtn" class="nav-btn" title="Back to the start">⌂ Home</button>
+          <button id="tourBtn" class="nav-btn" title="Watch how it works">▶ Tour</button>
+          <button id="theme" class="theme-toggle" title="Switch light / dark" aria-label="Switch light / dark"></button>
+        </div></div>
       <p class="sub">Describe what you're building — get the top open-source GitHub repos that fit, by stars.</p>
     </div>
 
     <div class="panel search">
       <label for="q">What are you building?</label>
       <textarea id="q" placeholder="e.g. a diet app for iPhone, starting from scratch"></textarea>
+      <select id="example-pick" class="example-pick" aria-label="Pick an example project to fill in and search">
+        <option value="">↩ Or pick an example…</option>
+      </select>
       <div class="row">
         <div><label for="platform" class="mut">Platform</label>
           <select id="platform"><option value="">Any</option><option value="web">Web</option>
@@ -454,6 +468,12 @@ function buildExamples(box){
     b.addEventListener("click",function(){ pickExample(ex); });
     box.appendChild(b); });
 }
+// the same examples as a dropdown on the left, so you can pick again after a search
+(function(){ var sel=document.getElementById("example-pick"); if(!sel) return;
+  EXAMPLES.forEach(function(ex,i){ var o=document.createElement("option"); o.value=String(i);
+    o.textContent=ex.label; sel.appendChild(o); });
+  sel.addEventListener("change",function(){ var i=sel.value; sel.value="";
+    if(i!=="") pickExample(EXAMPLES[+i]); }); })();
 
 // RS23: pull up to N short feature phrases from a PRD/spec (client-side only).
 var PRD_MAX=6; // unauthenticated rate limit is ~10 searches/minute; keep headroom
@@ -500,7 +520,7 @@ async function runFeatures(features, minStars, platform, preferStarters, out, st
   out.innerHTML=renderGrouped(groups,excluded,
     "From your PRD (read on your device, never uploaded). Browser mode covers the first "+features.length+
     " features; the Claude Code plugin reads them all.");
-  animateCards(out); st.textContent="Done.";
+  animateCards(out); st.textContent="Done."; saveResults();
 }
 
 async function run(){
@@ -526,7 +546,7 @@ async function run(){
       lists.push(keep(fresh,minStars,platform,excluded)); }
     var ranked=balanced(lists,preferStarters), top=ranked.slice(0,10);
     out.innerHTML=render(top,queries,excluded,ranked.length);
-    animateCards(out); st.textContent="Done.";
+    animateCards(out); st.textContent="Done."; saveResults();
   }catch(e){ st.textContent=""; out.innerHTML='<div class="panel"><p class="err">'+esc(e.message)+'</p></div>'; }
   finally{ go.disabled=false; }
 }
@@ -589,8 +609,8 @@ function playExplainer(host){
   cycle();
 }
 
-// empty-state in the results panel: how-it-works + the clickable prompt gallery (visible on load)
-(function(){
+// empty-state in the results panel: how-it-works + the clickable prompt gallery (home view)
+function showHome(){
   var out=document.getElementById("out");
   out.innerHTML='<div class="explain"><div style="font-size:15px;color:var(--muted);max-width:560px">'+
     'Find the right open-source building blocks in seconds. Here’s how it works:</div>'+
@@ -600,7 +620,33 @@ function playExplainer(host){
     '</div>';
   buildSteps(document.getElementById("heroSteps"));
   buildExamples(document.getElementById("examples"));
-})();
+}
+// remember the last results so a page refresh brings them back (cached locally, no new API call)
+var LAST="findrepo_last";
+function saveResults(){ try{ var out=document.getElementById("out");
+  localStorage.setItem(LAST, JSON.stringify({ html:out.innerHTML, q:document.getElementById("q").value,
+    platform:document.getElementById("platform").value, minstars:document.getElementById("minstars").value,
+    starters:document.getElementById("starters").value })); }catch(e){} }
+function clearSaved(){ try{ localStorage.removeItem(LAST); }catch(e){} }
+function restoreResults(){
+  var d; try{ d=JSON.parse(localStorage.getItem(LAST)||"null"); }catch(e){}
+  if(!d||!d.html) return false;
+  document.getElementById("out").innerHTML=d.html;
+  if(d.q!=null) document.getElementById("q").value=d.q;
+  if(d.platform!=null) document.getElementById("platform").value=d.platform;
+  if(d.minstars!=null) document.getElementById("minstars").value=d.minstars;
+  if(d.starters!=null) document.getElementById("starters").value=d.starters;
+  document.getElementById("status").textContent="Restored your last results — press Home to start over.";
+  animateCards(document.getElementById("out"));
+  return true;
+}
+if(!restoreResults()) showHome();
+// Home: clear the saved results and the box, return to the start; Tour: play the how-it-works walkthrough
+document.getElementById("homeBtn").addEventListener("click",function(){
+  clearSaved(); document.getElementById("q").value=""; document.getElementById("status").textContent="";
+  showHome(); document.getElementById("q").focus();
+});
+document.getElementById("tourBtn").addEventListener("click",function(){ openModal("howModal"); });
 
 // ---- light / dark theme toggle (per-viewer convenience; falls back to system) ----
 (function(){
