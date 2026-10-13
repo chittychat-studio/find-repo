@@ -208,7 +208,7 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
 - **RS29** Result-side filters, result count, and no arbitrary cap (RS22 web page). A search renders **every
   fit-ranked match that passes the filters**, not a fixed 20 — capping at 20 when (say) 23 passed is arbitrary
   and was removed. A sane upper bound (60) guards against a runaway list; the page shows the first 10 and a
-  single "Show more" reveals **all** of them — nothing is re-fetched (RS7 unaffected, no new API call). The
+  the rest load **automatically as the user scrolls** (10 at a time, no button; a "Showing X of Y" hint) — nothing is re-fetched (RS7 unaffected, no new API call). The
   results header shows the **number of matches** on the right (e.g. "22 results"). Above the results a row of
   **plain-English filter chips** — All / ✅ Free for commercial use / 🧩 Starters — shows or hides the
   already-fetched cards client-side (raw SPDX codes are deliberately not a filter). The commercial-use chip maps
@@ -219,7 +219,7 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   filter" message. Filters apply only to the single top-matches list, not the grouped PRD view.
 - **RS29c** *(retired)* A per-results "this is keyword search" banner was shown, then removed at the owner's
   call: each card's "Matches your words" line already shows the match is lexical, and the plugin stays one click
-  away (menu + the "Want every suitable repo?" banner). The How-it-works copy still states the page is keyword-only.
+  away (menu + the "Want every suitable repo?" banner). The "How ranking works" modal still states the page is keyword search (matches words, not meaning).
 - **RS29a** One license verdict per card (RS14/RS20 on the web page). A card shows a **single** plain-English
   license verdict — ✅ free for commercial use / ✅ paid-use OK, changes stay open / ⚠ must open-source your app /
   ⚠ share your code even as a web app / ⛔ no licence — not the earlier redundant "Paid-use OK" + "Completely

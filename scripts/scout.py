@@ -9,6 +9,7 @@ Usage: scout.py "query one" ["query two" ...] [--top 20] [--candidates 40]
 import argparse
 import csv
 import datetime as dt
+import http.client
 import io
 import json
 import math
@@ -61,7 +62,7 @@ KEY = ("Key: stars = how many people bookmarked it (popularity, not quality, and
        "last push = last time anyone updated it; license labels are a plain summary, not legal advice.")
 
 _NAME = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
-_CTRL = re.compile(r"[\x00-\x1f\x7f-\x9f​-‏‪-‮⁦-⁩]")
+_CTRL = re.compile(r"[\x00-\x1f\x7f-\x9f​-‏  ‪-‮⁦-⁩]")  # RS9: incl. line/para separators
 
 
 class ScoutError(Exception):
@@ -99,7 +100,7 @@ def fetch(query, token=None, timeout=20):
         if e.code == 422:
             raise ScoutError("GitHub rejected it (HTTP 422). Use 1-3 keywords per search.") from None
         raise ScoutError(f"GitHub search failed: HTTP {e.code}.") from None
-    except (urllib.error.URLError, TimeoutError, OSError) as e:
+    except (urllib.error.URLError, TimeoutError, OSError, http.client.HTTPException) as e:
         raise ScoutError(f"Could not reach GitHub: {getattr(e, 'reason', e)}.") from None
     except json.JSONDecodeError:
         raise ScoutError("GitHub returned a response that is not JSON.") from None
@@ -211,6 +212,8 @@ def scout(queries, fetcher=fetch, top=20, candidates=40, license_mode="open", ma
         if len(q) > MAX_QUERY_CHARS:
             raise ScoutError(f"A search is too long ({len(q)} characters, max {MAX_QUERY_CHARS}). "
                              "Use 1-3 keywords per search, e.g. 'calorie counter'.")
+    if not 0 <= max_age_months <= 600 or not 0 <= min_stars <= 10**8:  # RS7: out-of-range input fails closed, not a crash
+        raise ScoutError("max-age-months must be 0-600 and min-stars 0-100000000.")
     now = now or dt.datetime.now(dt.timezone.utc)
     cutoff = now - dt.timedelta(days=30.44 * max_age_months) if max_age_months > 0 else None
 
@@ -223,10 +226,12 @@ def scout(queries, fetcher=fetch, top=20, candidates=40, license_mode="open", ma
             data = fetcher(build_query(q), token)
         except ScoutError as e:  # RS19: name the user's search, never the added qualifiers
             raise ScoutError(f"Search {q!r}: {e}") from None
-        items = data.get("items")
+        items = data.get("items") if isinstance(data, dict) else None  # RS7: malformed response fails closed
         if not isinstance(items, list):
             raise ScoutError(f"Unexpected GitHub response for {q!r}.")
         for idx, it in enumerate(items):
+            if not isinstance(it, dict):
+                continue
             name = it.get("full_name")
             if not name:
                 continue

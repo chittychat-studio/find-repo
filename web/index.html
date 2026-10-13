@@ -304,10 +304,7 @@
     font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;transition:border-color .18s,color .18s,background .18s}
   .rfilter:hover{border-color:var(--accent);color:var(--accent-ink)}
   .rfilter.on{background:linear-gradient(135deg,var(--accent),var(--accent-ink));border-color:transparent;color:#fff}
-  .res-more-wrap{display:flex;justify-content:center;margin:6px 0 2px}
-  .res-more{background:var(--offbg);border:1px solid var(--line);border-radius:999px;padding:10px 22px;font:inherit;
-    font-size:13.5px;font-weight:600;color:var(--accent-ink);cursor:pointer;transition:border-color .18s,transform .12s}
-  .res-more:hover{border-color:var(--accent);transform:translateY(-1px)}
+  .res-more-hint{text-align:center;color:var(--muted);font-size:12.5px;margin:10px 4px 2px;min-height:18px}
   .res-empty{text-align:center;color:var(--muted);font-size:14px;margin:18px 4px}
 
   /* empty-state explainer (the animated "how it works") */
@@ -321,7 +318,7 @@
   .demo-card{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
     gap:8px;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:26px 24px;
     box-shadow:0 20px 44px -24px rgba(var(--shadow),.6);opacity:0;transform:translateY(14px) scale(.97);
-    transition:opacity .55s ease,transform .55s cubic-bezier(.22,1,.36,1);pointer-events:none}
+    transition:opacity .35s ease,transform .35s cubic-bezier(.22,1,.36,1);pointer-events:none}
   .demo-card.on{opacity:1;transform:none}
   .demo-card .ico{font-size:44px;line-height:1}
   .demo-card .t{font-family:"Spectral",Georgia,serif;font-weight:800;font-size:20px}
@@ -382,6 +379,8 @@
     .chips{max-height:none}
     .hero-title{font-size:32px}
     .vibebar{gap:6px;padding:6px 6px 6px 16px}
+    .vb-x{position:relative}
+    .vb-x::after{content:"";position:absolute;inset:-9px}   /* ~44px tap target, same visual size */
     .vb-chip{padding:9px 11px;font-size:0}          /* collapse to just the ⚙ glyph, free up the input */
     .vb-chip::before{content:"⚙";font-size:15px}
     .go-btn{width:46px;padding:0;justify-content:center;font-size:0}  /* arrow-only, frees room for the text */
@@ -540,16 +539,16 @@
 
 <div class="modal" id="pluginModal"><div class="sheet">
   <button class="x" data-close>&times;</button>
-  <h2>Use Replore in your AI code</h2>
+  <h2>Use Replore in your AI agent</h2>
   <p class="mut">The smart version writes searches for you, checks each result actually fits, reads a whole PRD
     feature by feature, and shows every suitable repo — not just this page's list. Free &amp; open-source. Pick your agent:</p>
 
   <div class="tabs" role="tablist" aria-label="Which AI agent">
-    <button type="button" class="tab on" data-tab="cc" role="tab" aria-selected="true">Claude Code</button>
-    <button type="button" class="tab" data-tab="other" role="tab" aria-selected="false">Codex, Cursor &amp; others</button>
+    <button type="button" class="tab on" data-tab="cc" role="tab" id="tab-cc" aria-controls="panel-cc" aria-selected="true">Claude Code</button>
+    <button type="button" class="tab" data-tab="other" role="tab" id="tab-other" aria-controls="panel-other" aria-selected="false" tabindex="-1">Codex, Cursor &amp; others</button>
   </div>
 
-  <div class="tabpanel" data-panel="cc" role="tabpanel">
+  <div class="tabpanel" data-panel="cc" role="tabpanel" id="panel-cc" aria-labelledby="tab-cc">
   <ol class="guide">
     <li><b>Get Claude Code</b> — a free AI coding assistant for your terminal:
       <a href="https://claude.com/claude-code" target="_blank" rel="noopener">claude.com/claude-code</a>. Check
@@ -561,7 +560,7 @@
   </ol>
   </div>
 
-  <div class="tabpanel" data-panel="other" role="tabpanel" hidden>
+  <div class="tabpanel" data-panel="other" role="tabpanel" id="panel-other" aria-labelledby="tab-other" hidden>
   <p class="mut" style="margin:10px 0 0">Works with any model — Codex, Cursor, Gemini CLI, VS Code Copilot, Windsurf,
     Cline — through MCP, the plugin standard they all support.</p>
   <ol class="guide">
@@ -576,7 +575,6 @@
   <p class="mut" style="margin-top:10px">No MCP? Open the cloned folder in your agent — it reads
     <code>AGENTS.md</code> and runs <code>scripts/scout.py</code> directly.</p>
   </div>
-  </ol>
   <p class="mut" style="margin-top:12px">Stuck? Full guide:
     <a href="https://github.com/chittychat-studio/replore" target="_blank" rel="noopener">github.com/chittychat-studio/replore</a>.</p>
 </div></div>
@@ -601,7 +599,8 @@
   <h2>About the results</h2>
   <p class="mut">Results are ranked by <b>fit</b> — how well a repo matches your words, how popular it is (stars),
     and how freely you can use its license — so the top pick is relevant <i>and</i> popular <i>and</i> free to use,
-    not just the most-starred. Each card says why it's relevant. The
+    not just the most-starred. Each card says why it's relevant. This page is <b>keyword search</b>: it matches
+    your words, not their meaning. The
     <a href="https://github.com/chittychat-studio/replore" target="_blank" rel="noopener">plugin</a>
     goes further: it writes smarter searches with AI, runs a semantic relevance check, and reads a whole plan
     feature by feature. Results are GitHub search matches, not a scan of every repository. Stars measure
@@ -667,6 +666,7 @@ function keywordQueries(text, platform){
   return qs.slice(0,MAX_QUERIES).map(function(q){return (q+ex).trim();});
 }
 
+window.__runGen=0;   // search generation: resetAll() and each new search bump it (stale async results are dropped)
 async function search(q){
   // best-match (relevance) order seeds the fit ranking (RS2/RS5); stars are still in each result and weigh in RS5
   var url="https://api.github.com/search/repositories?q="+encodeURIComponent(q+" fork:false archived:false is:public")
@@ -804,7 +804,6 @@ var PLUGIN_CTA='<div class="cta-inline"><b>Want every suitable repo?</b> MORE_LI
   'Run the plugin in your AI agent (Claude Code, Codex, Cursor…) for every match that passes the filters — and a build plan feature by feature. '+
   '<button class="link-btn" onclick="openModal(\'pluginModal\')">Show commands →</button></div>';
 
-// results-time honesty note: the web page is keyword (lexical) search; semantic matching lives in the plugin (RS22/RS29c)
 // result-side filter chips (filter the already-fetched cards, no new API calls — RS29)
 var RES_FILTERS=[["all","All"],["com","✅ Free for commercial use"],["starter","🧩 Starters"]];
 function filterBar(){ return '<div class="res-filter" role="group" aria-label="Filter results">'+
@@ -822,7 +821,7 @@ function render(top, queries, excluded, totalMatches, qtokens, heading, note){
     filterBar()+
     '<div class="grid">'+top.map(function(r,i){return cardHtml(r,i,qtokens);}).join("")+'</div>'+
     '<div id="resEmpty" class="res-empty" hidden>No results match this filter. <button type="button" class="link-btn" id="resClear">Clear filter</button></div>'+
-    '<div class="res-more-wrap"><button type="button" id="resMore" class="res-more" hidden>Show more ▾</button></div>'+
+    '<div id="resMore" class="res-more-hint" aria-live="polite" hidden></div>'+   /* scroll sentinel: auto-reveals more (RS29) */
     '<p class="excl">Searches: '+esc(queries.join("; "))+' · Excluded — not open-source: '+excluded.license+
     ', too old: '+excluded.stale+', too few stars: '+excluded.low+', forks/archived: '+excluded.fork+
     ', harmful: '+excluded.harm+'</p>';
@@ -843,11 +842,21 @@ function applyResultFilter(){
   }
   var empty=out.querySelector("#resEmpty"); if(empty) empty.hidden = matched>0;
   var more=out.querySelector("#resMore");
-  if(more){ if(matched>shown){ more.hidden=false; more.textContent="Show more ("+shown+" of "+matched+") ▾"; } else more.hidden=true; }
+  if(more){ if(matched>shown){ more.hidden=false; more.textContent="Showing "+shown+" of "+matched+" · scroll for more"; } else more.hidden=true; }
   var chips=out.querySelectorAll(".rfilter"); for(var j=0;j<chips.length;j++) chips[j].classList.toggle("on", chips[j].getAttribute("data-f")===f);
   var cb=out.querySelector("#resClearBtn"); if(cb) cb.hidden=(f==="all");  // show "Clear filter" only when a filter is active
 }
-function initResultFilter(){ window.__resFilter="all"; window.__resLimit=10; applyResultFilter(); }
+// infinite scroll: no button — when the sentinel nears the viewport, reveal 10 more (cards are already fetched; no API call)
+function checkMore(){ requestAnimationFrame(function(){ var s=document.querySelector("#out #resMore");
+  if(s && !s.hidden && s.getBoundingClientRect().top < window.innerHeight+400) revealMore(); }); }
+function revealMore(){ window.__resLimit=(window.__resLimit||10)+10; applyResultFilter(); checkMore(); }
+function watchMore(){ var s=document.querySelector("#out #resMore"); if(!s) return;
+  if(window.__moreObs) window.__moreObs.disconnect();
+  if(!("IntersectionObserver" in window)){ window.__resLimit=9999; applyResultFilter(); return; }   // old browsers: show all
+  window.__moreObs=new IntersectionObserver(function(es){
+    for(var i=0;i<es.length;i++) if(es[i].isIntersecting){ revealMore(); break; } },{rootMargin:"0px 0px 400px 0px"});
+  window.__moreObs.observe(s); }
+function initResultFilter(){ window.__resFilter="all"; window.__resLimit=10; applyResultFilter(); watchMore(); checkMore(); }
 
 // RS21: ready-made prompts the user can click to fill the box.
 var EXAMPLES=[
@@ -966,11 +975,12 @@ function renderGrouped(groups, excluded, note){
   return h;
 }
 
-async function runFeatures(features, minStars, platform, preferStarters, out, st){
+async function runFeatures(features, minStars, platform, preferStarters, out, st, gen){
   var ex2=platform==="ios"?" -topic:macos":"", stack=(document.getElementById("stack").value||"").trim().slice(0,40);
   var excluded={license:0,stale:0,low:0,fork:0,harm:0}, seen={}, groups=[];
   for(var i=0;i<features.length;i++){ st.textContent="Searching feature "+(i+1)+"/"+features.length+"…";
     var items=await search((features[i]+(stack?" "+stack:"")+ex2).trim());
+    if(gen!==window.__runGen) return;   // reset or a newer search happened: drop these results
     var kept=keep(items,minStars,platform,excluded,seen);  // shared seen map (RS5 cross-query rel), not a Set
     var floor=kept.reduce(function(m,r){return Math.max(m,r.stars);},0)*STARTER_MIN_SHARE;
     kept.forEach(function(r){ r.fit=fitScore(r,preferStarters,floor); });
@@ -980,7 +990,7 @@ async function runFeatures(features, minStars, platform, preferStarters, out, st
   out.innerHTML=renderGrouped(groups,excluded,
     "From your PRD (read on your device, never uploaded). Browser mode covers the first "+features.length+
     " features; the plugin reads them all.");
-  animateCards(out); st.textContent=""; saveResults();
+  animateCards(out); st.textContent=""; saveResults(); syncClearQ();
 }
 
 // "Find similar ones": accept owner/repo or a GitHub URL, look up its topics/language, search those (RS27)
@@ -1027,6 +1037,7 @@ async function run(){
     '<p class="mut">For learning security on systems you own, try: "learn web security by hacking a practice app".</p></div>'; return; }
 
   window.__busy=true; setGoBusy(true); st.textContent=""; window.__likeNote="";
+  var gen=++window.__runGen;   // a reset or newer search bumps this; stale results are dropped
   try{
     var queries, heading=null, seen={}, qtok;
     if(like){
@@ -1034,6 +1045,7 @@ async function run(){
       if(!target) throw new Error("Enter a repo as owner/repo or a GitHub link, e.g. vercel/next.js.");
       st.textContent="Looking up "+target+"…";
       var meta=await repoMeta(target);
+      if(gen!==window.__runGen) return;
       queries=altQueries(meta,platform);
       if(!queries.length) throw new Error("That repo has no topics or description to search from.");
       if(!(meta.topics||[]).length && !text)   // no topics AND no typed words → note explains we matched on description; with text, the words drive the search so the note is moot (RS27a)
@@ -1055,12 +1067,13 @@ async function run(){
     var excluded={license:0,stale:0,low:0,fork:0,harm:0}, lists=[];
     for(var i=0;i<queries.length;i++){ st.textContent="Searching ("+(i+1)+"/"+queries.length+")…";
       var items=await search(queries[i]);
+      if(gen!==window.__runGen) return;
       lists.push(keep(items,minStars,platform,excluded,seen)); }
     var ranked=rankByFit(lists,preferStarters), top=ranked.slice(0,60);  // sane upper bound; we no longer cap at 20
     out.innerHTML=render(top,queries,excluded,ranked.length,qtok,heading,window.__likeNote||"");
-    animateCards(out); initResultFilter(); st.textContent=""; saveResults();
-  }catch(e){ st.textContent=""; out.innerHTML='<div class="panel"><p class="err">'+esc(e.message)+'</p></div>'; }
-  finally{ setGoBusy(false); window.__busy=false; }
+    animateCards(out); initResultFilter(); st.textContent=""; saveResults(); syncClearQ();
+  }catch(e){ if(gen!==window.__runGen) return; st.textContent=""; out.innerHTML='<div class="panel"><p class="err">'+esc(e.message)+'</p></div>'; }
+  finally{ if(gen===window.__runGen){ setGoBusy(false); window.__busy=false; } }
 }
 document.getElementById("go").addEventListener("click",run);
 document.getElementById("prd").addEventListener("change",function(e){
@@ -1073,10 +1086,10 @@ document.getElementById("prd").addEventListener("change",function(e){
     if(!features.length){ out.innerHTML='<div class="panel"><p class="err">Couldn’t find features in that file. Use bullet points or short requirement lines.</p></div>'; return; }
     var minStars=Math.max(0,parseInt(document.getElementById("minstars").value,10)||0);
     var platform=document.getElementById("platform").value, preferStarters=document.getElementById("starters").value==="yes";
-    setGoBusy(true); out.innerHTML="";
-    try{ await runFeatures(features,minStars,platform,preferStarters,out,st); }
-    catch(err){ st.textContent=""; out.innerHTML='<div class="panel"><p class="err">'+esc(err.message)+'</p></div>'; }
-    finally{ setGoBusy(false); e.target.value=""; } };
+    setGoBusy(true); out.innerHTML=""; var gen=++window.__runGen;
+    try{ await runFeatures(features,minStars,platform,preferStarters,out,st,gen); }
+    catch(err){ if(gen===window.__runGen){ st.textContent=""; out.innerHTML='<div class="panel"><p class="err">'+esc(err.message)+'</p></div>'; } }
+    finally{ if(gen===window.__runGen) setGoBusy(false); e.target.value=""; } };
   rd.onerror=function(){ out.innerHTML='<div class="panel"><p class="err">Could not read that file.</p></div>'; };
   rd.readAsText(f);
 });
@@ -1119,13 +1132,20 @@ function closeModals(){ var any=false, m=document.querySelectorAll(".modal");
   });
 })();
 document.getElementById("pluginBtn").addEventListener("click",function(){ openModal("pluginModal"); });
-// plugin-modal tabs: Claude Code vs any other agent (delegated; switches which step panel shows)
+// plugin-modal tabs: Claude Code vs any other agent (ARIA tab pattern: click, ←/→/Home/End, roving tabindex)
 (function(){ var pm=document.getElementById("pluginModal"); if(!pm) return;
-  pm.addEventListener("click",function(e){ var t=e.target.closest&&e.target.closest(".tab"); if(!t) return;
-    var which=t.getAttribute("data-tab");
-    pm.querySelectorAll(".tab").forEach(function(b){ var on=b===t; b.classList.toggle("on",on); b.setAttribute("aria-selected",on?"true":"false"); });
+  function tabs(){ return Array.prototype.slice.call(pm.querySelectorAll(".tab")); }
+  function select(t, focus){ var which=t.getAttribute("data-tab");
+    tabs().forEach(function(b){ var on=b===t; b.classList.toggle("on",on); b.setAttribute("aria-selected",on?"true":"false"); b.tabIndex=on?0:-1; });
     pm.querySelectorAll(".tabpanel").forEach(function(p){ p.hidden = p.getAttribute("data-panel")!==which; });
-  }); })();
+    if(focus) t.focus(); }
+  pm.addEventListener("click",function(e){ var t=e.target.closest&&e.target.closest(".tab"); if(t) select(t,false); });
+  pm.addEventListener("keydown",function(e){ var t=e.target.closest&&e.target.closest(".tab"); if(!t) return;
+    var all=tabs(), i=all.indexOf(t), n=all.length, j=null;
+    if(e.key==="ArrowRight") j=(i+1)%n; else if(e.key==="ArrowLeft") j=(i-1+n)%n;
+    else if(e.key==="Home") j=0; else if(e.key==="End") j=n-1;
+    if(j!==null){ e.preventDefault(); select(all[j],true); } });
+})();
 // Filters chip and "Find similar repos" tile each open a popup window
 document.getElementById("optsBtn").addEventListener("click",function(){ openModal("filtersModal"); });
 document.getElementById("likeTile").addEventListener("click",function(){ openModal("likeModal"); });
@@ -1182,9 +1202,8 @@ document.addEventListener("keydown",function(e){ if(e.key==="Escape") closeModal
   // result-filter chips + show-more + clear (delegated, survives re-render)
   out.addEventListener("click",function(e){ var t=e.target;
     var fb=t.closest&&t.closest(".rfilter");
-    if(fb){ window.__resFilter=fb.getAttribute("data-f"); window.__resLimit=10; applyResultFilter(); return; }
-    if(t.closest&&t.closest("#resMore")){ window.__resLimit=9999; applyResultFilter(); return; }
-    if(t.closest&&t.closest("#resClear")){ window.__resFilter="all"; window.__resLimit=10; applyResultFilter(); } });
+    if(fb){ window.__resFilter=fb.getAttribute("data-f"); window.__resLimit=10; applyResultFilter(); checkMore(); return; }
+    if(t.closest&&t.closest("#resClear")){ window.__resFilter="all"; window.__resLimit=10; applyResultFilter(); checkMore(); } });
   function buildPrompt(){
     var q=(document.getElementById("q").value||"").trim() || "my project";
     var list=picks.map(function(r,i){ return (i+1)+". "+r.name+" — "+r.url+(r.desc?"\n   "+r.desc:""); }).join("\n");
@@ -1255,7 +1274,7 @@ function buildDemo(host){
   function show(n){ cards[cur].classList.remove("on"); dots[cur].classList.remove("on");
     cur=(n+cards.length)%cards.length; cards[cur].classList.add("on"); dots[cur].classList.add("on"); }
   function stop(){ if(timer){ clearInterval(timer); timer=null; } }
-  function play(){ stop(); if(!reduce && cards.length>1) timer=setInterval(function(){ show(cur+1); },2600); }
+  function play(){ stop(); if(!reduce && cards.length>1) timer=setInterval(function(){ show(cur+1); },1500); }   // faster cadence (was 2600ms)
   host.__stopDemo=stop; host.__playDemo=play;   // let the view/modal clear this timer so it can't leak
   for(var i=0;i<dots.length;i++){ (function(d){ d.addEventListener("click",function(){ show(+d.getAttribute("data-i")); play(); }); })(dots[i]); }
   host.addEventListener("mouseenter",stop); host.addEventListener("mouseleave",play);
@@ -1273,7 +1292,7 @@ function showHome(){
   if(window.__resetPicks) window.__resetPicks();
 }
 // remember the last results so a page refresh brings them back (cached locally, no new API call)
-var LAST="findrepo_last", CACHE_V="3";  // bump when saved markup changes, so stale caches are dropped
+var LAST="findrepo_last", CACHE_V="4";  // bump when saved markup changes, so stale caches are dropped
 // strip any inline opacity/transform the animation left on cards, so the cache never stores invisible cards
 function cleanCards(root){ var c=root.querySelectorAll(".rcard"); for(var i=0;i<c.length;i++){ c[i].style.opacity=""; c[i].style.transform=""; } }
 function saveResults(){ try{ var out=document.getElementById("out"); cleanCards(out);
@@ -1300,17 +1319,21 @@ if(!restoreResults()) showHome();
 // Home: clicking the Replore logo clears results and returns to the start; Tour: the how-it-works walkthrough
 // full reset: text, similar-repo, every filter, picked repos, results and cached search (search-bar ✕ and logo)
 function resetAll(){
+  window.__runGen++; window.__busy=false; setGoBusy(false);   // abandon any in-flight search so it can't repaint later
   clearSaved(); closeModals();
   ["q","like"].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=""; });
   ["platform","starters"].forEach(function(id){ var el=document.getElementById(id); if(!el) return;
     var d=el.querySelector("option[selected]"); el.value = d ? d.value : (el.options[0]&&el.options[0].value); });
   var ms=document.getElementById("minstars"); if(ms) ms.value=ms.defaultValue;
   setStack(""); window.__resFilter="all"; window.__resLimit=10;
+  var si=document.getElementById("stackInput"); if(si) si.value="";
+  var sm=document.getElementById("stackMenu"); if(sm){ sm.hidden=true; sm.innerHTML=""; }
   document.getElementById("status").textContent=""; showHome();
   syncClearQ(); document.getElementById("q").focus();
 }
 function syncClearQ(){ var x=document.getElementById("clearQ"); if(!x) return;
-  x.hidden = !((document.getElementById("q").value||"").trim() || (document.getElementById("like").value||"").trim()); }
+  x.hidden = !((document.getElementById("q").value||"").trim() || (document.getElementById("like").value||"").trim()
+    || document.querySelector("#out .rcard, #out .group-h, #out .err")); }   // results on screen also count
 (function(){ var brand=document.getElementById("brandHome"), x=document.getElementById("clearQ");
   if(brand){ brand.addEventListener("click",resetAll);
     brand.addEventListener("keydown",function(e){ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); resetAll(); } }); }
