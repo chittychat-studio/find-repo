@@ -668,3 +668,26 @@ def test_workflow_all_group_options():
     assert "ALL: ${{ inputs.all }}" in wf and "GROUP: ${{ inputs.group }}" in wf
     assert '["--all"] if os.environ["ALL"]' in wf and '["--group"] if os.environ["GROUP"]' in wf
 
+
+
+def test_privacy_notice_matches_what_the_code_does():
+    """RS33: the published privacy claims stay true — CI fails if a data flow is added without updating them."""
+    html = (ROOT / "web" / "index.html").read_text()
+    priv = (ROOT / "PRIVACY.md").read_text()
+    readme = (ROOT / "README.md").read_text()
+    assert 'id="privacyModal"' in html and "PRIVACY.md" in html and "privacy-note" in html
+    assert "PRIVACY.md" in readme and "not legal advice" in priv and "Last updated" in priv
+    # "no cookies / no analytics / no tracking" must stay literally true
+    for banned in ("document.cookie", "sessionStorage", "indexedDB", "gtag(", "googletagmanager", "plausible",
+                   "sendBeacon", "posthog", "umami", "analytics.js"):
+        assert banned not in html, banned
+    # only these hosts are contacted; PRIVACY.md names each of them
+    hosts = set(re.findall(r"https://([a-z0-9.-]+)", html))
+    allowed = {"api.github.com", "github.com", "fonts.googleapis.com", "fonts.gstatic.com", "cdnjs.cloudflare.com",
+               "claude.ai", "claude.com", "replore.pages.dev"}
+    assert hosts <= allowed, hosts - allowed
+    for named in ("api.github.com", "Google Fonts", "cdnjs", "Cloudflare", "claude.ai", "security.log", "200 characters"):
+        assert named in priv, named
+    # the hook really writes only on a match, at most 200 chars, locally
+    hook = (ROOT / "hooks" / "security_log.py").read_text()
+    assert "if not hits:" in hook and "text[:200]" in hook and "urllib" not in hook

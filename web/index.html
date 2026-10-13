@@ -298,6 +298,7 @@
   .group-h span{color:var(--muted);font-weight:500}
   .err{color:var(--warn);font-weight:600}
   .excl{font-size:11.5px;color:var(--muted);margin:14px 4px 4px}
+  .privacy-note{text-align:center;font-size:12.5px;color:var(--muted);margin:10px auto 0;max-width:620px;line-height:1.45}
   /* result-side filter chips + show-more */
   .res-filter{display:flex;flex-wrap:wrap;gap:8px;margin:0 4px 14px}
   .rfilter{background:var(--offbg);border:1px solid var(--line);border-radius:999px;padding:7px 13px;font:inherit;
@@ -455,6 +456,8 @@
       </div>
 
       <div id="quickpicks" class="quickpicks" aria-label="Quick examples to try"></div>
+      <p class="privacy-note">🔒 Your ideas stay yours — no account, no tracking, nothing sent to us. Searches go straight from
+        your browser to GitHub. <button type="button" class="link-btn" onclick="openModal('privacyModal')">Privacy</button></p>
 
       <div id="status" class="status"></div>
     </div>
@@ -540,8 +543,9 @@
 <div class="modal" id="pluginModal"><div class="sheet">
   <button class="x" data-close>&times;</button>
   <h2>Use Replore in your AI agent</h2>
-  <p class="mut">The smart version writes searches for you, checks each result actually fits, reads a whole PRD
-    feature by feature, and shows every suitable repo — not just this page's list. Free &amp; open-source. Pick your agent:</p>
+  <p class="mut">The smart version has your AI write the searches, judge which results fit, and show every suitable
+    repo — not just this page's list. In Claude Code it also reads a whole PRD feature by feature. Free &amp;
+    open-source. Pick your agent:</p>
 
   <div class="tabs" role="tablist" aria-label="Which AI agent">
     <button type="button" class="tab on" data-tab="cc" role="tab" id="tab-cc" aria-controls="panel-cc" aria-selected="true">Claude Code</button>
@@ -562,18 +566,22 @@
 
   <div class="tabpanel" data-panel="other" role="tabpanel" id="panel-other" aria-labelledby="tab-other" hidden>
   <p class="mut" style="margin:10px 0 0">Works with any model — Codex, Cursor, Gemini CLI, VS Code Copilot, Windsurf,
-    Cline — through MCP, the plugin standard they all support.</p>
+    Cline — through MCP (Model Context Protocol), the open tool-connection standard all of them support.</p>
   <ol class="guide">
-    <li><b>Get Replore</b> — needs Python 3.11+:
-      <pre class="cmd">git clone https://github.com/chittychat-studio/replore</pre></li>
-    <li><b>Add it as an MCP server</b> in your agent's MCP settings — command <code>python3</code>, argument
-      <code>/full/path/to/replore/scripts/mcp_server.py</code>. Exact snippet for each agent:
+    <li><b>Get Replore</b> — needs Python 3.11+ and git (or on GitHub click <i>Code → Download ZIP</i> and unzip).
+      On Windows type <code>python</code> wherever it says <code>python3</code>.
+      <pre class="cmd">git clone https://github.com/chittychat-studio/replore</pre>
+      Then <code>cd replore</code> and run <code>pwd</code> (Windows: <code>cd</code>) — that prints the full path you need next.</li>
+    <li><b>Add Replore to your agent's MCP config file</b> — command <code>python3</code>, argument
+      <code>&lt;that path&gt;/scripts/mcp_server.py</code>. Add the <code>replore</code> entry inside the existing list;
+      don't replace the file. Then restart the agent. The exact file and snippet for each agent are in the
       <a href="https://github.com/chittychat-studio/replore#use-in-any-other-ai-agent" target="_blank" rel="noopener">README</a>.</li>
     <li><b>Ask your agent</b> — <i>"find repos for a diet app for iPhone"</i>. It calls Replore's
       <code>find_repos</code> tool and shows the comparison table.</li>
   </ol>
-  <p class="mut" style="margin-top:10px">No MCP? Open the cloned folder in your agent — it reads
-    <code>AGENTS.md</code> and runs <code>scripts/scout.py</code> directly.</p>
+  <p class="mut" style="margin-top:10px">No MCP? Open the cloned folder in your agent. Codex, Cursor, Copilot, Cline
+    and Windsurf read <code>AGENTS.md</code> automatically; with any other agent say <i>"follow AGENTS.md"</i>. It then
+    runs <code>scripts/scout.py</code> itself.</p>
   </div>
   <p class="mut" style="margin-top:12px">Stuck? Full guide:
     <a href="https://github.com/chittychat-studio/replore" target="_blank" rel="noopener">github.com/chittychat-studio/replore</a>.</p>
@@ -587,11 +595,32 @@
     <li><b>Pick the ones that fit</b> — tick <i>＋ Add to plan</i> on the 2–3 cards you like. Compare them:
       check the license verdict (can you use it in a paid product?) and the <i>updated</i> date before you commit to one.</li>
     <li><b>Get a build plan</b> — hit <i>Generate plan</i> on the bar that appears. Replore turns your picks plus
-      what you're building into a step-by-step prompt — no AI runs here, it hands the prompt to <b>your own</b> Claude.</li>
+      what you're building into a step-by-step prompt — no AI runs here, it hands the prompt to <b>your own</b> AI.</li>
     <li><b>Build it with your AI agent</b> — paste the plan into Claude Code, Codex, Cursor or any agent and start
       shipping. Want smarter search and a feature-by-feature plan from a whole PRD? <button type="button" class="link-btn" onclick="openModal('pluginModal')">Use the plugin</button>.</li>
   </ol>
   <p class="mut" style="margin-top:12px">Remember: stars are popularity, not quality, and a license is a plain summary, not legal advice.</p>
+</div></div>
+
+<div class="modal" id="privacyModal"><div class="sheet">
+  <button class="x" data-close>&times;</button>
+  <h2>Privacy</h2>
+  <p class="mut">Replore has no account, no server, no database and no analytics. The people who make it never receive
+    your ideas, searches or plans.</p>
+  <ul class="guide">
+    <li><b>Your search words</b> go from your browser straight to <b>GitHub</b> (with your IP address) to run the search.</li>
+    <li><b>When the page loads</b>, Cloudflare (hosting), Google Fonts and cdnjs see your IP address — not what you search.
+      Searches are never put in the page address.</li>
+    <li><b>On your device only:</b> your last search, results and filters, so a refresh brings them back. Tap <b>✕</b> in the
+      search bar or the Replore logo to delete them.</li>
+    <li><b>Uploaded plans</b> are read in your browser and never uploaded; only short feature phrases are searched on GitHub.</li>
+    <li><b>Open in Claude</b> sends the build-plan prompt to your own claude.ai account, only when you click it.</li>
+    <li>No cookies, ads or tracking pixels from Replore.</li>
+  </ul>
+  <p class="mut" style="margin-top:10px">The plugin and MCP server run on your computer; your AI provider handles your
+    conversation under its own terms. Full details, including the plugin's local safety log:
+    <a href="https://github.com/chittychat-studio/replore/blob/main/PRIVACY.md" target="_blank" rel="noopener">PRIVACY.md</a>.
+    This is a plain description of how Replore works, not legal advice.</p>
 </div></div>
 
 <div class="modal" id="aboutModal"><div class="sheet">

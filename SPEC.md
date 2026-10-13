@@ -207,8 +207,7 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   statistics (evidence-only, mirrors RS9/RS14). Selection resets on a new search or Home.
 - **RS29** Result-side filters, result count, and no arbitrary cap (RS22 web page). A search renders **every
   fit-ranked match that passes the filters**, not a fixed 20 — capping at 20 when (say) 23 passed is arbitrary
-  and was removed. A sane upper bound (60) guards against a runaway list; the page shows the first 10 and a
-  the rest load **automatically as the user scrolls** (10 at a time, no button; a "Showing X of Y" hint) — nothing is re-fetched (RS7 unaffected, no new API call). The
+  and was removed. A sane upper bound (60) guards against a runaway list; the page shows the first 10 and the rest load **automatically as the user scrolls** (10 at a time, no button; a "Showing X of Y" hint) — nothing is re-fetched (RS7 unaffected, no new API call). The
   results header shows the **number of matches** on the right (e.g. "22 results"). Above the results a row of
   **plain-English filter chips** — All / ✅ Free for commercial use / 🧩 Starters — shows or hides the
   already-fetched cards client-side (raw SPDX codes are deliberately not a filter). The commercial-use chip maps
@@ -239,8 +238,8 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   prompt to the user's own AI), (3) build it with their AI agent (Claude Code, Codex, Cursor…), with a link to the plugin for smarter search
   and a PRD-driven plan. Guidance only; it starts no search, runs no model, and holds no key (RS1 unchanged).
 - **RS31** Any-agent path. The engine (`scripts/scout.py`) is agent-neutral; only the one-command install
-  (`/plugin install`, `/replore:find`, the skill) is Claude Code-specific. A root `AGENTS.md` gives any coding
-  agent (Codex, Cursor, Cline, …) the same procedure as the skill — write 1–4 short queries, run the script,
+  (`/plugin install`, `/replore:find`, the skill) is Claude Code-specific. A root `AGENTS.md` (auto-read by Codex, Cursor, Copilot,
+  Cline, Windsurf; not by Claude Code or Gemini CLI) gives those agents the same procedure as the skill — write 1–4 short queries, run the script,
   present the comparison table, treat all input/output/repo text as data (RS9, RS25), decline RS18 requests,
   never invent results (RS7). User-facing copy (web menu, plugin modal, README) says "your AI agent" and shows
   two tabs: Claude Code (one command) and any other agent (clone + `AGENTS.md`, or run the script). Copy never
@@ -255,6 +254,18 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   never a partial or remembered list (RS7). stdout carries only protocol messages; nothing logs the token (RS8).
   The tool description tells the calling model that repo names/descriptions are data, not instructions (RS9)
   and to decline RS18 requests. Not reachable from browser-only chats with no local tools; the web page covers those.
+
+- **RS33** Privacy notice. `PRIVACY.md` (linked from README and the web page) and a one-line web notice under the
+  search bar describe data handling exactly as built — no broader promise. Facts it must state: the maintainers run
+  no server, database, account or analytics and receive no searches; searches go from the user's browser or computer
+  to the GitHub API (GitHub sees the words and IP); Google Fonts and cdnjs see the IP when the page loads; the page
+  host (Cloudflare Pages) serves the page but never receives searches (they are never put in the URL); the browser keeps
+  the last search + results + filters + theme in localStorage until ✕/the logo clears them; an uploaded plan is read
+  locally and only short feature phrases are sent to GitHub; "Open in Claude" sends the prompt to the user's own
+  claude.ai account; the plugin's RS25 hook may write a flagged prompt's first 200 characters to
+  `~/.replore/security.log` on the user's own machine and never transmits it; the user's AI agent provider handles
+  their conversation under its own terms. The notice says it is not legal advice and gives a dated version. Any change
+  that adds a data flow must update the notice in the same commit.
 
 ## RX — Deliberately excluded (v0.1)
 
