@@ -59,7 +59,7 @@ AI step stays in the plugin.
 ## Install (Claude Code)
 
 ```
-/plugin marketplace add chittychat-studio/find-repo
+/plugin marketplace add chittychat-studio/replore
 /plugin install replore@replore
 ```
 
