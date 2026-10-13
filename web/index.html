@@ -495,6 +495,8 @@
   <img src="tour.png" alt="The Replore page: describe your project, then get the open-source repos that fit"
     loading="lazy" style="width:100%;border:1px solid var(--line);border-radius:12px;margin:16px 0 4px">
   <p class="mut" style="margin:0">Describe your project, tap Find, and get the repos that fit — relevant, popular, free to use.</p>
+  <p class="mut" style="margin-top:12px"><b>Make a PRD:</b> tick the repos you like on the results, then tap <b>Generate PRD</b>.
+    Replore hands the picks to your <b>own</b> Claude (Copy prompt, or Open in Claude) — it writes the full PRD, free and private.</p>
   <p class="mut" style="margin-top:12px">For AI-written searches, a relevance check, and a whole PRD read feature
     by feature, use the Claude Code plugin.</p>
 </div></div>
@@ -1042,7 +1044,8 @@ document.addEventListener("keydown",function(e){ if(e.key==="Escape") closeModal
 var STEPS=[
   {ico:"✍️",t:"1 · Describe",d:"Say what you're building"},
   {ico:"🔍",t:"2 · We search GitHub",d:"Open-source &amp; maintained"},
-  {ico:"✨",t:"3 · Ranked by fit",d:"Relevant, popular &amp; free to use"}
+  {ico:"✨",t:"3 · Ranked by fit",d:"Relevant, popular &amp; free to use"},
+  {ico:"📝",t:"4 · Make a PRD",d:"Tick repos → your own Claude writes the PRD, free &amp; private"}
 ];
 function buildSteps(host){
   if(!host || host.dataset.built) return;
