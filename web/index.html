@@ -911,9 +911,17 @@ function watchMore(){ var s=document.querySelector("#out #resMore"); if(!s) retu
     for(var i=0;i<es.length;i++) if(es[i].isIntersecting){ revealMore(); break; } },{rootMargin:"0px 0px 400px 0px"});
   window.__moreObs.observe(s); }
 function initResultFilter(){ window.__resFilter="all"; window.__resLimit=10; window.__showOff=false; applyResultFilter(); watchMore(); checkMore(); }
+// RS34: "5 h 20 m" / "12 min" / "a minute" — rounded up, never shows 0
+function fmtWait(sec){ sec=Math.max(60,Math.round(+sec||0)); var h=Math.floor(sec/3600), m=Math.ceil((sec%3600)/60);
+  if(m===60){ h++; m=0; } if(h) return h+" h"+(m?" "+m+" m":""); return m<=1?"a minute":m+" min"; }
 // RS34: one honest line about the AI relevance check
 function gateLine(g){ if(!g) return "";
-  if(!g.ok) return '<p class="gate-note mut">Couldn\u2019t check relevance right now \u2014 showing keyword matches, some may be off-topic.</p>';
+  if(!g.ok){
+    if(g.error==="llm_daily_limit") return '<p class="gate-note mut">Today\u2019s free AI checks are used up \u2014 showing keyword matches, some may be off-topic. '+
+      'They reset in '+fmtWait(g.resetsIn)+'.</p>';
+    if(g.error==="llm_rate_limited") return '<p class="gate-note mut">The AI check is busy right now \u2014 showing keyword matches, some may be off-topic. '+
+      'Try again in '+fmtWait(g.resetsIn||60)+'.</p>';
+    return '<p class="gate-note mut">Couldn\u2019t check relevance right now \u2014 showing keyword matches, some may be off-topic.</p>'; }
   if(!g.hidden) return '<p class="gate-note mut">🧠 AI checked these for fit.</p>';
   return '<p class="gate-note mut">🧠 AI hid '+g.hidden+' off-topic repo'+(g.hidden===1?'':'s')+'. '+
     '<button type="button" class="link-btn" id="showOff">Show them</button></p>'; }
@@ -922,10 +930,12 @@ async function relevanceGate(query, repos){
   var ctl=window.AbortController?new AbortController():null, timer=ctl&&setTimeout(function(){ ctl.abort(); },8000);
   try{ var res=await fetch("/api/relevance",{method:"POST",headers:{"Content-Type":"application/json"},signal:ctl&&ctl.signal,
       body:JSON.stringify({query:String(query).slice(0,200),repos:repos.map(function(r){ return {name:r.name,description:(r.desc||"").slice(0,160),topics:r.topics||[]}; })})});
-    if(res.status===503||res.status===404||res.status===405||res.status===501){ var e=null; try{ e=(await res.json()).error; }catch(_){}
-      if(res.status!==503||e==="not_configured") return "off"; }   // check not set up (no key / no function): behave as before, no note
-    if(!res.ok) return null; var j=await res.json(); return Array.isArray(j.drop)?j.drop:null;
-  }catch(e){ return null; } finally{ if(timer) clearTimeout(timer); } }
+    if(!res.ok){ var er={}; try{ er=await res.json()||{}; }catch(_){}   // read the body once
+      if(res.status===404||res.status===405||res.status===501||(res.status===503&&er.error==="not_configured"))
+        return "off";   // check not set up (no key / no function): behave as before, no note
+      return {fail:true, error:er.error||"", resetsInSec:+er.resetsInSec||0}; }   // RS34: say why, incl. when it resets
+    var j=await res.json(); return Array.isArray(j.drop)?j.drop:{fail:true,error:""};
+  }catch(e){ return {fail:true,error:""}; } finally{ if(timer) clearTimeout(timer); } }
 
 // RS21: ready-made prompts the user can click to fill the box.
 var EXAMPLES=[
@@ -1144,6 +1154,7 @@ async function run(){
       var drops=await relevanceGate(like?(text+" (similar to "+like+")"):text, top.slice(0,30));
       if(gen!==window.__runGen) return;
       if(drops==="off"){ gate=null; }
+      else if(drops&&drops.fail){ gate={ok:false,error:drops.error,resetsIn:drops.resetsInSec}; }
       else if(drops){ top=top.slice(0,30); drops.forEach(function(d){ var r=top[d.i]; if(r){ r.off=1; r.offWhy=d.why; } });
         gate={ok:true,hidden:drops.length}; } else gate={ok:false}; }
     out.innerHTML=render(top,queries,excluded,ranked.length,qtok,heading,window.__likeNote||"",gate);

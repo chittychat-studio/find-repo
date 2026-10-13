@@ -80,3 +80,18 @@ const src = readFileSync(new URL("../functions/api/relevance.js", import.meta.ur
 assert.ok(!/console\.(log|info|warn|error|debug)/.test(src), "must not log");
 
 console.log("relevance function ok");
+
+// RS34 limit classification: daily allowance vs a short per-minute limit, with reset time
+{ const r = (status, body, ra) => new Response(body, { status, headers: ra ? { "retry-after": String(ra) } : {} });
+  const noon = Date.UTC(2026, 9, 13, 12, 0, 0);
+  assert.deepStrictEqual(await fn.limitInfo(r(429, "Rate limit reached ... tokens per minute (TPM)", 7), noon), { error: "llm_rate_limited", resetsInSec: 7 });
+  assert.deepStrictEqual(await fn.limitInfo(r(429, "Rate limit reached ... tokens per day (TPD): Limit 500000", 3600), noon), { error: "llm_daily_limit", resetsInSec: 3600 });
+  assert.deepStrictEqual(await fn.limitInfo(r(429, "too many"), noon), { error: "llm_rate_limited", resetsInSec: 60 });
+  assert.deepStrictEqual(await fn.limitInfo(r(429, "used up your daily free allocation of 10,000 neurons"), noon), { error: "llm_daily_limit", resetsInSec: 12 * 3600 });
+  assert.deepStrictEqual(await fn.limitInfo(r(400, "you have used up your daily free allocation of 10,000 neurons"), noon), { error: "llm_daily_limit", resetsInSec: 12 * 3600 });
+  assert.strictEqual(await fn.limitInfo(r(500, "boom"), noon), null);
+  assert.strictEqual(fn.secondsToUtcMidnight(Date.UTC(2026, 9, 13, 23, 59, 50)), 60);   // never "0 min"
+  const f = async () => new Response("tokens per day exceeded", { status: 429, headers: { "retry-after": "5400" } });
+  const out = await fn.judge("q", repos, env, f);
+  assert.deepStrictEqual(out, { status: 503, error: "llm_daily_limit", resetsInSec: 5400 }); }
+console.log("limit classification ok");

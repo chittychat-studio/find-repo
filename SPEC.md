@@ -293,7 +293,11 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   or reorder (mirrors RS6 — fit order stays deterministic); a response that isn't valid JSON or names an unknown index is
   ignored. **Fail open, labelled:** if the function is missing, unconfigured, rate-limited, slow (>8 s) or errors, the
   page shows the normal keyword results with a one-line note that relevance couldn't be checked (when the check is
-  simply not set up — no key, or no function on the host — the page behaves exactly as before, with no note) — never a blank page,
+  simply not set up — no key, or no function on the host — the page behaves exactly as before, with no note). When the
+  provider's limit is the cause, the note says which: the daily free allowance used up ("Today's free AI checks are
+  used up … They reset in 5 h 20 m" — from the provider's retry-after, else the next 00:00 UTC) or a short per-minute
+  limit ("The AI check is busy right now … Try again in a minute"). No live usage counter is shown (it would invite
+  draining the shared allowance and needs a second API); the owner sees usage in the Cloudflare/provider dashboard — never a blank page,
   never invented repos (RS7). The function stores nothing and logs no request content. Input is capped (description
   ≤200 chars, ≤30 repos, body ≤16 KB) and anything else is rejected with 400. A free LLM tier limits requests for the
   whole site, so under heavy use more searches fall back. RS33 is updated in the same change: search words and the

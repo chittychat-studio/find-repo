@@ -59,6 +59,22 @@ export function parseDrops(text, n) {
   return drop;
 }
 
+// RS34: classify a provider limit. Daily allowance used up -> resets at the provider's retry-after, else next
+// 00:00 UTC (Workers AI / Groq daily quotas reset then). Short per-minute limits -> "busy, try again shortly".
+export function secondsToUtcMidnight(now = Date.now()) {
+  const d = new Date(now); return Math.max(60, Math.ceil((Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1) - now) / 1000));
+}
+export async function limitInfo(res, now = Date.now()) {
+  let text = ""; try { text = (await res.text()).slice(0, 2000); } catch {}
+  const ra = Number(res.headers.get("retry-after"));
+  const retryAfter = Number.isFinite(ra) && ra > 0 ? Math.ceil(ra) : null;
+  const dailyWords = /per day|daily|tokens per day|requests per day|\bTPD\b|\bRPD\b|neurons|free allocation/i.test(text);
+  if (res.status !== 429 && !dailyWords) return null;
+  const daily = dailyWords || (retryAfter !== null && retryAfter > 600);
+  if (!daily) return { error: "llm_rate_limited", resetsInSec: retryAfter || 60 };
+  return { error: "llm_daily_limit", resetsInSec: retryAfter && retryAfter > 600 ? retryAfter : secondsToUtcMidnight(now) };
+}
+
 export async function judge(query, repos, env, fetchImpl = fetch) {
   const base = String(env.LLM_BASE_URL || "https://api.groq.com/openai/v1").replace(/\/+$/, "");
   const model = env.LLM_MODEL || "llama-3.1-8b-instant";
@@ -75,8 +91,11 @@ export async function judge(query, repos, env, fetchImpl = fetch) {
   } catch (e) {
     return { status: e && e.name === "AbortError" ? 504 : 502, error: "llm_unreachable" };
   } finally { clearTimeout(timer); }
-  if (res.status === 429) return { status: 503, error: "llm_rate_limited" };
-  if (!res.ok) return { status: 502, error: "llm_error" };
+  if (!res.ok) {
+    const lim = await limitInfo(res);
+    if (lim) return { status: 503, error: lim.error, resetsInSec: lim.resetsInSec };
+    return { status: 502, error: "llm_error" };
+  }
   let data; try { data = await res.json(); } catch { return { status: 502, error: "llm_bad_response" }; }
   const text = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
   const drop = parseDrops(text, repos.length);
@@ -98,7 +117,8 @@ export async function onRequestPost({ request, env }) {
   const bad = validate(body);
   if (bad) return json(400, { error: bad });
   const out = await judge(body.query, body.repos, env);
-  return out.status === 200 ? json(200, out.body) : json(out.status, { error: out.error });
+  return out.status === 200 ? json(200, out.body)
+    : json(out.status, out.resetsInSec ? { error: out.error, resetsInSec: out.resetsInSec } : { error: out.error });
 }
 
 export async function onRequest() { return json(405, { error: "post_only" }); }
