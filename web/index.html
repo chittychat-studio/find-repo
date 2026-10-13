@@ -158,6 +158,10 @@
     transition:border-color .18s,color .18s,transform .12s,box-shadow .18s}
   .nav-btn:hover{border-color:var(--accent);color:var(--accent-ink);transform:translateY(-1px);
     box-shadow:0 4px 12px -4px rgba(192,83,44,.4)}
+  a.nav-btn{text-decoration:none;display:inline-flex;align-items:center}
+  a.nav-btn:hover{text-decoration:none}
+  .nav-star{background:linear-gradient(135deg,var(--accent),var(--accent-ink));border-color:transparent;color:#fff}
+  .nav-star:hover{color:#fff;box-shadow:0 6px 16px -6px rgba(192,83,44,.7)}
   .nav{margin-left:auto;display:flex;gap:8px;align-items:center}
   .brand{width:100%;flex-wrap:wrap;align-items:center}
   .sub{color:var(--muted);margin:2px 0 0;font-size:14.5px}
@@ -392,6 +396,7 @@
     <button id="tourBtn" class="nav-btn" title="Watch how it works">▶ Tour</button>
     <button id="pluginBtn" class="nav-btn" title="Step-by-step: use the plugin in Claude Code">⌘ Use in Claude Code</button>
     <button id="aboutBtn" class="nav-btn" title="How results are ranked">ⓘ How ranking works</button>
+    <a id="starBtn" class="nav-btn nav-star" href="https://github.com/chittychat-studio/replore" target="_blank" rel="noopener" title="Star Replore on GitHub — it helps a lot">★ Star on GitHub</a>
   </nav>
   <div class="topbar-right">
     <button id="navToggle" class="nav-toggle" aria-label="Menu" aria-controls="nav" aria-expanded="false">☰</button>
