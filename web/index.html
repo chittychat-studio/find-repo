@@ -89,7 +89,9 @@
   button.primary:active{transform:translateY(0) scale(.99)}
   button.primary:disabled{opacity:.6;cursor:default;transform:none}
 
+  .brand .logo{flex:0 0 auto;align-self:center}
   .example-pick{margin-top:8px}
+  .stack-field{margin-top:12px}
   .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
   .gallery{margin-top:20px;max-width:620px;width:100%}
   .gallery-label{font-size:13px;color:var(--muted);margin:0 0 4px;text-align:center}
@@ -202,14 +204,19 @@
 <main class="app">
   <div class="left">
     <div>
-      <div class="brand"><h1>Find Repo</h1><span class="by">open-source finder</span>
+      <div class="brand"><svg class="logo" width="30" height="30" viewBox="0 0 32 32" aria-hidden="true">
+          <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="var(--accent)"/><stop offset="1" stop-color="var(--accent-ink)"/></linearGradient></defs>
+          <path d="M5 7h22l-7.5 9.5v7l-7 3.5v-10z" fill="none" stroke="url(#lg)" stroke-width="2.3" stroke-linejoin="round" stroke-linecap="round"/>
+          <path d="M16 20.5 L17.3 23.7 L20.5 25 L17.3 26.3 L16 29.5 L14.7 26.3 L11.5 25 L14.7 23.7 Z" fill="url(#lg)"/>
+        </svg><h1>Find Repo</h1><span class="by">open-source finder</span>
         <div class="nav">
           <button id="homeBtn" class="nav-btn" title="Back to the start">⌂ Home</button>
           <button id="tourBtn" class="nav-btn" title="Watch how it works">▶ Tour</button>
           <button id="setupBtn" class="nav-btn" title="Step-by-step: use the plugin in Claude Code">⌘ Setup</button>
           <button id="theme" class="theme-toggle" title="Switch light / dark" aria-label="Switch light / dark"></button>
         </div></div>
-      <p class="sub">Describe what you're building — get the top open-source GitHub repos that fit, by stars.</p>
+      <p class="sub">Describe what you're building — get the open-source GitHub repos that fit: relevant, popular and free to use.</p>
     </div>
 
     <div class="panel search">
@@ -218,6 +225,8 @@
       <select id="example-pick" class="example-pick" aria-label="Pick an example project to fill in and search">
         <option value="">↩ Or pick an example…</option>
       </select>
+      <div class="stack-field"><label for="stack" class="mut">Main language or tech (optional)</label>
+        <input id="stack" type="text" placeholder="e.g. Python, React, Django, HTML" autocomplete="off" maxlength="40"></div>
       <div class="row">
         <div><label for="platform" class="mut">Platform</label>
           <select id="platform"><option value="">Any</option><option value="web">Web</option>
@@ -226,12 +235,12 @@
         <div><label for="minstars" class="mut">Min stars</label>
           <input id="minstars" type="number" value="50" min="0" step="10"></div>
         <div><label for="starters" class="mut">From scratch?</label>
-          <select id="starters"><option value="yes">Yes — starters first</option>
-            <option value="no">No — by stars</option></select></div>
+          <select id="starters"><option value="yes">Yes</option>
+            <option value="no">No</option></select></div>
       </div>
       <button id="go" class="primary">Find repos</button>
       <div class="prd">
-        <label for="prd" class="mut">Have a PRD or spec? Upload it (read on your device, never uploaded)</label>
+        <label for="prd" class="mut">Got a longer plan or feature list? Upload it to find a repo per feature — it's read on your device and never uploaded.</label>
         <input id="prd" type="file" accept=".md,.markdown,.txt,.text,text/plain,text/markdown">
       </div>
       <div id="status" class="status"></div>
@@ -287,12 +296,14 @@
 <div class="modal" id="aboutModal"><div class="sheet">
   <button class="x" data-close>&times;</button>
   <h2>About the results</h2>
-  <p class="mut">The browser version does basic keyword search; the
+  <p class="mut">Results are ranked by <b>fit</b> — how well a repo matches your words, how popular it is (stars),
+    and how freely you can use its license — so the top pick is relevant <i>and</i> popular <i>and</i> free to use,
+    not just the most-starred. Each card says why it's relevant. The
     <a href="https://github.com/chittychat-studio/find-repo" target="_blank" rel="noopener">Claude Code plugin</a>
-    writes better searches and runs a relevance check. Results are GitHub search matches, not a scan of every
-    repository. Stars measure popularity, not quality, and can be bought. "Completely free?" and "OK in a paid
-    product?" are read from the license only — a plain summary, not legal advice; some projects also sell a paid
-    hosted version or add-ons.</p>
+    goes further: it writes smarter searches with AI, runs a semantic relevance check, and reads a whole plan
+    feature by feature. Results are GitHub search matches, not a scan of every repository. Stars measure
+    popularity, not quality, and can be bought. "Completely free?" and "OK in a paid product?" are read from the
+    license only — a plain summary, not legal advice; some projects also sell a paid hosted version or add-ons.</p>
 </div></div>
 
 <script>
@@ -563,11 +574,11 @@ function renderGrouped(groups, excluded, note){
 }
 
 async function runFeatures(features, minStars, platform, preferStarters, out, st){
-  var ex2=platform==="ios"?" -topic:macos":"", excluded={license:0,stale:0,low:0,fork:0,harm:0}, seen={}, groups=[];
+  var ex2=platform==="ios"?" -topic:macos":"", stack=(document.getElementById("stack").value||"").trim().slice(0,40);
+  var excluded={license:0,stale:0,low:0,fork:0,harm:0}, seen={}, groups=[];
   for(var i=0;i<features.length;i++){ st.textContent="Searching feature "+(i+1)+"/"+features.length+"…";
-    var items=await search((features[i]+ex2).trim());
-    var fresh=items.filter(function(it){ if(!it.full_name||seen.has(it.full_name))return false; seen.add(it.full_name); return true; });
-    var kept=keep(fresh,minStars,platform,excluded);
+    var items=await search((features[i]+(stack?" "+stack:"")+ex2).trim());
+    var kept=keep(items,minStars,platform,excluded,seen);  // shared seen map (RS5 cross-query rel), not a Set
     var floor=kept.reduce(function(m,r){return Math.max(m,r.stars);},0)*STARTER_MIN_SHARE;
     kept.forEach(function(r){ r.fit=fitScore(r,preferStarters,floor); });
     kept.sort(function(a,b){ return b.fit-a.fit||b.stars-a.stars||a.name.localeCompare(b.name); });
@@ -584,6 +595,7 @@ async function run(){
   var platform=document.getElementById("platform").value;
   var minStars=Math.max(0,parseInt(document.getElementById("minstars").value,10)||0);
   var preferStarters=document.getElementById("starters").value==="yes";
+  var stack=(document.getElementById("stack").value||"").trim().slice(0,40);
   var st=document.getElementById("status"), out=document.getElementById("out"), go=document.getElementById("go");
   out.innerHTML="";
   if(!text){ st.textContent="Type what you're building first."; return; }
@@ -594,6 +606,7 @@ async function run(){
   go.disabled=true; st.textContent="Working…";
   try{
     var queries=keywordQueries(text,platform);
+    if(stack) queries=queries.map(function(q){return (q+" "+stack).trim();});  // narrow to the user's language/tech
     if(!queries.length) throw new Error("Couldn't build a search. Try different words.");
     var excluded={license:0,stale:0,low:0,fork:0,harm:0}, seen={}, lists=[];
     for(var i=0;i<queries.length;i++){ st.textContent="Searching ("+(i+1)+"/"+queries.length+")…";
@@ -653,8 +666,8 @@ document.addEventListener("keydown",function(e){ if(e.key==="Escape") closeModal
 // ---- the animated "How it works" explainer (the in-page video) ----
 var STEPS=[
   {ico:"✍️",t:"1 · Describe",d:"Say what you're building"},
-  {ico:"🔍",t:"2 · We search GitHub",d:"Open-source, by stars"},
-  {ico:"✨",t:"3 · Ranked results",d:"License &amp; fit, at a glance"}
+  {ico:"🔍",t:"2 · We search GitHub",d:"Open-source &amp; maintained"},
+  {ico:"✨",t:"3 · Ranked by fit",d:"Relevant, popular &amp; free to use"}
 ];
 function buildSteps(host){
   if(!host || host.dataset.built) return;
@@ -696,7 +709,7 @@ var LAST="findrepo_last", CACHE_V="2";  // bump when saved markup changes, so st
 function saveResults(){ try{ var out=document.getElementById("out");
   localStorage.setItem(LAST, JSON.stringify({ v:CACHE_V, html:out.innerHTML, q:document.getElementById("q").value,
     platform:document.getElementById("platform").value, minstars:document.getElementById("minstars").value,
-    starters:document.getElementById("starters").value })); }catch(e){} }
+    starters:document.getElementById("starters").value, stack:document.getElementById("stack").value })); }catch(e){} }
 function clearSaved(){ try{ localStorage.removeItem(LAST); }catch(e){} }
 function restoreResults(){
   var d; try{ d=JSON.parse(localStorage.getItem(LAST)||"null"); }catch(e){}
@@ -707,6 +720,7 @@ function restoreResults(){
   if(d.platform!=null) document.getElementById("platform").value=d.platform;
   if(d.minstars!=null) document.getElementById("minstars").value=d.minstars;
   if(d.starters!=null) document.getElementById("starters").value=d.starters;
+  if(d.stack!=null) document.getElementById("stack").value=d.stack;
   document.getElementById("status").textContent="Restored your last results — press Home to start over.";
   animateCards(document.getElementById("out"));
   return true;
@@ -714,7 +728,8 @@ function restoreResults(){
 if(!restoreResults()) showHome();
 // Home: clear the saved results and the box, return to the start; Tour: play the how-it-works walkthrough
 document.getElementById("homeBtn").addEventListener("click",function(){
-  clearSaved(); document.getElementById("q").value=""; document.getElementById("status").textContent="";
+  clearSaved(); document.getElementById("q").value=""; document.getElementById("stack").value="";
+  document.getElementById("status").textContent="";
   showHome(); document.getElementById("q").focus();
 });
 document.getElementById("tourBtn").addEventListener("click",function(){ openModal("howModal"); });
