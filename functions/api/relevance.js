@@ -112,8 +112,23 @@ export async function judge(query, repos, env, fetchImpl = fetch, ms = TIMEOUT_M
 
 // RS34a: Cloudflare Workers AI through the Pages AI binding (no key) — tried first. Same prompt and parse rules as judge().
 const WAI_CAPACITY = /capacity|too many requests|rate limit/i;
+// Cloudflare retires models (live: 5028 for @cf/meta/llama-3.1-8b-instruct), so a model that is gone (5007 no such
+// model, 5028 retired) falls through to the next one. WORKERS_AI_MODEL may list several, comma-separated.
+export const WAI_MODELS = ["@cf/meta/llama-3.1-8b-instruct-fp8", "@cf/meta/llama-3.3-70b-instruct-fp8-fast"];
+const MODEL_GONE = /^wai_error_(5007|5028)$/;
 export async function judgeWorkersAI(query, repos, env, ms = TIMEOUT_MS) {
-  const model = env.WORKERS_AI_MODEL || "@cf/meta/llama-3.1-8b-instruct";
+  const models = env.WORKERS_AI_MODEL ? String(env.WORKERS_AI_MODEL).split(",").map(s => s.trim()).filter(Boolean) : WAI_MODELS;
+  const end = Date.now() + ms;
+  let out;
+  for (const model of models) {
+    const left = end - Date.now();
+    if (left < 500) break;
+    out = await runWorkersAI(model, query, repos, env, left);
+    if (!MODEL_GONE.test(out.error || "")) return out;
+  }
+  return out || { status: 504, error: "wai_timeout" };
+}
+async function runWorkersAI(model, query, repos, env, ms) {
   let timer, out;
   try {
     out = await Promise.race([

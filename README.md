@@ -63,7 +63,7 @@ described, and hides them (with a "show them" link). If the check is unavailable
 keyword results with a note. AI-written searches and the feature-by-feature PRD mode live in the plugin.
 
 **How the relevance check runs (maintainer, SPEC RS34a):** `wrangler.toml` binds Cloudflare Workers AI as `AI`, so
-the check works on deploy with no key (optional variable `WORKERS_AI_MODEL`, default `@cf/meta/llama-3.1-8b-instruct`).
+the check works on deploy with no key (optional variable `WORKERS_AI_MODEL`, comma-separated; default `@cf/meta/llama-3.1-8b-instruct-fp8`, then `@cf/meta/llama-3.3-70b-instruct-fp8-fast` if Cloudflare has retired the first).
 Keep the account on the Workers **Free** plan if you want it to stop at the daily free allocation rather than bill.
 **Optional fallback** for when Workers AI is over its allocation or failing: in Cloudflare → your Pages project →
 Settings → Variables and Secrets, add a **secret** `LLM_API_KEY` (e.g. a free Groq API key from console.groq.com) and

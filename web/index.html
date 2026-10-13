@@ -297,7 +297,7 @@
   .group-h span{color:var(--muted);font-weight:500}
   .err{color:var(--warn);font-weight:600}
   .excl{font-size:11.5px;color:var(--muted);margin:14px 4px 4px}
-  .privacy-note{text-align:center;font-size:12.5px;color:var(--muted);margin:10px auto 0;max-width:620px;line-height:1.45}
+  .privacy-note{text-align:center;font-size:11.5px;color:var(--muted);margin:18px auto 8px;max-width:620px;line-height:1.45;opacity:.85}
   /* result-side filter chips + show-more */
   .res-filter{display:flex;flex-wrap:wrap;gap:8px;margin:0 4px 14px}
   .rfilter,.rsel{background:var(--offbg);border:1px solid var(--line);border-radius:999px;padding:7px 13px;font:inherit;
@@ -462,8 +462,6 @@
       </div>
 
       <div id="quickpicks" class="quickpicks" aria-label="Quick examples to try"></div>
-      <p class="privacy-note">🔒 No account, no tracking, nothing you type is stored. Your search goes to GitHub, and to an AI that
-        checks which repos fit — we don't keep either. <button type="button" class="link-btn" onclick="openModal('privacyModal')">Privacy</button></p>
 
       <div id="status" class="status"></div>
       <div id="tsBox" class="ts-box"></div>
@@ -472,6 +470,8 @@
 
   <section class="out-wrap">
     <div id="out" class="results"></div>
+    <p class="privacy-note">🔒 Nothing you type is stored. Your search goes to GitHub and an AI fit-check; we keep neither.
+      <button type="button" class="link-btn" onclick="openModal('privacyModal')">Privacy</button></p>
   </section>
 </main>
 
@@ -1214,10 +1214,15 @@ async function run(){
       else if(drops){ top=top.slice(0,30); drops.forEach(function(d){ var r=top[d.i]; if(r){ r.off=1; r.offWhy=d.why; } });
         gate={ok:true,hidden:drops.length}; } }
     out.innerHTML=render(top,queries,excluded,ranked.length,qtok,heading,window.__likeNote||"",gate);
-    animateCards(out); initResultFilter(); st.textContent=""; saveResults(); syncClearQ();
+    animateCards(out); initResultFilter(); st.textContent=""; saveResults(); syncClearQ(); showResultsOnPhone(out);
   }catch(e){ if(gen!==window.__runGen) return; st.textContent=""; out.innerHTML='<div class="panel"><p class="err">'+esc(e.message)+'</p></div>'; }
   finally{ if(gen===window.__runGen){ setGoBusy(false); window.__busy=false; } }
 }
+// RS24: below the 1000px two-column layout the results sit under the search form; bring them into view once a search finishes
+function showResultsOnPhone(out){
+  try{ if(!matchMedia("(max-width: 999px)").matches || !out.scrollIntoView) return;
+    var reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+    out.scrollIntoView({behavior:reduce?"auto":"smooth",block:"start"}); }catch(e){} }
 document.getElementById("go").addEventListener("click",run);
 document.getElementById("prd").addEventListener("change",function(e){
   var f=e.target.files&&e.target.files[0]; if(!f) return;

@@ -105,7 +105,7 @@ console.log("limit classification ok");
   { let called = false; const groq = async () => { called = true; return fakeLLM(ok)(); };
     const out = await fn.judgeChain("portfolio site", repos, { ...env, AI: ai(() => ({ response: ok })) }, groq);
     assert.deepStrictEqual(out.body, { drop: [{ i: 1, why: "mobile" }], checked: 3 }); assert.strictEqual(called, false);
-    assert.strictEqual(ai.last.model, "@cf/meta/llama-3.1-8b-instruct");
+    assert.strictEqual(ai.last.model, "@cf/meta/llama-3.1-8b-instruct-fp8");
     assert.match(ai.last.input.messages[0].content, /untrusted data/); }
   // Workers AI out of its daily allocation -> Groq answers
   { const AI = { run: async () => { throw new Error("4006: you have used up your daily free allocation of 10,000 neurons"); } };
@@ -261,3 +261,19 @@ console.log("second review regressions ok");
   const r = await post({ query: "q", repos }, thrower("AiError: 5007: No such model @cf/x"));
   const t = await r.text(); assert.ok(!t.includes("No such model")); }
 console.log("diagnostic codes ok");
+
+// live regression: Workers AI retired the default model (5028) -> next model in the list answers
+{ const seen = [];
+  const AI = { run: async (model) => { seen.push(model);
+    if (model === "@cf/meta/llama-3.1-8b-instruct-fp8") throw new Error("AiError: 5028: model deprecated");
+    return { response: '{"drop":[]}' }; } };
+  const out = await fn.judgeWorkersAI("q", repos, { AI });
+  assert.strictEqual(out.status, 200); assert.deepStrictEqual(seen, fn.WAI_MODELS);
+  // other errors don't burn a second model
+  seen.length = 0;
+  const AI2 = { run: async (m) => { seen.push(m); throw new Error("AiError: 3010: bad input"); } };
+  assert.strictEqual((await fn.judgeWorkersAI("q", repos, { AI: AI2 })).error, "wai_error_3010"); assert.strictEqual(seen.length, 1);
+  // env override, comma-separated
+  seen.length = 0;
+  await fn.judgeWorkersAI("q", repos, { AI, WORKERS_AI_MODEL: "@cf/a, @cf/b" }); assert.deepStrictEqual(seen, ["@cf/a"]); }
+console.log("model fallback ok");

@@ -150,7 +150,8 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   query). The grouped output repeats the RS17 key and RS20 free note, and says the relevance check runs in the
   skill. The PRD text is used only to derive search terms; it is treated as data (RS9), never as instructions.
 - **RS24** Web UI (RS22 page). 3D app-shell: a fixed two-column layout on desktop so the page itself never
-  scrolls (results scroll inside their panel); single column with natural scroll on phones. Results render as
+  scrolls (results scroll inside their panel); single column with natural scroll on phones; on phones a finished search scrolls the results into view, and the
+   privacy line sits below the results, not in the search panel. Results render as
   compact cards (rank, stars, what it does, a colour-coded license pill, free/starter tags) instead of a wide
   table. The plain-English license meaning (e.g. "OK to use in a paid product" / "Completely free?") renders as
   a line on every card at every breakpoint — not only on wide screens — so the core promise is visible on phones.
@@ -288,8 +289,9 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   then an optional OpenAI-compatible fallback set by `LLM_BASE_URL` / `LLM_MODEL` with its key in the server-side secret
   `LLM_API_KEY` (never sent to the browser, RS8), see RS34a — to judge each repo's fit for what the user is building, and returns
   the indices to keep plus a one-line reason for each repo it drops. **Provider chain (RS34a):** the function tries
-  Cloudflare Workers AI first, through the Pages `AI` binding (no key; model `WORKERS_AI_MODEL`, default
-  `@cf/meta/llama-3.1-8b-instruct`), then the OpenAI-compatible provider (when `LLM_API_KEY` is set, e.g. Groq) when
+  Cloudflare Workers AI first, through the Pages `AI` binding (no key; model list `WORKERS_AI_MODEL`, default
+  `@cf/meta/llama-3.1-8b-instruct-fp8` then `@cf/meta/llama-3.3-70b-instruct-fp8-fast`; a retired or missing model,
+  Workers AI errors 5028/5007, falls through to the next), then the OpenAI-compatible provider (when `LLM_API_KEY` is set, e.g. Groq) when
   Workers AI is missing, over its daily allocation, slow or erroring — one same-shape prompt, the same parse rules, a 7 s total budget across
   both. It reports a limit only when every configured provider failed: "busy" if any was a short per-minute limit,
   otherwise "used up" with the soonest reset (capped at 24 h); when any provider failed for another reason, the plain "couldn't check" note is shown. A slow first provider gets at most 60% of the budget so the fallback still runs. Not configured = neither a key nor the binding. A provider whose free
