@@ -1,6 +1,6 @@
 // SPEC RS34 — web relevance gate. Cloudflare Pages Function: POST /api/relevance
-// Asks an OpenAI-compatible LLM which candidate repos do NOT fit what the user is building.
-// The key lives only here (env.LLM_API_KEY, a Pages secret) and is never sent to the browser (RS8).
+// Asks an LLM (OpenAI-compatible provider, then Workers AI as fallback — RS34a) which candidate repos do NOT fit what the user is building.
+// The key lives only here (env.LLM_API_KEY, a Pages secret; Workers AI needs none) and is never sent to the browser (RS8).
 // Stores nothing and logs no request content (RS33). Fails open: any problem -> an error status, and the page
 // shows its normal keyword results with a note (never a blank page, never invented repos — RS7).
 
@@ -64,23 +64,26 @@ export function parseDrops(text, n) {
 export function secondsToUtcMidnight(now = Date.now()) {
   const d = new Date(now); return Math.max(60, Math.ceil((Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1) - now) / 1000));
 }
-export async function limitInfo(res, now = Date.now()) {
-  let text = ""; try { text = (await res.text()).slice(0, 2000); } catch {}
-  const ra = Number(res.headers.get("retry-after"));
-  const retryAfter = Number.isFinite(ra) && ra > 0 ? Math.ceil(ra) : null;
-  const dailyWords = /per day|daily|tokens per day|requests per day|\bTPD\b|\bRPD\b|neurons|free allocation/i.test(text);
-  if (res.status !== 429 && !dailyWords) return null;
+const DAILY = /per day|daily|tokens per day|requests per day|\bTPD\b|\bRPD\b|neurons|free allocation/i;
+export function classifyLimit(status, text, retryAfter, now = Date.now()) {
+  const dailyWords = DAILY.test(text);
+  if (status !== 429 && !dailyWords) return null;
   const daily = dailyWords || (retryAfter !== null && retryAfter > 600);
   if (!daily) return { error: "llm_rate_limited", resetsInSec: retryAfter || 60 };
   return { error: "llm_daily_limit", resetsInSec: retryAfter && retryAfter > 600 ? retryAfter : secondsToUtcMidnight(now) };
 }
+export async function limitInfo(res, now = Date.now()) {
+  let text = ""; try { text = (await res.text()).slice(0, 2000); } catch {}
+  const ra = Number(res.headers.get("retry-after"));
+  return classifyLimit(res.status, text, Number.isFinite(ra) && ra > 0 ? Math.ceil(ra) : null, now);
+}
 
-export async function judge(query, repos, env, fetchImpl = fetch) {
+export async function judge(query, repos, env, fetchImpl = fetch, ms = TIMEOUT_MS) {
   const base = String(env.LLM_BASE_URL || "https://api.groq.com/openai/v1").replace(/\/+$/, "");
   const model = env.LLM_MODEL || "llama-3.1-8b-instant";
   const payload = { model, messages: buildMessages(query, repos), temperature: 0, max_tokens: 900 };
   if (env.LLM_JSON_MODE !== "0") payload.response_format = { type: "json_object" };
-  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), TIMEOUT_MS);
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), ms);
   let res;
   try {
     res = await fetchImpl(`${base}/chat/completions`, {
@@ -103,12 +106,60 @@ export async function judge(query, repos, env, fetchImpl = fetch) {
   return { status: 200, body: { drop, checked: repos.length } };
 }
 
+// RS34a: Cloudflare Workers AI through the Pages AI binding (no key). Same prompt and parse rules as judge().
+const WAI_CAPACITY = /capacity|too many requests|rate limit/i;
+export async function judgeWorkersAI(query, repos, env, ms = TIMEOUT_MS) {
+  const model = env.WORKERS_AI_MODEL || "@cf/meta/llama-3.1-8b-instruct";
+  let timer, out;
+  try {
+    out = await Promise.race([
+      env.AI.run(model, { messages: buildMessages(query, repos), temperature: 0, max_tokens: 900 }),
+      new Promise((_, rej) => { timer = setTimeout(() => rej(Object.assign(new Error("timeout"), { name: "AbortError" })), ms); }),
+    ]);
+  } catch (e) {
+    if (e && e.name === "AbortError") return { status: 504, error: "llm_unreachable" };
+    const msg = String((e && e.message) || "").slice(0, 2000);
+    const lim = classifyLimit(WAI_CAPACITY.test(msg) ? 429 : 0, msg, null);
+    if (lim) return { status: 503, error: lim.error, resetsInSec: lim.resetsInSec };
+    return { status: 502, error: "llm_error" };
+  } finally { clearTimeout(timer); }
+  const r = out && out.response;
+  const drop = parseDrops(typeof r === "string" ? r : JSON.stringify(r), repos.length);
+  if (!drop) return { status: 502, error: "llm_unparseable" };
+  return { status: 200, body: { drop, checked: repos.length } };
+}
+
+// RS34a: try each configured provider in order within one time budget. A limit is reported only when every
+// provider failed: "busy" if any hit a short limit, else "used up" with the soonest reset.
+export async function judgeChain(query, repos, env, fetchImpl = fetch, budgetMs = TIMEOUT_MS) {
+  const steps = [];
+  if (env.LLM_API_KEY) steps.push(ms => judge(query, repos, env, fetchImpl, ms));
+  if (env.AI && typeof env.AI.run === "function") steps.push(ms => judgeWorkersAI(query, repos, env, ms));
+  if (!steps.length) return { status: 503, error: "not_configured" };
+  const end = Date.now() + budgetMs, fails = [];
+  for (const step of steps) {
+    const left = end - Date.now();
+    if (left < 1000) break;
+    const out = await step(left);
+    if (out.status === 200) return out;
+    fails.push(out);
+  }
+  if (!fails.length) return { status: 504, error: "llm_unreachable" };
+  const limits = fails.filter(f => f.resetsInSec);
+  if (limits.length === fails.length) {
+    const busy = limits.filter(f => f.error === "llm_rate_limited");
+    const pick = busy.length ? busy : limits;
+    return { status: 503, error: pick[0].error, resetsInSec: Math.min(...pick.map(f => f.resetsInSec)) };
+  }
+  return fails.find(f => !f.resetsInSec);
+}
+
 const json = (status, obj) => new Response(JSON.stringify(obj), {
   status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" },
 });
 
 export async function onRequestPost({ request, env }) {
-  if (!env.LLM_API_KEY) return json(503, { error: "not_configured" });
+  if (!env.LLM_API_KEY && !(env.AI && typeof env.AI.run === "function")) return json(503, { error: "not_configured" });
   const ct = request.headers.get("Content-Type") || "";
   if (!ct.includes("application/json")) return json(415, { error: "json_only" });
   const raw = await request.text();
@@ -116,7 +167,7 @@ export async function onRequestPost({ request, env }) {
   let body; try { body = JSON.parse(raw); } catch { return json(400, { error: "invalid_json" }); }
   const bad = validate(body);
   if (bad) return json(400, { error: bad });
-  const out = await judge(body.query, body.repos, env);
+  const out = await judgeChain(body.query, body.repos, env);
   return out.status === 200 ? json(200, out.body)
     : json(out.status, out.resetsInSec ? { error: out.error, resetsInSec: out.resetsInSec } : { error: out.error });
 }

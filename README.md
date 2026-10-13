@@ -65,7 +65,11 @@ keyword results with a note. AI-written searches and the feature-by-feature PRD 
 **Turning the relevance check on (maintainer, one-time):** in Cloudflare → your Pages project → Settings → Variables
 and Secrets, add a **secret** `LLM_API_KEY` (e.g. a free Groq API key from console.groq.com) and redeploy. Optional:
 `LLM_BASE_URL` (any OpenAI-compatible endpoint; default Groq) and `LLM_MODEL` (default `llama-3.1-8b-instant`). Without
-the key the page works exactly as before. Before switching provider, check its data-use terms and update `PRIVACY.md`.
+the key the page works exactly as before. **Fallback (SPEC RS34a):** `wrangler.toml` binds Cloudflare Workers AI as
+`AI`; when Groq is missing, over its limit or failing, the check runs there instead (no key; optional
+`WORKERS_AI_MODEL`, default `@cf/meta/llama-3.1-8b-instruct`). Keep the account on the Workers **Free** plan if you
+want it to stop at the daily free allocation rather than bill. Before adding or switching a provider, check its
+data-use terms (free tiers limited to prototyping, such as GitHub Models, don't qualify) and update `PRIVACY.md`.
 
 ## Install (Claude Code)
 
@@ -170,7 +174,7 @@ python3 -m pytest
 
 No account, no database, no analytics, nothing stored: the makers of Replore never keep your ideas or searches.
 Search words go to GitHub to run the search; on the web page they also pass through a small relevance check to an AI
-provider (Groq) that hides off-topic repos. Fonts and scripts are served from the site itself. The plugin never uses
+provider (Groq, with Cloudflare Workers AI as fallback) that hides off-topic repos. Fonts and scripts are served from the site itself. The plugin never uses
 the relevance check. Details — including what the web page keeps in your browser and the plugin's optional,
 off-by-default local safety log — are in [`PRIVACY.md`](PRIVACY.md).
 

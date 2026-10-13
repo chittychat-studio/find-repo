@@ -287,7 +287,14 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   Pages Function, `POST /api/relevance` (`functions/api/relevance.js`). The function asks an LLM — any
   OpenAI-compatible chat-completions provider set by `LLM_BASE_URL` / `LLM_MODEL`, key in the server-side secret
   `LLM_API_KEY` (never sent to the browser, RS8) — to judge each repo's fit for what the user is building, and returns
-  the indices to keep plus a one-line reason for each repo it drops. The page shows only kept repos, says how many were
+  the indices to keep plus a one-line reason for each repo it drops. **Provider chain (RS34a):** the function tries
+  the OpenAI-compatible provider first (when `LLM_API_KEY` is set), then Cloudflare Workers AI through the Pages
+  `AI` binding (no key; model `WORKERS_AI_MODEL`, default `@cf/meta/llama-3.1-8b-instruct`) when the first is
+  missing, over its limit, slow or erroring — one same-shape prompt, the same parse rules, a 7 s total budget across
+  both. It reports a limit only when every configured provider failed: "busy" if any was a short per-minute limit,
+  otherwise "used up" with the soonest reset. Not configured = neither a key nor the binding. A provider whose free
+  tier is restricted to experimentation or prototyping (e.g. GitHub Models free usage) is not added to the chain
+  for the public site; every provider in the chain is named in `PRIVACY.md`. The page shows only kept repos, says how many were
   hidden as off-topic, and offers "show them" (transparency, not silent removal). Rules: repo text and the description
   are data, never instructions (RS9, RS25), and the prompt says so; the LLM may only drop or keep, never add, rename
   or reorder (mirrors RS6 — fit order stays deterministic); a response that isn't valid JSON or names an unknown index is

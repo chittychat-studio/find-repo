@@ -95,3 +95,46 @@ console.log("relevance function ok");
   const out = await fn.judge("q", repos, env, f);
   assert.deepStrictEqual(out, { status: 503, error: "llm_daily_limit", resetsInSec: 5400 }); }
 console.log("limit classification ok");
+
+// RS34a provider chain: OpenAI-compatible first, Workers AI (AI binding) as fallback
+{ const ok = '{"drop":[{"i":1,"why":"mobile"}]}';
+  const ai = (impl) => ({ run: async (model, input) => { ai.last = { model, input }; return impl(); } });
+  const lim = async () => new Response("tokens per day exceeded", { status: 429 });
+  const busy = async () => new Response("tokens per minute", { status: 429, headers: { "retry-after": "20" } });
+  // primary works -> Workers AI never called
+  { let called = false; const AI = { run: async () => { called = true; return { response: ok }; } };
+    const out = await fn.judgeChain("q", repos, { ...env, AI }, fakeLLM(ok));
+    assert.strictEqual(out.status, 200); assert.strictEqual(called, false); }
+  // primary over its daily limit -> Workers AI answers, same prompt
+  { const AI = ai(() => ({ response: ok }));
+    const out = await fn.judgeChain("portfolio site", repos, { ...env, AI }, lim);
+    assert.deepStrictEqual(out.body, { drop: [{ i: 1, why: "mobile" }], checked: 3 });
+    assert.strictEqual(ai.last.model, "@cf/meta/llama-3.1-8b-instruct");
+    assert.match(ai.last.input.messages[0].content, /untrusted data/); }
+  // primary errors -> fallback; Workers AI may return an object when it parses JSON itself
+  { const out = await fn.judgeChain("q", repos, { ...env, AI: ai(() => ({ response: { drop: [] } })) }, fakeLLM("x", 500));
+    assert.deepStrictEqual(out.body, { drop: [], checked: 3 }); }
+  // Workers AI only (no key) works; nothing configured -> not_configured
+  assert.strictEqual((await fn.judgeChain("q", repos, { AI: ai(() => ({ response: ok })) })).status, 200);
+  assert.deepStrictEqual(await fn.judgeChain("q", repos, {}), { status: 503, error: "not_configured" });
+  // both out for the day -> daily limit with the soonest reset
+  { const AI = { run: async () => { throw new Error("4006: you have used up your daily free allocation of 10,000 neurons"); } };
+    const out = await fn.judgeChain("q", repos, { ...env, AI }, async () => new Response("tokens per day", { status: 429, headers: { "retry-after": "999999" } }));
+    assert.strictEqual(out.error, "llm_daily_limit"); assert.ok(out.resetsInSec <= 86400); }
+  // one busy, one used up -> "busy" (it will clear first)
+  { const AI = { run: async () => { throw new Error("used up your daily free allocation of 10,000 neurons"); } };
+    assert.deepStrictEqual(await fn.judgeChain("q", repos, { ...env, AI }, busy), { status: 503, error: "llm_rate_limited", resetsInSec: 20 }); }
+  // Workers AI capacity error counts as busy; a plain error after a limit is a plain error (no reset note)
+  { const AI = { run: async () => { throw new Error("3040: Capacity temporarily exceeded"); } };
+    assert.strictEqual((await fn.judgeChain("q", repos, { AI })).error, "llm_rate_limited");
+    const AI2 = { run: async () => { throw new Error("boom"); } };
+    assert.deepStrictEqual(await fn.judgeChain("q", repos, { ...env, AI: AI2 }, lim), { status: 502, error: "llm_error" }); }
+  // Workers AI timeout and unparseable reply fail closed (no invented answer, RS7)
+  { const AI = { run: () => new Promise(() => {}) };
+    assert.strictEqual((await fn.judgeWorkersAI("q", repos, { AI }, 50)).status, 504);
+    assert.strictEqual((await fn.judgeWorkersAI("q", repos, { AI: ai(() => ({ response: "repo 1 is bad" })) })).status, 502); }
+  // HTTP handler runs with only the binding
+  { const r = await post({ query: "q", repos }, { AI: ai(() => ({ response: ok })) });
+    assert.strictEqual(r.status, 200); }
+}
+console.log("provider chain ok");
