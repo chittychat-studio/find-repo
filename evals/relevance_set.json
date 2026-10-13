@@ -1,0 +1,593 @@
+{
+ "about": "RS34 relevance test set: live GitHub results for real searches, hand-labelled (clear cases only; ambiguous ones left out). rel=true means it fits the query. Labels are a maintainer judgement, not ground truth.",
+ "items": [
+  {
+   "query": "portfolio website builder",
+   "name": "issaafalkattan/React-Landing-Page-Template",
+   "text": "React Landing Page Template. A simple react one page landing page templates for startups/companies",
+   "rel": true,
+   "src": "portfolio_old"
+  },
+  {
+   "query": "portfolio website builder",
+   "name": "ixartz/Next-JS-Landing-Page-Starter-Template",
+   "text": "Next JS Landing Page Starter Template. 🚀 Free NextJS Landing Page Template written in Tailwind CSS 3 and TypeScript ⚡️ Made with developer experience first: Next.js 14 + TypeScript + ESLint + Prettier + Husky + Lint-Staged + VSCode + Netlify + PostCSS + Tailwind CSS",
+   "rel": true,
+   "src": "portfolio_old"
+  },
+  {
+   "query": "portfolio website builder",
+   "name": "nobruf/shadcn-landing-page",
+   "text": "shadcn landing page. New design 🎉 Nextjs + Shadcn + TypeScript + Tailwind. Landing page template ease-to-use",
+   "rel": true,
+   "src": "portfolio_old"
+  },
+  {
+   "query": "portfolio website builder",
+   "name": "Adrinlol/landy-react-template",
+   "text": "landy react template. Landy is an open-source React landing page template designed for developers and startups, who want to create a quick and professional landing page for their business or project.",
+   "rel": true,
+   "src": "portfolio_old"
+  },
+  {
+   "query": "portfolio website builder",
+   "name": "mhyfritz/astro-landing-page",
+   "text": "astro landing page. An Astro + Tailwind CSS Example/Template for Landing Pages",
+   "rel": true,
+   "src": "portfolio_old"
+  },
+  {
+   "query": "portfolio website builder",
+   "name": "zuramai/mazer",
+   "text": "mazer. Free and Open-source Bootstrap 5 Admin Dashboard Template and Landing Page",
+   "rel": false,
+   "src": "portfolio_old"
+  },
+  {
+   "query": "portfolio website builder",
+   "name": "cssninjaStudio/fresh",
+   "text": "fresh. 🚀 Free Astro Landing page starter",
+   "rel": true,
+   "src": "portfolio_old"
+  },
+  {
+   "query": "portfolio website builder",
+   "name": "leoMirandaa/shadcn-vue-landing-page",
+   "text": "shadcn vue landing page. New design 🎉  Vue + Shadcn-vue + TypeScript + Tailwind. Landing page template ease-to-use",
+   "rel": true,
+   "src": "portfolio_old"
+  },
+  {
+   "query": "portfolio website builder",
+   "name": "ionic-team/ionic-framework",
+   "text": "ionic framework. A powerful cross-platform UI toolkit for building native-quality iOS, Android, and Progressive Web Apps with HTML, CSS, and JavaScript.",
+   "rel": false,
+   "src": "portfolio_old"
+  },
+  {
+   "query": "portfolio website builder",
+   "name": "umijs/qiankun",
+   "text": "qiankun. 📦 🚀 Blazing fast, simple and complete solution for micro frontends.",
+   "rel": false,
+   "src": "portfolio_old"
+  },
+  {
+   "query": "portfolio website builder",
+   "name": "choojs/choo",
+   "text": "choo. :steam_locomotive::train: - sturdy 4kb frontend framework",
+   "rel": false,
+   "src": "portfolio_old"
+  },
+  {
+   "query": "portfolio website builder",
+   "name": "luigi-project/luigi",
+   "text": "luigi. Micro frontend framework",
+   "rel": false,
+   "src": "portfolio_old"
+  },
+  {
+   "query": "portfolio website builder",
+   "name": "baidu/san",
+   "text": "san. A fast, portable, flexible JavaScript component framework",
+   "rel": false,
+   "src": "portfolio_old"
+  },
+  {
+   "query": "portfolio website builder",
+   "name": "laravel-frontend-presets/argon",
+   "text": "argon. Argon Frontend Preset For Laravel Framework 11.x and Up",
+   "rel": false,
+   "src": "portfolio_old"
+  },
+  {
+   "query": "portfolio website builder",
+   "name": "marmelab/react-admin",
+   "text": "react admin. A frontend Framework for single-page applications on top of REST/GraphQL APIs, using TypeScript, React and Material Design",
+   "rel": false,
+   "src": "portfolio_old"
+  },
+  {
+   "query": "portfolio website builder",
+   "name": "laravel-frontend-presets/material-dashboard",
+   "text": "material dashboard. Material Frontend Preset For Laravel Framework 11.x and Up",
+   "rel": false,
+   "src": "portfolio_old"
+  },
+  {
+   "query": "portfolio website builder",
+   "name": "paschmann/rasa-ui",
+   "text": "rasa ui. Rasa UI is a frontend for the Rasa Framework",
+   "rel": false,
+   "src": "portfolio_old"
+  },
+  {
+   "query": "portfolio website builder",
+   "name": "lynx-family/lynx-stack",
+   "text": "lynx stack. The frontend framework and toolchain of Lynx",
+   "rel": false,
+   "src": "portfolio_old"
+  },
+  {
+   "query": "portfolio website builder",
+   "name": "alsacreations/KNACSS",
+   "text": "KNACSS. Styles CSS sur-vitaminés pour éléments HTML natifs",
+   "rel": false,
+   "src": "portfolio_old"
+  },
+  {
+   "query": "portfolio website builder",
+   "name": "laravel-frontend-presets/black-dashboard",
+   "text": "black dashboard. Black Frontend Preset For Laravel Framework 11.x and Up",
+   "rel": false,
+   "src": "portfolio_old"
+  },
+  {
+   "query": "portfolio website builder",
+   "name": "expo/expo",
+   "text": "expo. An open-source framework for making universal native apps with React. Expo runs on Android, iOS, and the web.",
+   "rel": false,
+   "src": "portfolio_old"
+  },
+  {
+   "query": "portfolio website builder",
+   "name": "shopware/frontends",
+   "text": "frontends. Shopware Frontends is a framework for building custom, headless storefronts with Shopware 6.",
+   "rel": false,
+   "src": "portfolio_old"
+  },
+  {
+   "query": "a portfolio website with smooth scroll animations",
+   "name": "cobiwave/simplefolio",
+   "text": "simplefolio. ⚡️ A minimal portfolio template for Developers",
+   "rel": true,
+   "src": "🌐"
+  },
+  {
+   "query": "a portfolio website with smooth scroll animations",
+   "name": "issaafalkattan/React-Landing-Page-Template",
+   "text": "React Landing Page Template. A simple react one page landing page templates for startups/companies",
+   "rel": true,
+   "src": "🌐"
+  },
+  {
+   "query": "a portfolio website with smooth scroll animations",
+   "name": "academicpages/academicpages.github.io",
+   "text": "academicpages.github.io. Github Pages template based upon HTML and Markdown for personal, portfolio-based",
+   "rel": true,
+   "src": "🌐"
+  },
+  {
+   "query": "a portfolio website with smooth scroll animations",
+   "name": "henryjeff/portfolio-website",
+   "text": "portfolio website. —",
+   "rel": true,
+   "src": "🌐"
+  },
+  {
+   "query": "a portfolio website with smooth scroll animations",
+   "name": "ixartz/Next-JS-Landing-Page-Starter-Template",
+   "text": "Next JS Landing Page Starter Template. 🚀 Free NextJS Landing Page Template written in Tailwind CSS 3 and TypeScript ⚡️",
+   "rel": true,
+   "src": "🌐"
+  },
+  {
+   "query": "a portfolio website with smooth scroll animations",
+   "name": "codewithsadee/vcard-personal-portfolio",
+   "text": "vcard personal portfolio. vCard is a fully responsive personal portfolio website, responsive for all devic",
+   "rel": true,
+   "src": "🌐"
+  },
+  {
+   "query": "a portfolio website with smooth scroll animations",
+   "name": "techfolios/template",
+   "text": "template. Professional Portfolio",
+   "rel": true,
+   "src": "🌐"
+  },
+  {
+   "query": "a portfolio website with smooth scroll animations",
+   "name": "HamishMW/portfolio",
+   "text": "portfolio. My personal portfolio website built using React and three js",
+   "rel": true,
+   "src": "🌐"
+  },
+  {
+   "query": "a portfolio website with smooth scroll animations",
+   "name": "ubaimutl/react-portfolio",
+   "text": "react portfolio. Simple portfolio template built with reactjs",
+   "rel": true,
+   "src": "🌐"
+  },
+  {
+   "query": "a portfolio website with smooth scroll animations",
+   "name": "Adrinlol/landy-react-template",
+   "text": "landy react template. Landy is an open-source React landing page template designed for developers and",
+   "rel": true,
+   "src": "🌐"
+  },
+  {
+   "query": "landing page for my SaaS in Next.js",
+   "name": "ixartz/SaaS-Boilerplate",
+   "text": "SaaS Boilerplate. 🚀🎉📚 SaaS Boilerplate built with Next.js + Tailwind CSS + Shadcn UI + TypeScri",
+   "rel": true,
+   "src": "🛒"
+  },
+  {
+   "query": "landing page for my SaaS in Next.js",
+   "name": "Blazity/next-saas-starter",
+   "text": "next saas starter. ⚡️ Free Next.js responsive landing page template for SaaS products made using JA",
+   "rel": true,
+   "src": "🛒"
+  },
+  {
+   "query": "landing page for my SaaS in Next.js",
+   "name": "gonzalochale/saas-landing-template",
+   "text": "saas landing template. SaaS landing page using Next.js 16, ShadcnUI and Tailwind CSS v4.",
+   "rel": true,
+   "src": "🛒"
+  },
+  {
+   "query": "landing page for my SaaS in Next.js",
+   "name": "Shreyas-29/vetra",
+   "text": "vetra. Modern AI marketing automation platform landing page built with Next.js 15, Tail",
+   "rel": true,
+   "src": "🛒"
+  },
+  {
+   "query": "landing page for my SaaS in Next.js",
+   "name": "jiweiyeah/nextjs-saas-template",
+   "text": "nextjs saas template. A simple and user-friendly, SEO-friendly Next.js template designed for quick set",
+   "rel": true,
+   "src": "🛒"
+  },
+  {
+   "query": "landing page for my SaaS in Next.js",
+   "name": "fengyunzaidushi/ship-saas-one-click",
+   "text": "ship saas one click. One-click AI SaaS startup template with built-in landing page/blog generator and",
+   "rel": true,
+   "src": "🛒"
+  },
+  {
+   "query": "a diet and calorie tracking app",
+   "name": "wger-project/wger",
+   "text": "wger. Self hosted FLOSS fitness/workout, nutrition and weight tracker",
+   "rel": true,
+   "src": "🥗"
+  },
+  {
+   "query": "a diet and calorie tracking app",
+   "name": "simonoppowa/OpenNutriTracker",
+   "text": "OpenNutriTracker. 🍴 OpenNutriTracker is a free and open source calorie tracker with a focus on si",
+   "rel": true,
+   "src": "🥗"
+  },
+  {
+   "query": "a diet and calorie tracking app",
+   "name": "maksimowiczm/FoodYou",
+   "text": "FoodYou. A free, open-source, and privacy-focused food diary and nutrition tracker",
+   "rel": true,
+   "src": "🥗"
+  },
+  {
+   "query": "a diet and calorie tracking app",
+   "name": "Cawlumm/lyftr",
+   "text": "lyftr. Self-hosted fitness tracker. Log workouts, track nutrition, and monitor progress",
+   "rel": true,
+   "src": "🥗"
+  },
+  {
+   "query": "a diet and calorie tracking app",
+   "name": "dylanleigh/PriceAndNutritionTrackingSystem",
+   "text": "PriceAndNutritionTrackingSystem. PANTS is a self-hosted, open-source nutrition tracker and tool for nutritional d",
+   "rel": true,
+   "src": "🥗"
+  },
+  {
+   "query": "a diet and calorie tracking app",
+   "name": "brandonp2412/FitBook",
+   "text": "FitBook. Offline-first calorie and nutrition tracker with barcode scanning, food search,",
+   "rel": true,
+   "src": "🥗"
+  },
+  {
+   "query": "generate PowerPoint decks from my notes",
+   "name": "presenton/presenton",
+   "text": "presenton. Open-Source AI Presentation Generator and API (Gamma, Canva, Beautiful AI, Deckt",
+   "rel": true,
+   "src": "📑"
+  },
+  {
+   "query": "generate PowerPoint decks from my notes",
+   "name": "allweonedev/presentation-ai",
+   "text": "presentation ai. ALLWEONE® Open source AI presentation generator Gamma Alternative. Create profes",
+   "rel": true,
+   "src": "📑"
+  },
+  {
+   "query": "generate PowerPoint decks from my notes",
+   "name": "tonyqinatcmu/SlideBot-AI",
+   "text": "SlideBot AI. 🎨 SlideBot AI - AI-Powered Presentation Generator",
+   "rel": true,
+   "src": "📑"
+  },
+  {
+   "query": "generate PowerPoint decks from my notes",
+   "name": "heavysixer/node-pptx",
+   "text": "node pptx. Generate PPTX files on the server-side with JavaScript.",
+   "rel": true,
+   "src": "📑"
+  },
+  {
+   "query": "generate PowerPoint decks from my notes",
+   "name": "chuspeeism/dashi-ppt-skill",
+   "text": "dashi ppt skill. An AI-agent skill that generates browser-editable presentations from multiple vi",
+   "rel": true,
+   "src": "📑"
+  },
+  {
+   "query": "generate PowerPoint decks from my notes",
+   "name": "ShapeCrawler/ShapeCrawler",
+   "text": "ShapeCrawler. PowerPoint .NET library for reading, modifying, and generating PPTX presentation",
+   "rel": true,
+   "src": "📑"
+  },
+  {
+   "query": "generate PowerPoint decks from my notes",
+   "name": "ningzimu/codex-ppt-skill",
+   "text": "codex ppt skill. GPT-Image-2 PPT Generator Skill for Creating Image-Based PowerPoint Presentation",
+   "rel": true,
+   "src": "📑"
+  },
+  {
+   "query": "generate PowerPoint decks from my notes",
+   "name": "ASML-Labs/PPTX.jl",
+   "text": "PPTX.jl. Generate PowerPoint PPTX files from Julia",
+   "rel": true,
+   "src": "📑"
+  },
+  {
+   "query": "generate PowerPoint decks from my notes",
+   "name": "AmNotAGoose/PPTX-Presentation-Generator",
+   "text": "PPTX Presentation Generator. —",
+   "rel": true,
+   "src": "📑"
+  },
+  {
+   "query": "generate PowerPoint decks from my notes",
+   "name": "Lancelot-Xie/img2pptx",
+   "text": "img2pptx. Turn AI-generated diagrams and raster references into editable, modular, audited",
+   "rel": true,
+   "src": "📑"
+  },
+  {
+   "query": "a chatbot that answers questions from my PDFs, Python",
+   "name": "Cinnamon/kotaemon",
+   "text": "kotaemon. An open-source RAG-based tool for chatting with your documents.",
+   "rel": true,
+   "src": "🤖"
+  },
+  {
+   "query": "a chatbot that answers questions from my PDFs, Python",
+   "name": "wechaty/wechaty",
+   "text": "wechaty. Conversational RPA SDK for Chatbot Makers. Join our Discord: https://discord.gg/",
+   "rel": false,
+   "src": "🤖"
+  },
+  {
+   "query": "a chatbot that answers questions from my PDFs, Python",
+   "name": "microsoft/BotFramework-WebChat",
+   "text": "BotFramework WebChat. A highly-customizable web-based client for Azure Bot Services.",
+   "rel": false,
+   "src": "🤖"
+  },
+  {
+   "query": "a chatbot that answers questions from my PDFs, Python",
+   "name": "python-telegram-bot/python-telegram-bot",
+   "text": "python telegram bot. We have made you a wrapper you can't refuse",
+   "rel": false,
+   "src": "🤖"
+  },
+  {
+   "query": "a chatbot that answers questions from my PDFs, Python",
+   "name": "koishijs/koishi",
+   "text": "koishi. Cross-platform chatbot framework made with love",
+   "rel": false,
+   "src": "🤖"
+  },
+  {
+   "query": "a chatbot that answers questions from my PDFs, Python",
+   "name": "datvodinh/rag-chatbot",
+   "text": "rag chatbot. Chat with multiple PDFs locally",
+   "rel": true,
+   "src": "🤖"
+  },
+  {
+   "query": "a chatbot that answers questions from my PDFs, Python",
+   "name": "SciSharp/BotSharp",
+   "text": "BotSharp. AI Multi-Agent Framework in .NET",
+   "rel": false,
+   "src": "🤖"
+  },
+  {
+   "query": "a chatbot that answers questions from my PDFs, Python",
+   "name": "umbertogriffo/rag-chatbot",
+   "text": "rag chatbot. RAG (Retrieval-augmented generation) ChatBot that provides answers based on cont",
+   "rel": true,
+   "src": "🤖"
+  },
+  {
+   "query": "a chatbot that answers questions from my PDFs, Python",
+   "name": "SilveryStar/Adachi-BOT",
+   "text": "Adachi BOT. Chatbot framework",
+   "rel": false,
+   "src": "🤖"
+  },
+  {
+   "query": "a simple 2D browser game engine for beginners",
+   "name": "cloudwu/skynet",
+   "text": "skynet. A lightweight online game framework",
+   "rel": false,
+   "src": "🎮"
+  },
+  {
+   "query": "a simple 2D browser game engine for beginners",
+   "name": "g3n/engine",
+   "text": "engine. Go 3D Game Engine (http://g3n.rocks)",
+   "rel": false,
+   "src": "🎮"
+  },
+  {
+   "query": "a simple 2D browser game engine for beginners",
+   "name": "ppy/osu-framework",
+   "text": "osu framework. A game framework written with osu! in mind.",
+   "rel": false,
+   "src": "🎮"
+  },
+  {
+   "query": "a simple 2D browser game engine for beginners",
+   "name": "nem0/LumixEngine",
+   "text": "LumixEngine. 3D C++ Game Engine - yet another open source game engine",
+   "rel": false,
+   "src": "🎮"
+  },
+  {
+   "query": "a simple 2D browser game engine for beginners",
+   "name": "ejoy/ant",
+   "text": "ant. Ant game engine",
+   "rel": false,
+   "src": "🎮"
+  },
+  {
+   "query": "learn web security by hacking a practice app",
+   "name": "kriasoft/react-starter-kit",
+   "text": "react starter kit. Modern React starter kit with Bun, TypeScript, Tailwind CSS, tRPC, Stripe, and C",
+   "rel": false,
+   "src": "🔒"
+  },
+  {
+   "query": "learn web security by hacking a practice app",
+   "name": "google-gemini/live-api-web-console",
+   "text": "live api web console. A react-based starter app for using the Live API over websockets with Gemini",
+   "rel": false,
+   "src": "🔒"
+  },
+  {
+   "query": "learn web security by hacking a practice app",
+   "name": "mlynch/nextjs-tailwind-ionic-capacitor-starter",
+   "text": "nextjs tailwind ionic capacitor starter. A starting point for building an iOS, Android, and Progressive Web App with Tail",
+   "rel": false,
+   "src": "🔒"
+  },
+  {
+   "query": "learn web security by hacking a practice app",
+   "name": "stencil-community/stencil-app-starter",
+   "text": "stencil app starter. Minimal starter project for building web components with Stencil",
+   "rel": false,
+   "src": "🔒"
+  },
+  {
+   "query": "learn web security by hacking a practice app",
+   "name": "Eric-Guo/wechat-starter",
+   "text": "wechat starter. WeChat web app with wx_pay in rails",
+   "rel": false,
+   "src": "🔒"
+  },
+  {
+   "query": "learn web security by hacking a practice app",
+   "name": "Gradoid/scalable_flutter_app_starter",
+   "text": "scalable flutter app starter. A scalable Flutter app template that uses flutter_bloc and go_router. Save weeks",
+   "rel": false,
+   "src": "🔒"
+  },
+  {
+   "query": "an ai image generator",
+   "name": "microsoft/agent-framework",
+   "text": "agent framework. A framework for building, orchestrating and deploying AI agents and multi-agent",
+   "rel": false,
+   "src": "(fr"
+  },
+  {
+   "query": "an ai image generator",
+   "name": "zai-org/Open-AutoGLM",
+   "text": "Open AutoGLM. An Open Phone Agent Model & Framework. Unlocking the AI Phone for Everyone",
+   "rel": false,
+   "src": "(fr"
+  },
+  {
+   "query": "an ai image generator",
+   "name": "obra/superpowers",
+   "text": "superpowers. An agentic skills framework & software development methodology that works.",
+   "rel": false,
+   "src": "(fr"
+  },
+  {
+   "query": "an ai image generator",
+   "name": "openai/openai-agents-python",
+   "text": "openai agents python. A lightweight, powerful framework for multi-agent workflows",
+   "rel": false,
+   "src": "(fr"
+  },
+  {
+   "query": "an ai image generator",
+   "name": "virgoone/next-money",
+   "text": "next money. Flux AI Image generator",
+   "rel": true,
+   "src": "(fr"
+  },
+  {
+   "query": "an ai image generator",
+   "name": "FoundationAgents/MetaGPT",
+   "text": "MetaGPT. 🌟 The Multi-Agent Framework: First AI Software Company, Towards Natural Languag",
+   "rel": false,
+   "src": "(fr"
+  },
+  {
+   "query": "an ai image generator",
+   "name": "alibaba/spring-ai-alibaba",
+   "text": "spring ai alibaba. Agentic AI Framework for Java Developers",
+   "rel": false,
+   "src": "(fr"
+  },
+  {
+   "query": "an ai image generator",
+   "name": "livekit/agents",
+   "text": "agents. A framework for building realtime voice AI agents 🤖🎙️📹",
+   "rel": false,
+   "src": "(fr"
+  },
+  {
+   "query": "an ai image generator",
+   "name": "crewAIInc/crewAI",
+   "text": "crewAI. Framework for orchestrating role-playing, autonomous AI agents. By fostering col",
+   "rel": false,
+   "src": "(fr"
+  },
+  {
+   "query": "an ai image generator",
+   "name": "micro/go-micro",
+   "text": "go micro. A framework for agents, tools and services",
+   "rel": false,
+   "src": "(fr"
+  }
+ ]
+}

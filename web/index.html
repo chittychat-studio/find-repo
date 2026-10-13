@@ -304,6 +304,9 @@
     font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;transition:border-color .18s,color .18s,background .18s}
   .rfilter:hover,.rsel:hover{border-color:var(--accent);color:var(--accent-ink)}
   .rsel{margin-left:auto}
+  .gate-note{font-size:12.5px;margin:2px 4px 12px}
+  .offtag{font-size:11.5px;font-weight:600;color:var(--warn);margin:0 0 6px}
+  .rcard[data-off="1"]{opacity:.62}
   .rsel.on{border-color:var(--accent);color:var(--accent-ink)}
   .rfilter.on{background:linear-gradient(135deg,var(--accent),var(--accent-ink));border-color:transparent;color:#fff}
   .res-more-hint{text-align:center;color:var(--muted);font-size:12.5px;margin:10px 4px 2px;min-height:18px}
@@ -457,8 +460,8 @@
       </div>
 
       <div id="quickpicks" class="quickpicks" aria-label="Quick examples to try"></div>
-      <p class="privacy-note">🔒 Your ideas stay yours — no account, no tracking, nothing sent to us. Searches go straight from
-        your browser to GitHub. <button type="button" class="link-btn" onclick="openModal('privacyModal')">Privacy</button></p>
+      <p class="privacy-note">🔒 No account, no tracking, nothing stored. Your search goes to GitHub, and to an AI that checks
+        which repos fit — we don't keep either. <button type="button" class="link-btn" onclick="openModal('privacyModal')">Privacy</button></p>
 
       <div id="status" class="status"></div>
     </div>
@@ -608,10 +611,14 @@
 <div class="modal" id="privacyModal"><div class="sheet">
   <button class="x" data-close>&times;</button>
   <h2>Privacy</h2>
-  <p class="mut">Replore has no account, no server, no database and no analytics. The people who make it never receive
-    your ideas, searches or plans.</p>
+  <p class="mut">Replore has no account, no database and no analytics, and stores nothing you type. Its only server code
+    is a small relevance check that passes your search to an AI and keeps nothing.</p>
   <ul class="guide">
     <li><b>Your search words</b> go from your browser straight to <b>GitHub</b> (with your IP address) to run the search.</li>
+    <li><b>To show only relevant repos</b>, your search words and the list of repos found go through our relevance check
+      to an AI provider (<b>Groq</b>), which judges which repos fit. We don't store or log them; Groq handles them under
+      <a href="https://groq.com" target="_blank" rel="noopener">its own terms</a>. If the check is unavailable you simply
+      get the unfiltered keyword results.</li>
     <li><b>When the page loads</b>, only Cloudflare (our host) sees your IP address — not what you search. Fonts and
       scripts come from this site, not from Google or other CDNs. Searches are never put in the page address.</li>
     <li><b>On your device only:</b> your last search, results and filters, so a refresh brings them back. Tap <b>✕</b> in the
@@ -680,19 +687,20 @@ function esc(s){var d=document.createElement("div");d.textContent=s==null?"":s;
 function clean(s){return (s||"").replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁦-⁩]/g," ").trim().slice(0,200);}
 function kstars(n){return n>=1000?(n/1000).toFixed(n>=10000?0:1)+"k":""+n;}
 
-var STOP=new Set("a an the my our your for to with and or of in on app apps application build building make making want really nice looking simple create please that helps people some something cool new project using use it".split(" "));
-var SYN={website:["landing page template","website template"],web:["web app starter"],   // RS16: specific phrases only, never a bare category
- portfolio:["portfolio template","portfolio website"],
- game:["game engine","game framework"],diet:["calorie counter","nutrition tracker"],
- chatbot:["chatbot framework","rag chatbot"],dashboard:["admin dashboard template"],
- blog:["blog starter"],ecommerce:["ecommerce starter"],map:["maplibre","offline map tiles"],
- ai:["ai agent framework"],powerpoint:["pptx generate","presentation generator"]};
+var STOP=new Set("a an the my our your for to with and or of in on app apps application build building make making want really nice looking simple create please that helps people some something cool new project using use it by from first show as into about i ill i'll sell answers questions".split(" "));
+var SYN={   // RS16: specific, live-checked phrases only — never a bare category ("frontend framework", "game framework")
+ website:["landing page template","website template"], portfolio:["portfolio template","portfolio website"],
+ game:["html5 game engine","phaser game"], diet:["calorie counter","nutrition tracker"],
+ chatbot:["rag chatbot"], pdf:["chat with pdf"], dashboard:["admin dashboard template"], spreadsheet:["csv dashboard"],
+ blog:["blog starter"], ecommerce:["ecommerce starter"], map:["maplibre","offline map tiles"],
+ security:["vulnerable web application","web security training"], hacking:["vulnerable web application","web security training"],
+ iphone:["swiftui app template"], habit:["habit tracker"], powerpoint:["pptx generate","presentation generator"]};
 
 function keywordQueries(text, platform){
   var words=text.toLowerCase().replace(/[^a-z0-9 +#.]/g," ").split(/\s+/).filter(function(w){return w&&!STOP.has(w);});
-  var core=words.slice(0,4).join(" ").trim();
+  var core=words.slice(0,3).join(" ").trim();   // GitHub ANDs every word: >3 words usually matches nothing
   var qs=[]; if(core) qs.push(core);
-  for(var i=0;i<words.length && qs.length<MAX_QUERIES;i++){ var ex=SYN[words[i]];
+  for(var i=0;i<words.length && qs.length<MAX_QUERIES;i++){ var w=words[i], ex=SYN[w]||(w.length>3&&/s$/.test(w)?SYN[w.slice(0,-1)]:null);   // "maps" -> map
     if(ex) for(var j=0;j<ex.length && qs.length<MAX_QUERIES;j++) if(qs.indexOf(ex[j])<0) qs.push(ex[j]); }
   if(qs.length<2 && core) qs.push(core+" starter");
   var ex = platform==="ios"?" -topic:macos":""; // keep iOS off Mac apps
@@ -734,7 +742,7 @@ function keep(items, minStars, platform, excluded, seen){
     var topics=(it.topics||[]).map(function(t){return String(t).toLowerCase();});
     var starter=!!it.is_template||topics.some(function(t){return STARTER_TOPICS.has(t);});
     var row={name:cname,stars:it.stargazers_count||0,spdx:spdx,pushed:(it.pushed_at||"").slice(0,10),
-      url:it.html_url||("https://github.com/"+name),desc:desc,starter:starter,rel:i};
+      url:it.html_url||("https://github.com/"+name),desc:desc,starter:starter,rel:i,topics:topics.slice(0,8)};
     out.push(row); seen[cname]=row;
   }
   return out;
@@ -788,7 +796,8 @@ function licenseVerdict(spdx){
 function cardHtml(r,i,qtokens){
   var free=freeText(r.spdx), paid=lu(r.spdx), v=licenseVerdict(r.spdx);
   var okCom=v.c==="t-good"?1:0;   // one "free for commercial use" flag = the green verdict (permissive + weak copyleft)
-  return '<article class="rcard" data-com="'+okCom+'" data-starter="'+(r.starter?1:0)+'">'+
+  return '<article class="rcard" data-com="'+okCom+'" data-starter="'+(r.starter?1:0)+'" data-off="'+(r.off?1:0)+'">'+
+    (r.off?'<div class="offtag" title="Judged off-topic by the AI relevance check">Off-topic: '+esc(r.offWhy||"doesn't fit")+'</div>':'')+
     (i!=null?'<span class="rank">#'+(i+1)+'</span>':'')+
     '<span class="stars">★ <span class="cnt" data-v="'+r.stars+'">'+kstars(r.stars)+'</span></span>'+
     '<div class="name"><a href="'+esc(r.url)+'" target="_blank" rel="noopener">'+esc(r.name)+'</a></div>'+
@@ -845,12 +854,14 @@ function filterBar(){ return '<div class="res-filter" role="group" aria-label="F
   '<button type="button" class="rsel" id="resSelAll" title="Tick every repo shown, for a build plan (RS28a)">☑ Select all shown</button>'+
   '</div>'; }
 
-function render(top, queries, excluded, totalMatches, qtokens, heading, note){
+function render(top, queries, excluded, totalMatches, qtokens, heading, note, gate){
   if(!top.length){ return '<div class="panel"><p class="err">No repository matched.</p>'+
     '<p class="mut">Searches: '+esc(queries.join("; "))+'. Try fewer or broader words, or lower the minimum stars.</p></div>'; }
   var more=(totalMatches||top.length)-top.length;   // >0 only if we hit the render cap (rare)
+  var keptN=top.filter(function(r){ return !r.off; }).length;
   var h='<div class="res-head"><h2>'+(heading?esc(heading):'Top matches')+'</h2>'+
-      '<span class="res-count mut">'+top.length+' result'+(top.length===1?'':'s')+'</span></div>'+
+      '<span class="res-count mut">'+keptN+' result'+(keptN===1?'':'s')+'</span></div>'+
+    gateLine(gate)+
     (note?'<p class="res-note mut">'+note+'</p>':'')+  /* note is pre-built HTML: repo name already escaped, rest is our own markup */
     filterBar()+
     '<div class="grid">'+top.map(function(r,i){return cardHtml(r,i,qtokens);}).join("")+'</div>'+
@@ -869,8 +880,9 @@ function applyResultFilter(){
   var out=document.getElementById("out"); if(!out || !out.querySelector(".res-filter")) return;  // only the top-matches view
   var cards=out.querySelectorAll(".rcard"), f=window.__resFilter||"all", limit=window.__resLimit||10, shown=0, matched=0;
   for(var i=0;i<cards.length;i++){ var c=cards[i];
-    var ok = f==="all" || (f==="com"&&c.getAttribute("data-com")==="1")
-      || (f==="starter"&&c.getAttribute("data-starter")==="1");
+    var ok = (f==="all" || (f==="com"&&c.getAttribute("data-com")==="1")
+      || (f==="starter"&&c.getAttribute("data-starter")==="1"))
+      && (window.__showOff || c.getAttribute("data-off")!=="1");   // RS34: off-topic hidden unless shown
     if(ok){ matched++; if(shown<limit){ c.style.display=""; shown++; } else c.style.display="none"; }
     else c.style.display="none";
   }
@@ -898,7 +910,20 @@ function watchMore(){ var s=document.querySelector("#out #resMore"); if(!s) retu
   window.__moreObs=new IntersectionObserver(function(es){
     for(var i=0;i<es.length;i++) if(es[i].isIntersecting){ revealMore(); break; } },{rootMargin:"0px 0px 400px 0px"});
   window.__moreObs.observe(s); }
-function initResultFilter(){ window.__resFilter="all"; window.__resLimit=10; applyResultFilter(); watchMore(); checkMore(); }
+function initResultFilter(){ window.__resFilter="all"; window.__resLimit=10; window.__showOff=false; applyResultFilter(); watchMore(); checkMore(); }
+// RS34: one honest line about the AI relevance check
+function gateLine(g){ if(!g) return "";
+  if(!g.ok) return '<p class="gate-note mut">Couldn\u2019t check relevance right now \u2014 showing keyword matches, some may be off-topic.</p>';
+  if(!g.hidden) return '<p class="gate-note mut">🧠 AI checked these for fit.</p>';
+  return '<p class="gate-note mut">🧠 AI hid '+g.hidden+' off-topic repo'+(g.hidden===1?'':'s')+'. '+
+    '<button type="button" class="link-btn" id="showOff">Show them</button></p>'; }
+// RS34: ask the same-origin function which repos don't fit; null on any failure (fail open, labelled)
+async function relevanceGate(query, repos){
+  var ctl=window.AbortController?new AbortController():null, timer=ctl&&setTimeout(function(){ ctl.abort(); },8000);
+  try{ var res=await fetch("/api/relevance",{method:"POST",headers:{"Content-Type":"application/json"},signal:ctl&&ctl.signal,
+      body:JSON.stringify({query:String(query).slice(0,200),repos:repos.map(function(r){ return {name:r.name,description:(r.desc||"").slice(0,160),topics:r.topics||[]}; })})});
+    if(!res.ok) return null; var j=await res.json(); return Array.isArray(j.drop)?j.drop:null;
+  }catch(e){ return null; } finally{ if(timer) clearTimeout(timer); } }
 
 // RS21: ready-made prompts the user can click to fill the box.
 var EXAMPLES=[
@@ -1112,7 +1137,13 @@ async function run(){
       if(gen!==window.__runGen) return;
       lists.push(keep(items,minStars,platform,excluded,seen)); }
     var ranked=rankByFit(lists,preferStarters), top=ranked.slice(0,60);  // sane upper bound; we no longer cap at 20
-    out.innerHTML=render(top,queries,excluded,ranked.length,qtok,heading,window.__likeNote||"");
+    var gate=null;
+    if(top.length){ st.textContent="Checking which repos fit…";   // RS34 relevance check on the top 30
+      var drops=await relevanceGate(like?(text+" (similar to "+like+")"):text, top.slice(0,30));
+      if(gen!==window.__runGen) return;
+      if(drops){ top=top.slice(0,30); drops.forEach(function(d){ var r=top[d.i]; if(r){ r.off=1; r.offWhy=d.why; } });
+        gate={ok:true,hidden:drops.length}; } else gate={ok:false}; }
+    out.innerHTML=render(top,queries,excluded,ranked.length,qtok,heading,window.__likeNote||"",gate);
     animateCards(out); initResultFilter(); st.textContent=""; saveResults(); syncClearQ();
   }catch(e){ if(gen!==window.__runGen) return; st.textContent=""; out.innerHTML='<div class="panel"><p class="err">'+esc(e.message)+'</p></div>'; }
   finally{ if(gen===window.__runGen){ setGoBusy(false); window.__busy=false; } }
@@ -1246,6 +1277,7 @@ document.addEventListener("keydown",function(e){ if(e.key==="Escape") closeModal
     var fb=t.closest&&t.closest(".rfilter");
     if(fb){ window.__resFilter=fb.getAttribute("data-f"); window.__resLimit=10; applyResultFilter(); checkMore(); return; }
     if(t.closest&&t.closest("#resClear")){ window.__resFilter="all"; window.__resLimit=10; applyResultFilter(); checkMore(); return; }
+    if(t.closest&&t.closest("#showOff")){ window.__showOff=true; t.closest("#showOff").remove(); applyResultFilter(); checkMore(); return; }
     if(t.closest&&t.closest("#resSelAll")){ var bx=shownPickBoxes(), all=bx.every(function(x){ return x.checked; });
       bx.forEach(function(x){ if(x.checked===all){ x.checked=!all; x.dispatchEvent(new Event("change",{bubbles:true})); } });
       syncSelAll(); } });
@@ -1340,7 +1372,7 @@ function showHome(){
   if(window.__resetPicks) window.__resetPicks();
 }
 // remember the last results so a page refresh brings them back (cached locally, no new API call)
-var LAST="findrepo_last", CACHE_V="4";  // bump when saved markup changes, so stale caches are dropped
+var LAST="findrepo_last", CACHE_V="5";  // bump when saved markup changes, so stale caches are dropped
 // strip any inline opacity/transform the animation left on cards, so the cache never stores invisible cards
 function cleanCards(root){ var c=root.querySelectorAll(".rcard"); for(var i=0;i<c.length;i++){ c[i].style.opacity=""; c[i].style.transform=""; } }
 function saveResults(){ try{ var out=document.getElementById("out"); cleanCards(out);

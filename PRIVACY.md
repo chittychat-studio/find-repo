@@ -1,16 +1,17 @@
 # Privacy
 
-*Last updated: 13 October 2026. This describes how Replore handles data as built. It is not legal advice.*
+*Last updated: 13 October 2026 (relevance check added). This describes how Replore handles data as built. It is not legal advice.*
 
-**Short version:** Replore has no account, no server, no database and no analytics. The people who make Replore
-never receive your ideas, your searches or your plans. Your search words go from your own browser or computer
-straight to GitHub so the search can run.
+**Short version:** Replore has no account, no database and no analytics, and stores nothing you type. The people who
+make Replore never keep your ideas, searches or plans. Your search words go to GitHub to run the search and — on the
+web page only — to an AI provider that checks which results fit. Nothing is kept by us.
 
 ## Web page (replore.pages.dev)
 
 | What | Where it goes | Why |
 |---|---|---|
 | Your search words (and words taken from a plan you upload) | **GitHub's API** (`api.github.com`), with your IP address | To run the search. GitHub's handling is covered by the [GitHub Privacy Statement](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement). |
+| Your search words, and the names, descriptions and topics of up to 30 repos found | **Our relevance check** (a small Cloudflare Pages Function) → **Groq** (the AI provider that judges fit) | To hide repos that don't fit what you're building. The function stores nothing and logs no request content. Groq processes the request under [its own terms](https://groq.com). If the check is unavailable, you get the unfiltered keyword results instead. |
 | Your IP address and browser details, when the page loads | **Cloudflare Pages** (hosts the page) | To deliver the page. It sees that you loaded the page, **not** what you search: searches are never put in the page address and never sent to it. Fonts and scripts are served from the same site — no request goes to Google Fonts or any other CDN. |
 | Your last search, results and filters, and your light/dark choice | **Your browser only** (local storage on your device) | So a refresh brings your results back. Tap **✕** in the search bar or the Replore logo to delete it, or clear this site's data in your browser. |
 | A plan / PRD file you upload | **Stays on your device.** It is read in your browser and never uploaded. Only short feature phrases taken from it are sent to GitHub as searches. | To search per feature. |

@@ -20,9 +20,21 @@ new Function("document", "localStorage",
 // pulled Ionic/Expo/qiankun/Luigi/choo/san/argon into a portfolio search)
 { const q = s.keywordQueries("portfolio website builder", "");
   assert.deepStrictEqual(q, ["portfolio website builder", "portfolio template", "portfolio website", "landing page template"], q);
-  const bare = /^(frontend|backend|web|javascript|css|ui|mobile) (framework|library)s?$/;
-  ["website","web","portfolio","dashboard","blog","ecommerce","game","chatbot","map","diet","powerpoint"].forEach(w =>
+  const bare = /^(frontend|backend|web|javascript|css|ui|mobile|game|chatbot|ai agent|ai) (framework|library|engine)s?$/;
+  ["website","web","portfolio","dashboard","blog","ecommerce","game","chatbot","map","diet","powerpoint","ai","security","pdf"].forEach(w =>
     s.keywordQueries(w, "").forEach(x => assert.ok(!bare.test(x), w + " expanded to bare category: " + x))); }
+// RS16 live-audit regressions (quick-picks that returned junk, 1 result or nothing)
+{ const kq = t => s.keywordQueries(t, "");
+  assert.ok(kq("learn web security by hacking a practice app").includes("vulnerable web application"));      // was "web app starter"
+  assert.ok(!kq("learn web security by hacking a practice app").some(q => /starter/.test(q)));
+  assert.ok(kq("offline maps for my trip planner app").includes("maplibre"));                               // plural "maps" -> map
+  assert.ok(!kq("an ai image generator").some(q => /agent/.test(q)));                                       // was "ai agent framework"
+  assert.ok(kq("a simple 2D browser game engine for beginners").includes("phaser game"));
+  assert.ok(kq("a chatbot that answers questions from my PDFs, Python").includes("chat with pdf"));
+  assert.ok(kq("my first iPhone app, a habit tracker").every(q => !/\bfirst\b/.test(q)));                  // filler word dropped
+  ["by","from","first"].forEach(w => assert.ok(!kq("learn security by doing from first principles").some(q => q.split(" ").includes(w)), w));
+  assert.ok(kq("a portfolio website with smooth scroll animations")[0].split(" ").length <= 3);            // core query <= 3 words
+}
 assert.ok(s.keywordQueries("a diet app for iphone", "ios").every(q => q.includes("-topic:macos")));
 // RS14/RS20 labels
 assert.strictEqual(s.freeText("MIT"), "Yes");

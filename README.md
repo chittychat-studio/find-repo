@@ -57,9 +57,15 @@ A static page at `web/index.html` powers it. It auto-deploys to [replore.pages.d
 3. Open the URL the workflow prints.
 
 It calls the public GitHub search API from the browser (about 10 searches a minute, no login, no key) and runs
-the same filters, ranking and license labels as the plugin. It uses basic keyword search; AI-written queries
-and the relevance check live in the plugin (Claude Code, or the script in any AI agent) — a public static page can't hold an API key, so the
-AI step stays in the plugin.
+the same filters, ranking and license labels as the plugin. The searches are keyword-based; then a small server-side
+**relevance check** (`functions/api/relevance.js`, SPEC RS34) asks an AI which of the top 30 repos don't fit what you
+described, and hides them (with a "show them" link). If the check is unavailable or over its free limit, you get the
+keyword results with a note. AI-written searches and the feature-by-feature PRD mode live in the plugin.
+
+**Turning the relevance check on (maintainer, one-time):** in Cloudflare → your Pages project → Settings → Variables
+and Secrets, add a **secret** `LLM_API_KEY` (e.g. a free Groq API key from console.groq.com) and redeploy. Optional:
+`LLM_BASE_URL` (any OpenAI-compatible endpoint; default Groq) and `LLM_MODEL` (default `llama-3.1-8b-instant`). Without
+the key the page works exactly as before. Before switching provider, check its data-use terms and update `PRIVACY.md`.
 
 ## Install (Claude Code)
 
@@ -162,10 +168,11 @@ python3 -m pytest
 
 ## Privacy
 
-No account, no server, no analytics: the makers of Replore never receive your ideas or searches. Search words
-go from your browser or computer straight to GitHub. Fonts and scripts are served from the site itself (no Google Fonts or CDN calls). Details — including
-what the web page keeps in your browser and the Claude Code plugin's optional, off-by-default local safety log — are
-in [`PRIVACY.md`](PRIVACY.md).
+No account, no database, no analytics, nothing stored: the makers of Replore never keep your ideas or searches.
+Search words go to GitHub to run the search; on the web page they also pass through a small relevance check to an AI
+provider (Groq) that hides off-topic repos. Fonts and scripts are served from the site itself. The plugin never uses
+the relevance check. Details — including what the web page keeps in your browser and the plugin's optional,
+off-by-default local safety log — are in [`PRIVACY.md`](PRIVACY.md).
 
 ## License
 
