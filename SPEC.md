@@ -162,7 +162,8 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
    rows), and the trending carousel (4 cards, 5 from 1500px) and results (4 columns) span the full page width. On the home
    screen (no results yet) the opening section pairs the heading (centred over the search box), search, tiles and pills with the animated
    how-it-works demo on the right, then the carousel runs full width below — a top-down page, not a split app; once
-   results show everything stacks full width. Results render as
+   results show everything stacks full width. That full-width layout starts the moment a search starts, so
+   the search bar never shrinks to the left column while the demo is gone and results haven't arrived. Results render as
   compact cards (rank, stars, what it does, a colour-coded license pill, free/starter tags) instead of a wide
   table. The plain-English license meaning (e.g. "OK to use in a paid product" / "Completely free?") renders as
   a line on every card at every breakpoint — not only on wide screens — so the core promise is visible on phones.
