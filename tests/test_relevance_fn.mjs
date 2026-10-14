@@ -230,8 +230,8 @@ console.log("example cache ok");
   assert.strictEqual(r.status, 403); assert.strictEqual(aiCalls, 1);
   // GET returns only the public site key
   const g = await (await fn.onRequestGet({ env: tenv })).text();
-  assert.deepStrictEqual(JSON.parse(g), { turnstile: "0xSITE", v: 2, tag: fn.buildTag() }); assert.ok(!g.includes("ts-SECRET"));
-  assert.deepStrictEqual(await (await fn.onRequestGet({ env: {} })).json(), { turnstile: null, v: 2, tag: fn.buildTag() });
+  assert.deepStrictEqual(JSON.parse(g), { turnstile: "0xSITE", v: 2, tag: fn.buildTag(), rag: { rerank: false, index: false } }); assert.ok(!g.includes("ts-SECRET"));
+  assert.deepStrictEqual(await (await fn.onRequestGet({ env: {} })).json(), { turnstile: null, v: 2, tag: fn.buildTag(), rag: { rerank: false, index: false } });
 }
 console.log("bot check ok");
 
@@ -490,3 +490,8 @@ console.log("rag edge cases ok");
   // (1) plugin path is a separate switch: rerank+index on but RAG_PLUGIN off -> 404
   assert.strictEqual((await post({ mode: "semantic", query: "q", repos: two }, { AI, RAG_RERANK: "1" })).status, 404); }
 console.log("rag review fixes ok");
+// RS42 wording switch: GET reports which RAG parts are on (booleans only; plugin switch not exposed)
+{ let c = await (await fn.onRequestGet({ env: {} })).json(); assert.deepStrictEqual(c.rag, { rerank: false, index: false });
+  c = await (await fn.onRequestGet({ env: { AI: { run: async () => ({}) }, RAG_RERANK: "1", RAG_PLUGIN: "1" } })).json();
+  assert.deepStrictEqual(c.rag, { rerank: true, index: false }); }
+console.log("rag wording switch ok");

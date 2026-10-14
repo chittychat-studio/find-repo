@@ -666,7 +666,7 @@
 </header>
 <main class="page">
   <section class="hero">
-    <p class="hero-pill"><span aria-hidden="true">✦</span> AI-powered repo finder</p>   <!-- RS29c: owner wording 2026-10-14 -->
+    <p class="hero-pill"><span aria-hidden="true">✦</span> <span class="rag-off">AI-powered repo finder</span><span class="rag-only" hidden>Search by words and meaning</span></p>   <!-- RS29c: owner wording 2026-10-14 -->
     <h2 class="hero-title" id="heroTitle">Describe it.<br><em>Get repos that fit.</em></h2>
     <p class="sub">Popular, free-to-use, maintained repos for what you’re building.</p>
     <div id="demoSlot" class="demo-slot"></div>   <!-- RS24: on phones the demo sits here, before the search -->
@@ -787,6 +787,7 @@
   <img src="tour.png" alt="The Replore page: describe your project, then get the open-source repos that fit"
     loading="lazy" style="width:100%;border:1px solid var(--line);border-radius:12px;margin:16px 0 4px">
   <p class="mut" style="margin:0">Describe your project, tap Find, and get the repos that fit — relevant, popular, free to use.</p>
+  <p class="mut rag-only" style="margin-top:12px" hidden><b>Hybrid search:</b> repos are ranked by your words and by what you mean, so "voice notes" also finds "speech-to-text". Repos our index finds that the word search missed are checked on GitHub before you see them.</p>
   <p class="mut" style="margin-top:12px"><b>Build a plan:</b> tick the repos you like on the results, then tap <b>Generate plan</b>.
     Replore hands the picks to your <b>own</b> Claude (Copy, or Open in Claude), which writes a full build plan
     (a PRD) you can code straight from — free and private.</p>
@@ -930,6 +931,7 @@
     feature by feature. Results are GitHub search matches, not a scan of every repository. Stars measure
     popularity, not quality, and can be bought. "Completely free?" and "OK in a paid product?" are read from the
     license only — a plain summary, not legal advice; some projects also sell a paid hosted version or add-ons.</p>
+  <p class="mut rag-only" style="margin-top:12px" hidden><b>Hybrid search:</b> repos are ranked by your words and by what you mean, so "voice notes" also finds "speech-to-text". Repos our index finds that the word search missed are checked on GitHub before you see them.</p>
 </div></div>
 
 <script>
@@ -1261,6 +1263,11 @@ function watchMore(){ var s=document.querySelector("#out #resMore"); if(!s) retu
   window.__moreObs.observe(s); }
 function initResultFilter(){ window.__resFilter="all"; window.__resLimit=10; applyResultFilter(); watchMore(); checkMore(); }
 // RS34: ask the same-origin function which repos don't fit; "off" when not set up, {fail} on any failure (fail open, silent)
+// RS42: RAG wording appears only when the server says a RAG part is switched on (never claimed while it is off)
+function applyRagCopy(on){ document.querySelectorAll(".rag-only").forEach(function(el){ el.hidden=!on; });
+  document.querySelectorAll(".rag-off").forEach(function(el){ el.hidden=!!on; }); }
+fetch("/api/relevance",{method:"GET",cache:"no-store"}).then(function(r){ return r.ok?r.json():null; })
+  .then(function(c){ applyRagCopy(!!(c&&c.rag&&(c.rag.rerank===true||c.rag.index===true))); }).catch(function(){});
 // RS34c: Cloudflare Turnstile bot check, loaded from challenges.cloudflare.com only when the owner set a site key.
 // Resolves null = no bot check configured; "" = no token (the function then refuses; the page shows keyword results).
 // Every wait has a deadline so a stalled Cloudflare can never hang the search (RS7); a failed load is retried

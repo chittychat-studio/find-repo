@@ -388,7 +388,8 @@ export function buildTag() {
 }
 // RS34c: the page asks which bot check to load (the site key is public by design; the secret never leaves here)
 export async function onRequestGet({ env }) {
-  return new Response(JSON.stringify({ turnstile: env.TURNSTILE_SITE_KEY || null, v: 2, tag: buildTag() }), {
+  const f = ragFlags(env);   // RS42: the page shows its RAG wording only when this says a part is on
+  return new Response(JSON.stringify({ turnstile: env.TURNSTILE_SITE_KEY || null, v: 2, tag: buildTag(), rag: { rerank: f.rerank, index: f.index } }), {
     headers: { "Content-Type": "application/json", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" },
   });
 }

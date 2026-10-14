@@ -569,6 +569,9 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
     Unverified until a preview runs with the switches on: the exact reply shapes of the Workers AI embedding call
     (`data`) and Vectorize `query` (`matches[].metadata.name`) are coded from Cloudflare's documented formats and
     covered by fakes only.
+  - **Wording (owner 2026-10-14: "mention our RAG-based search everywhere").** The page's RAG wording (hero pill,
+    Tour, About the results) is hidden unless `GET /api/relevance` reports `rag.rerank` or `rag.index` on, so the site
+    never claims a search it is not running (evidence only). The README describes it as built and being evaluated.
   - **Not adopted:** LangChain, LlamaIndex, Haystack, RAGFlow and similar frameworks — they bring dependencies the
     stdlib plugin (RS11) and the no-build page (RS22) cannot take, for orchestration Replore does not need.
     BM25 *alone* as the reranker — measured at pooled AUC 0.56 on the relevance set, close to chance; it is kept

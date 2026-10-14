@@ -136,6 +136,13 @@ python3 scripts/scout.py "diet tracker app" "calorie counter" --markdown
 Same filters, ranking and license labels in every path. Browser-only chats with no local tools can't run it — use
 the [web page](https://replore.cardzo.co.in) there.
 
+## Hybrid search (RAG): built, switched off
+
+Replore can rank repos by meaning as well as by your words, and pull in repos from its own index that GitHub's
+keyword search misses. Every indexed repo is checked live on GitHub before it is shown. The web page and the plugin
+work the same way (plugin: `--rank hybrid`, opt-in `--semantic`). It stays off until tests show it beats the current
+results, and the site only mentions it while it is on. Details: [`docs/RAG.md`](docs/RAG.md).
+
 ## How it works (rules in `SPEC.md`)
 
 1. Claude turns your description into 1–4 GitHub search queries (RS1).
