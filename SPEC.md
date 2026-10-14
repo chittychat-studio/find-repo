@@ -164,7 +164,7 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
    how-it-works demo on the right (search side indented off the page edge, columns about 55/45 with a small gap), then the carousel runs full width below — a top-down page, not a split app; once
    results show everything stacks full width. The hero blends into the page (owner request 2026-10-14): the search bar is see-through with a soft shadow,
    prompt pills are outlines, and a few faint decorative shapes drift slowly behind the top of the page — circles,
-   hexagons and vibe-coding motifs (`</>`, `{ }`, a `>_` terminal, a git branch, a sparkle), plus a soft half circle peeking from the left edge (moderate size), placed clear of the text,
+   hexagons and vibe-coding motifs (`</>`, `{ }`, a `>_` terminal, a git branch, a sparkle), plus a small soft half hexagon peeking from the left edge beside the heading (away from the search bar), placed clear of the text,
    kept barely visible (whole layer at 60%, fading out downwards), fewer on phones, `aria-hidden`, still under reduced motion. That full-width layout starts the moment a search starts, so
    the search bar never shrinks to the left column while the demo is gone and results haven't arrived. Results render as
   cards instead of a wide table (owner request 2026-10-14 "just boring cards"): a head with a coloured owner-initial
