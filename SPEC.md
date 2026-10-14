@@ -362,13 +362,21 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
 
 - **RS36** Thinking orb (web). A pill with a small rotating dotted sphere (latitude rings of dots, depth-shaded in the
   ink colour, light and dark theme) and a short label with animated dots, in the style of a "Solving…" indicator.
-  Used in two places: (1) on the home screen under the how-it-works demo, its label cycling through what Replore
-  does ("Scanning open-source repos", "Checking licences", "Skipping abandoned projects", "Ranking by fit"); (2) as the
+  Used in two places: (1) on the home screen directly under the how-it-works demo, driven by the demo's own clock:
+  each time the card changes step, the label changes with it ("Reading your idea", "Searching GitHub", "Ranking by
+  fit", "Writing your plan") — one animation, not two timers; (2) as the
   loading indicator in the status line while a search, similar-repo lookup, PRD search or trending list loads ("Searching
   GitHub (1/3)", "Checking which repos fit", "Loading trending repos"), one pill per search whose label updates per step
   and disappears when results show. It animates only while on screen and the tab is visible, draws one still frame
   (static dots, no label cycling) under prefers-reduced-motion, is aria-hidden decoration (the label text stays
   readable), stops once removed, and makes no network call.
+
+- **RS37** Copy discipline (web, owner request; audited against the open-source "taste-skill" redesign checklist).
+  Visible text earns its place: no eyebrow label repeating the heading, one plain tagline, plain nav labels, no
+  lead line explaining the demo, card "why" lines only when the search words actually match (no generic "Related to
+  your search"), search/exclusion details folded into a "How we searched" toggle, the plugin pitch as one line, no
+  marketing clichés ("seamless", "elevate", "start shipping"…). Facts that matter stay visible: licence verdict,
+  stars, last update, the "Show N more we left out" undo, and the privacy line (shortened, linking to the full notice).
 
 ## RX — Deliberately excluded (v0.1)
 

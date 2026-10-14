@@ -61,9 +61,6 @@
   .out-wrap{max-width:1160px;margin:0 auto}
 
   /* trendy hero heading */
-  .eyebrow{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;letter-spacing:.05em;
-    text-transform:uppercase;color:var(--accent-ink);background:var(--offbg);border:1px solid var(--line);
-    border-radius:999px;padding:5px 14px;margin:0 0 16px}
   .hero-title{font-family:"Spectral",Georgia,serif;font-size:42px;line-height:1.06;font-weight:800;margin:0 0 12px;
     letter-spacing:-.02em;color:var(--ink)}
   .hero-title em{font-style:normal;background:linear-gradient(135deg,var(--accent-ink),var(--accent2));
@@ -257,6 +254,7 @@
     color:#fff;font-size:12px;font-weight:700;border-radius:999px;padding:2px 9px;box-shadow:0 6px 14px -6px rgba(192,83,44,.8)}
   .rcard .stars{position:absolute;top:12px;right:12px;font-weight:800;font-size:14px;color:var(--accent-ink)}
   .rcard .name{font-weight:800;font-size:16px;line-height:1.3;margin:10px 56px 5px 0;word-break:break-word}
+  details.excl summary{cursor:pointer;color:var(--muted)}
   .rcard .why{font-size:12px;font-weight:600;color:var(--ink);margin:8px 56px 7px 0;line-height:1.35}
   .rcard .why::before{content:"✦ ";color:var(--accent-ink)}
   .rcard .desc{font-size:13.5px;line-height:1.5;color:var(--muted);margin:0 0 11px;
@@ -292,7 +290,7 @@
   @media (max-width:700px){ .prd-bar{left:12px;right:12px;transform:none;justify-content:space-between} }
   /* desktop = expanded format: wider cards that spell out the license meaning in full */
   @media (max-width:999px){
-    body.has-results .hero .eyebrow, body.has-results .hero-title, body.has-results .hero .sub,
+    body.has-results .hero-title, body.has-results .hero .sub,
     body.has-results .modes{display:none}
     /* prompt pills stay, folded to one swipeable row */
     body.has-results #quickpicks{flex-wrap:nowrap;justify-content:flex-start;overflow-x:auto;margin:10px 0 0;
@@ -333,7 +331,7 @@
   .tdots i{font-style:normal;opacity:.15;animation:tdot 1.4s infinite}
   .tdots i:nth-child(2){animation-delay:.2s} .tdots i:nth-child(3){animation-delay:.4s} .tdots i:nth-child(4){animation-delay:.6s}
   @keyframes tdot{0%,100%{opacity:.15}40%{opacity:1}}
-  .think-home{display:flex;justify-content:center;margin:20px 0 0}
+  .think-home{display:flex;justify-content:center;margin:10px 0 0}
   .think-sm{gap:10px;padding:5px 16px 5px 6px;box-shadow:none}
   .think-sm .think-orb{width:28px;height:28px}
   .think-sm .think-txt{font-size:13.5px}
@@ -367,7 +365,6 @@
     body:not(.has-results) .out-wrap{display:contents}
     body:not(.has-results) .hero{grid-area:hero;max-width:none;margin:0;text-align:center}   /* heading centred over the search */
     body:not(.has-results) #out{grid-area:out;align-self:center}
-    body:not(.has-results) #out .explain .lead{text-align:center}
     body:not(.has-results) #trendCar{grid-area:car;margin-top:28px}
     body:not(.has-results) .out-wrap > .privacy-note{grid-area:foot}
   }
@@ -485,12 +482,12 @@
       <circle cx="16" cy="16" r="1.8" fill="var(--card)" stroke="url(#lg)" stroke-width="1.4"/>
     </svg><h1>Replore</h1></div>
   <nav class="nav" id="nav">
-    <button id="trendBtn" class="nav-btn" title="Popular open-source repos right now">🔥 Trending</button>
-    <button id="tourBtn" class="nav-btn" title="Watch how it works">▶ Tour</button>
-    <button id="pluginBtn" class="nav-btn" title="Use the plugin in Claude Code, Codex, Cursor or any AI agent">⌘ Use the plugin</button>
-    <button id="aboutBtn" class="nav-btn" title="How results are ranked">ⓘ How ranking works</button>
-    <button id="nextBtn" class="nav-btn" title="Found repos — what to do next">🧭 Next steps</button>
-    <a id="starBtn" class="nav-btn nav-star" href="https://github.com/chittychat-studio/replore" target="_blank" rel="noopener" title="If Replore helped, a star on GitHub means a lot — thank you!">★ Like our work? Star us</a>
+    <button id="trendBtn" class="nav-btn" title="Popular open-source repos right now">Trending</button>
+    <button id="tourBtn" class="nav-btn" title="Watch how it works">Tour</button>
+    <button id="pluginBtn" class="nav-btn" title="Use the plugin in Claude Code, Codex, Cursor or any AI agent">Plugin</button>
+    <button id="aboutBtn" class="nav-btn" title="How results are ranked">How ranking works</button>
+    <button id="nextBtn" class="nav-btn" title="Found repos — what to do next">Next steps</button>
+    <a id="starBtn" class="nav-btn nav-star" href="https://github.com/chittychat-studio/replore" target="_blank" rel="noopener" title="If Replore helped, a star on GitHub means a lot — thank you!">★ Star</a>
   </nav>
   <div class="topbar-right">
     <button id="navToggle" class="nav-toggle" aria-label="Menu" aria-controls="nav" aria-expanded="false">☰</button>
@@ -499,9 +496,8 @@
 </header>
 <main class="page">
   <section class="hero">
-    <p class="eyebrow">✦ GitHub repo finder for vibe coders</p>
     <h2 class="hero-title" id="heroTitle">Describe it.<br><em>Get repos that fit.</em></h2>
-    <p class="sub">Popular, free to use, still maintained — so you stop scrolling GitHub and start shipping.</p>
+    <p class="sub">Popular, free-to-use, maintained repos for what you’re building.</p>
 
     <div class="search">
       <div class="vibebar">
@@ -538,7 +534,7 @@
         <div class="tcar-track" id="tcarTrack" tabindex="0"></div>
       </section>
     <div id="out" class="results"></div>
-    <p class="privacy-note">🔒 Nothing you type is stored. Your search goes to GitHub and an AI fit-check; we keep neither.
+    <p class="privacy-note">🔒 Nothing you type is stored.
       <button type="button" class="link-btn" onclick="openModal('privacyModal')">Privacy</button></p>
   </section>
 </main>
@@ -865,8 +861,7 @@ function whyRelevant(r, qtokens){
     .forEach(function(w){ if(w) words[w]=1; });  // match whole words, so "ai" never fires on "email"
   var hit=[];
   for(var i=0;i<(qtokens||[]).length && hit.length<3;i++) if(words[qtokens[i]]) hit.push(qtokens[i]);
-  if(hit.length) return 'Matches your words: '+hit.map(function(w){return '“'+w+'”';}).join(", ");
-  return (r.rel!=null&&r.rel<=3) ? 'Top match for your search' : 'Related to your search';
+  return hit.length ? 'Matches: '+hit.join(", ") : '';   // RS37: no generic filler line
 }
 
 // ---- card rendering (3D) ----
@@ -885,7 +880,7 @@ function cardHtml(r,i,qtokens){
     (i!=null?'<span class="rank">#'+(i+1)+'</span>':'')+
     '<span class="stars">★ <span class="cnt" data-v="'+r.stars+'">'+kstars(r.stars)+'</span></span>'+
     '<div class="name"><a href="'+esc(r.url)+'" target="_blank" rel="noopener">'+esc(r.name)+'</a></div>'+
-    '<div class="why">'+esc(whyRelevant(r,qtokens))+'</div>'+
+    (function(w){ return w?'<div class="why">'+esc(w)+'</div>':''; })(whyRelevant(r,qtokens))+
     '<p class="desc">'+esc(r.desc||"—")+'</p>'+
     '<div class="tags">'+
       '<span class="tag '+v.c+'" title="'+esc(paid)+' · Completely free? '+esc(free)+'">'+v.t+'</span>'+
@@ -926,9 +921,7 @@ function attachTilt(container, reduce){
   });
 }
 
-var PLUGIN_CTA='<div class="cta-inline"><b>Want every suitable repo?</b> MORE_LINE'+
-  'Run the plugin in your AI agent (Claude Code, Codex, Cursor…) for every match that passes the filters — and a build plan feature by feature. '+
-  '<button class="link-btn" onclick="openModal(\'pluginModal\')">Show commands →</button></div>';
+var PLUGIN_CTA='<p class="cta-inline">MORE_LINENeed every match? <button class="link-btn" onclick="openModal(\'pluginModal\')">Use the plugin →</button></p>';
 
 // result-side filter chips (filter the already-fetched cards, no new API calls — RS29)
 var RES_FILTERS=[["all","All"],["com","✅ Free for commercial use"],["starter","🧩 Starters"]];
@@ -951,11 +944,11 @@ function render(top, queries, excluded, totalMatches, qtokens, heading, note, ga
     '<div id="resEmpty" class="res-empty" hidden>No results match this filter. <button type="button" class="link-btn" id="resClear">Clear filter</button></div>'+
     '<div id="resMore" class="res-more-hint" aria-live="polite" hidden></div>'+   /* scroll sentinel: auto-reveals more (RS29) */
     (leftN?'<p id="leftWrap" class="left-more" hidden><button type="button" class="link-btn" id="showLeft">Show '+leftN+' more we left out</button></p>':'')+
-    '<p class="excl">Searches: '+esc(queries.join("; "))+' · Excluded — not open-source: '+excluded.license+
-    ', too old: '+excluded.stale+', too few stars: '+excluded.low+', forks/archived: '+excluded.fork+
-    ', harmful: '+excluded.harm+'</p>';
+    '<details class="excl"><summary>How we searched</summary>Searches: '+esc(queries.join("; "))+'. Left out — not open-source: '+excluded.license+
+    ', inactive: '+excluded.stale+', too few stars: '+excluded.low+', forks/archived: '+excluded.fork+
+    ', harmful: '+excluded.harm+'.</details>';
   if(more>0) h+=PLUGIN_CTA.replace("MORE_LINE",
-    "This page is showing "+top.length+"; "+more+" more passed the filters. ");
+    more+" more passed the filters. ");
   else h+=PLUGIN_CTA.replace("MORE_LINE","");
   return h;
 }
@@ -1160,10 +1153,10 @@ function renderGrouped(groups, excluded, note){
     if(!g.repos.length){ h+='<p class="mut" style="margin:0 4px">No match.</p>'; return; }
     h+='<div class="grid">'+g.repos.map(function(r){return cardHtml(r,null,gtokens);}).join("")+'</div>';
   });
-  h+='<p class="excl">'+total+' open-source repos across '+groups.length+' needs. Excluded — not open-source: '+
-    excluded.license+', too old: '+excluded.stale+', too few stars: '+excluded.low+', forks/archived: '+excluded.fork+
+  h+='<details class="excl"><summary>How we searched</summary>'+total+' open-source repos across '+groups.length+' needs. Left out — not open-source: '+
+    excluded.license+', inactive: '+excluded.stale+', too few stars: '+excluded.low+', forks/archived: '+excluded.fork+
     ', harmful: '+excluded.harm+
-    '. Every suitable match that passed the filters, grouped by the first search that found it — not every repo on GitHub.</p>'+
+    '. Every suitable match that passed the filters, grouped by the first search that found it — not every repo on GitHub.</details>'+
     PLUGIN_CTA;
   return h;
 }
@@ -1454,10 +1447,10 @@ document.addEventListener("keydown",function(e){ if(e.key==="Escape") closeModal
 
 // ---- the animated "How it works" explainer (the in-page video) ----
 var STEPS=[
-  {ico:"✍️",t:"1 · Describe",d:"Say what you're building"},
-  {ico:"🔍",t:"2 · We search GitHub",d:"Open-source &amp; maintained"},
-  {ico:"✨",t:"3 · Ranked by fit",d:"Relevant, popular &amp; free to use"},
-  {ico:"📝",t:"4 · Build a plan",d:"Tick repos → your own Claude writes a build plan (PRD), free &amp; private"}
+  {ico:"✍️",t:"1 · Describe",d:"Say what you're building",doing:"Reading your idea"},
+  {ico:"🔍",t:"2 · We search GitHub",d:"Open-source &amp; maintained",doing:"Searching GitHub"},
+  {ico:"✨",t:"3 · Ranked by fit",d:"Relevant, popular &amp; free to use",doing:"Ranking by fit"},
+  {ico:"📝",t:"4 · Build a plan",d:"Tick repos, get a build plan",doing:"Writing your plan"}
 ];
 function buildSteps(host){
   if(!host || host.dataset.built) return;
@@ -1495,7 +1488,8 @@ function buildDemo(host){
   var cards=host.querySelectorAll(".demo-card"), dots=host.querySelectorAll(".demo-dot"), cur=0, timer=null;
   var reduce=window.matchMedia&&matchMedia("(prefers-reduced-motion:reduce)").matches;
   function show(n){ cards[cur].classList.remove("on"); dots[cur].classList.remove("on");
-    cur=(n+cards.length)%cards.length; cards[cur].classList.add("on"); dots[cur].classList.add("on"); }
+    cur=(n+cards.length)%cards.length; cards[cur].classList.add("on"); dots[cur].classList.add("on");
+    if(host.__onStep) host.__onStep(cur); }   // RS36: the thinking pill follows the card, one clock for both
   function stop(){ if(timer){ clearInterval(timer); timer=null; } }
   function play(){ stop(); if(!reduce && cards.length>1) timer=setInterval(function(){ show(cur+1); },1500); }   // faster cadence (was 2600ms)
   host.__stopDemo=stop; host.__playDemo=play;   // let the view/modal clear this timer so it can't leak
@@ -1509,7 +1503,7 @@ function stopDemo(id){ var h=document.getElementById(id); if(h&&h.__stopDemo) h.
 // ---- RS35: trending gallery — three API-sorted lists, fetched only when opened, cached 30 min per tab ----
 var TREND_TABS={rising:"🔥 Rising", stars:"⭐ Most stars", forks:"🍴 Most forks"};
 var TREND_NOTE={
-  rising:"Rising = open-source repos created in the last 30 days, most stars first. Our own definition, live from GitHub \u2014 not GitHub\u2019s Trending page.",
+  rising:"Created in the last 30 days, most stars first.",
   stars:"The most-starred open-source repos on GitHub that are still maintained.",
   forks:"The most-forked open-source repos on GitHub that are still maintained."};
 function trendingQuery(kind, now){
@@ -1562,7 +1556,6 @@ async function showTrending(kind){
   }catch(e){ if(gen!==window.__runGen) return; st.textContent=""; out.innerHTML='<div class="panel"><p class="err">'+esc(e.message)+'</p></div>'; }
 }
 // RS36 thinking orb: a small dotted sphere in a pill ("Solving…"-style), used under the home demo and while searching
-var ORB_CAPS=["Scanning open-source repos","Checking licences","Skipping abandoned projects","Ranking by fit","Reading descriptions"];
 var THINK_DOTS='<span class="tdots" aria-hidden="true"><i>.</i><i>.</i><i>.</i><i>.</i></span>';
 function thinkPill(text, extraClass){
   return '<span class="think'+(extraClass?' '+extraClass:'')+'"><canvas class="think-orb" aria-hidden="true"></canvas>'+
@@ -1600,12 +1593,10 @@ function think(st, text){
   if(t){ t.textContent=text; return; }
   st.innerHTML=thinkPill(text,"think-sm"); startDotOrb(st.querySelector(".think-orb"));
 }
-function startHomeThinking(wrap){
+function startHomeThinking(wrap, demoHost){
   if(!wrap) return; startDotOrb(wrap.querySelector(".think-orb"));
-  if(matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  var txt=wrap.querySelector(".think-txt"), ci=0;
-  var tm=setInterval(function(){ if(!txt.isConnected){ clearInterval(tm); return; }
-    txt.style.opacity="0"; setTimeout(function(){ ci=(ci+1)%ORB_CAPS.length; txt.textContent=ORB_CAPS[ci]; txt.style.opacity="1"; },300); },2600);
+  var txt=wrap.querySelector(".think-txt"); if(!demoHost || !txt) return;
+  demoHost.__onStep=function(i){ if(!txt.isConnected) return; txt.textContent=(STEPS[i]&&STEPS[i].doing)||""; };
 }
 
 // RS35 home carousel: top Rising repos, rotates itself, pauses on hover/focus/touch, still under reduced motion
@@ -1640,11 +1631,11 @@ function buildTrendCarousel(){
 function showHome(){
   var out=document.getElementById("out");
   stopDemo("heroDemo");   // clear any previous carousel before replacing it
-  out.innerHTML='<div class="explain"><p class="lead">Describe what you’re building, or tap a quick pick. Here’s what happens:</p>'+
+  out.innerHTML='<div class="explain">'+
     '<div id="heroDemo" class="demo"></div>'+
-    '<div class="think-home" id="homeThink">'+thinkPill(ORB_CAPS[0])+'</div></div>';
+    '<div class="think-home" id="homeThink">'+thinkPill(STEPS[0].doing)+'</div></div>';
+  startHomeThinking(document.getElementById("homeThink"), document.getElementById("heroDemo"));
   buildDemo(document.getElementById("heroDemo"));
-  startHomeThinking(document.getElementById("homeThink"));
   if(window.__resetPicks) window.__resetPicks();
 }
 // remember the last results so a page refresh brings them back (cached locally, no new API call)
@@ -1757,7 +1748,7 @@ document.getElementById("tourBtn").addEventListener("click",function(){ openModa
 (function(){
   var G=window.gsap, reduce=window.matchMedia&&matchMedia("(prefers-reduced-motion:reduce)").matches;
   if(!G||reduce) return;
-  G.from(".topbar, .eyebrow, .sub, .vibebar, .modes",{opacity:0,y:16,duration:.5,stagger:.07,ease:"power3.out"});
+  G.from(".topbar, .sub, .vibebar, .modes",{opacity:0,y:16,duration:.5,stagger:.07,ease:"power3.out"});
   G.from(".quickpicks .chip",{opacity:0,y:8,duration:.4,stagger:.03,delay:.3,ease:"power2.out"});
 }());
 </script>
