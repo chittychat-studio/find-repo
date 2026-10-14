@@ -24,5 +24,5 @@ jobs:
         env:
           ENDPOINT: ${{ inputs.endpoint }}   # passed as data, never pasted into the script
         run: |
-          case "$ENDPOINT" in https://*.pages.dev/api/relevance) ;; *) echo "endpoint must be a *.pages.dev /api/relevance URL"; exit 2;; esac
+          case "$ENDPOINT" in https://*.pages.dev/api/relevance|https://replore.cardzo.co.in/api/relevance) ;; *) echo "endpoint must be a *.pages.dev or replore.cardzo.co.in /api/relevance URL"; exit 2;; esac
           node evals/relevance_live.mjs "$ENDPOINT"

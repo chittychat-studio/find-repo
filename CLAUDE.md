@@ -1,6 +1,6 @@
 # Replore
 
-Claude Code plugin: free-text project description → top 3 most-starred open-source GitHub repos. Full rules: `SPEC.md`.
+Replore, a Cardzo product: describe what you're building, get the open-source GitHub repos that fit, ranked by relevance, popularity and license. Web app (replore.pages.dev, moving to replore.cardzo.co.in), Claude Code plugin and MCP server. Full rules: `SPEC.md`.
 
 ## Non-negotiables
 - Every change cites a SPEC rule ID (RS/RX) in the commit message. No rule → write the rule first.
