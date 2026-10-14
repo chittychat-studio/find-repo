@@ -162,10 +162,17 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
    rows), and the trending carousel (4 cards, 5 from 1500px) and results (4 columns) span the full page width. On the home
    screen (no results yet) the opening section pairs the heading (centred over the search box), search, tiles and pills with the animated
    how-it-works demo on the right, then the carousel runs full width below — a top-down page, not a split app; once
-   results show everything stacks full width. That full-width layout starts the moment a search starts, so
+   results show everything stacks full width. The hero blends into the page (owner request 2026-10-14): the search bar is see-through with a soft shadow,
+   prompt pills are outlines, and a few faint decorative shapes drift slowly behind the top of the page — circles,
+   hexagons and vibe-coding motifs (`</>`, `{ }`, a `>_` terminal, a git branch, a sparkle), placed clear of the text,
+   kept barely visible (whole layer at 60%, fading out downwards), fewer on phones, `aria-hidden`, still under reduced motion. That full-width layout starts the moment a search starts, so
    the search bar never shrinks to the left column while the demo is gone and results haven't arrived. Results render as
-  compact cards (rank, stars, what it does, a colour-coded license pill, free/starter tags) instead of a wide
-  table. The plain-English license meaning (e.g. "OK to use in a paid product" / "Completely free?") renders as
+  cards instead of a wide table (owner request 2026-10-14 "just boring cards"): a head with a coloured owner-initial
+  tile (hue from the owner name, no image fetched), owner / repo name and rank (top 3 highlighted); stars and forks
+  pills and a Starter tag; the "Matches:" line; the description; up to 3 of the repo's own topics; licence and
+  "updated N ago"; and a footer with the licence verdict and "＋ Add to plan" as a clear accent button that turns
+  solid "✓ In plan" when picked (RS28). Every field comes from the GitHub API response; nothing is invented.
+  On wide screens the home demo is larger (art, type and frame) to use its half of the opening section. The plain-English license meaning (e.g. "OK to use in a paid product" / "Completely free?") renders as
   a line on every card at every breakpoint — not only on wide screens — so the core promise is visible on phones.
   Motion comes from GSAP, loaded from cdnjs at a pinned version as the one external script; every GSAP
   use is guarded so the page works fully without it, and all motion is disabled under prefers-reduced-motion.
@@ -371,7 +378,7 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   ink colour, light and dark theme) and a short label with animated dots, in the style of a "Solving…" indicator.
   Used in two places: (1) on the home screen inside the how-it-works demo card, as its footer next to the step dots (one
   component, one frame whose content cross-dissolves between steps; the frame has no card background, border or shadow, so
-  the demo blends into the page — owner request 2026-10-14), driven by the demo's own clock:
+  the demo blends into the page — owner request 2026-10-14; each step shows a small inline-SVG illustration drawn in the page's theme colours instead of an emoji, so it looks the same on every device and follows light/dark), driven by the demo's own clock:
   each time the card changes step, the label changes with it ("Reading your idea", "Searching GitHub", "Ranking by
   fit", "Writing your plan") — one animation, not two timers; (2) as the
   loading indicator in the status line while a search, similar-repo lookup, PRD search or trending list loads ("Searching

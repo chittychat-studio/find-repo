@@ -14,7 +14,7 @@ global.window = global;
 const s = {};
 new Function("document", "localStorage",
   code + "; this.keywordQueries=keywordQueries; this.rankByFit=rankByFit; this.fitScore=fitScore; this.whyRelevant=whyRelevant; this.esc=esc; this.lu=lu; this.freeText=freeText;" +
-  " this.keep=keep; this.harmful=harmful; this.harmfulRepo=harmfulRepo; this.prdFeatures=prdFeatures; this.trendingQuery=trendingQuery; this.trendRows=trendRows; this.feedbackUrl=feedbackUrl;").call(s, document, global.localStorage || {getItem:()=>null,setItem(){},removeItem(){}});
+  " this.keep=keep; this.harmful=harmful; this.harmfulRepo=harmfulRepo; this.prdFeatures=prdFeatures; this.trendingQuery=trendingQuery; this.trendRows=trendRows; this.feedbackUrl=feedbackUrl; this.agoText=agoText; this.cardHtml=cardHtml;").call(s, document, global.localStorage || {getItem:()=>null,setItem(){},removeItem(){}});
 
 // RS16: iOS excludes macOS
 // RS16: expansions are specific on-topic phrases, never a bare category (live regression: "website" -> "frontend framework"
@@ -133,3 +133,12 @@ console.log("prd ok:", f.join(" | "));
   assert.strictEqual(new URL(s.feedbackUrl("t", "<script>", "")).searchParams.get("title"), "[Other] t");  // unknown type
   assert.strictEqual(new URL(s.feedbackUrl("x".repeat(500), "Bug", "")).searchParams.get("title").length, 6 + 120);
   console.log("feedback ok"); }
+
+// RS24 result card: relative date, escaped repo text, topics filtered
+{ assert.strictEqual(s.agoText(new Date(Date.now() - 3 * 864e5).toISOString()), "3 days ago");
+  assert.strictEqual(s.agoText(""), "");
+  const h = s.cardHtml({name:"ow<n>/re\"po", stars:1200, forks:30, spdx:"MIT", pushed:"2026-10-01", url:"https://github.com/a/b",
+    desc:"<img src=x>", topics:["ok-topic","<bad>"], starter:false, rel:0}, 0, []);
+  assert.ok(!h.includes("<img") && !h.includes("<bad>") && !h.includes("ow<n>"), "repo text must be escaped");
+  assert.ok(h.includes("class=\"topics\"") && h.includes("top1") && h.includes("pick-cb"));   // fake DOM: esc() yields "" here, so check structure only
+  console.log("card ok"); }
