@@ -134,11 +134,7 @@
 
   /* two clean mode tiles (like the reference's cards) */
   .modes{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
-  .modes-links{gap:8px;align-items:baseline;font-size:14px}
   .demo-slot:empty{display:none} .demo-slot{margin:6px 0 18px;text-align:left}
-  .mode-link{background:none;border:0;padding:0;font:inherit;font-weight:600;color:var(--accent-ink);cursor:pointer;
-    text-decoration:underline;text-decoration-color:rgba(192,83,44,.35);text-underline-offset:3px}
-  .mode-link:hover{text-decoration-color:currentColor}
   .left-div{grid-column:1/-1;margin:14px 4px 2px;font-size:13px;font-weight:700;color:var(--muted);
     display:flex;align-items:center;gap:10px}
   .left-div::after{content:"";flex:1;height:1px;background:var(--line)}
@@ -382,6 +378,23 @@
   .ghost-cta[hidden]{display:none}
   .primary-cta:hover{transform:translateY(-1px);box-shadow:0 16px 30px -12px rgba(192,83,44,.9);text-decoration:none}
   @media (max-width:700px){ .prd-bar{left:12px;right:12px;transform:none;justify-content:space-between} }
+  /* RS24 compact phone home: demo as a short side-by-side row, prompt pills as one swipeable row */
+  @media (max-width:700px){
+    .hero .sub{margin-bottom:8px}
+    .demo-slot{margin:2px 0 10px}
+    .demo-slot .demo-stage{height:104px}
+    .demo-slot .demo-card{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:14px;row-gap:2px;
+      align-content:center;justify-items:start;text-align:left;padding:0 6px}
+    .demo-slot .demo-card .ico{grid-row:1 / span 2;align-self:center}
+    .demo-slot .demo-card .ico svg{width:88px;height:70px}
+    .demo-slot .demo-card .t{font-size:18px;align-self:end}
+    .demo-slot .demo-card .d{font-size:13.5px;max-width:none;align-self:start}
+    .demo-slot .demo-foot{padding:4px 6px 0}
+    body:not(.has-results) #quickpicks{flex-wrap:nowrap;justify-content:flex-start;overflow-x:auto;margin:10px -16px 0;padding:2px 16px 6px;
+      scrollbar-width:none;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity}
+    body:not(.has-results) #quickpicks::-webkit-scrollbar{display:none}
+    body:not(.has-results) #quickpicks .chip{flex:0 0 auto;white-space:nowrap;scroll-snap-align:start}
+  }
   /* desktop = expanded format: wider cards that spell out the license meaning in full */
   @media (max-width:999px){
     body.has-results .hero-title, body.has-results .hero .sub,
@@ -658,13 +671,8 @@
         <button id="go" class="go-btn" title="Find repos">Find <span class="arr">→</span></button>
       </div>
 
-      <div class="modes modes-links">
-        <span class="mut">or</span>
-        <button class="mode-link" id="likeTile" type="button" aria-haspopup="dialog">find repos like one you know</button>
-        <span class="mut">·</span>
-        <button class="mode-link" id="prdLink" type="button">match a whole plan (PRD)</button>
-        <input id="prd" type="file" accept=".md,.markdown,.txt,.text,text/plain,text/markdown" hidden>
-      </div>
+      <!-- RS24: "similar repos" and "match a plan" live in Filters only (owner: the line under the bar duplicated it) -->
+      <input id="prd" type="file" accept=".md,.markdown,.txt,.text,text/plain,text/markdown" hidden>
 
       <div id="quickpicks" class="quickpicks" aria-label="Quick examples to try"></div>
 
@@ -1574,8 +1582,6 @@ document.getElementById("pluginBtn").addEventListener("click",function(){ openMo
 })();
 // Filters chip and "Find similar repos" tile each open a popup window
 document.getElementById("optsBtn").addEventListener("click",function(){ openModal("filtersModal"); });
-document.getElementById("likeTile").addEventListener("click",function(){ openModal("likeModal"); });
-document.getElementById("prdLink").addEventListener("click",function(){ document.getElementById("prd").click(); });   // keyboard-reachable
 // RS24: the two search modes are also in Filters, so they stay reachable when the intro is folded away
 document.getElementById("fmLike").addEventListener("click",function(){ closeModals(); openModal("likeModal"); });
 document.getElementById("fmPrd").addEventListener("click",function(){ closeModals(); });   // the label opens the file picker
