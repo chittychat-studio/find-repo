@@ -376,14 +376,18 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   model replies with indices only (`{"drop":[2,5]}`, max 120 tokens — the per-repo reasons were never shown and made
   replies long and slow); the prompt keeps templates/starters/boilerplates for the same kind of product even with extra
   features. A request may ask for per-attempt diagnostics (`X-Replore-Diag: 1` → model, ms and code per attempt, no
-  text). Preview builds (wrangler `env.preview`) carry an `EVAL_MODELS` allowlist so the eval can compare models; the
-  production build has none, so a client can never pick a model there. Comparison 2026-10-14 (indices-only replies; timeouts gone, 0.2–1.3 s avg): kept/dropped —
+  text). For the 2026-10-14 comparison, preview builds briefly accepted a model choice from an allowlist; that
+  override was removed before release (peer review: previews share the account's AI allowance), so no build lets a
+  client pick a model. The live eval is a manual workflow (`relevance-eval-live`) that scores an endpoint's own chain. Comparison 2026-10-14 (indices-only replies; timeouts gone, 0.2–1.3 s avg): kept/dropped —
   Mistral Small 3.1 24B 100%/68%, Llama 3.3 70B 98%/32%, Llama 4 Scout 86%/46%, Llama 3.1 8B fp8 72%/76% (the old
   default, which hid good SaaS starters), 8B fast 81%/63%, 3.2 3B 67%/34%; Gemma 3 not allowed on the account (5018);
   GLM 4.7 Flash unparseable. Default becomes Mistral Small, then Llama 3.3 70B. No model meets the 80% drop bar yet;
   keeping good repos (the 95% half) is the half that protects visitors, so a model is only made default if it meets it.
   After adding the general-purpose-framework drop rule (build tag 26bf4ee9), both PASS the RS34 bar on the live preview:
   Mistral Small 3.1 24B kept 98% / dropped 85% (avg 0.7 s); Llama 3.3 70B kept 95% / dropped 90% (avg 0.6 s).
+  Cost (inferred, not measured): a 24B model uses more of the free daily Workers AI allocation per check than the 8B
+  did, so fewer checks fit in a day; the example cache (RS34b, bumped to v2 for the new model) and max 120 output
+  tokens offset part of it. When the allocation runs out the check is skipped silently (RS34).
 
 ## RX — Deliberately excluded (v0.1)
 

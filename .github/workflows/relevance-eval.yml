@@ -1,20 +1,17 @@
-# SPEC RS34/RS34e: run the 84-item relevance eval against the deployed AI check. Manual only (plus PRs that change the
-# eval itself) — it spends AI checks from the site's free daily allowance, so it is never part of normal CI.
-# On PRs it scores this branch's preview build and compares the preview-allowlisted models (wrangler.toml env.preview).
+# SPEC RS34/RS34e: score the deployed AI check against the 84-item set. Manual only — each run spends ~9 AI checks from
+# the site's free daily allowance, so it never runs on pushes or PRs.
 name: relevance-eval-live
 on:
   workflow_dispatch:
     inputs:
       endpoint:
-        description: "Endpoint to score"
+        description: "Endpoint to score (production or a preview URL)"
         default: "https://replore.pages.dev/api/relevance"
-  pull_request:
-    paths:
-      - evals/relevance_live.mjs
-      - functions/api/relevance.js
-      - .github/workflows/relevance-eval.yml
 permissions:
   contents: read
+concurrency:
+  group: relevance-eval
+  cancel-in-progress: true
 jobs:
   eval:
     runs-on: ubuntu-latest
@@ -23,18 +20,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Production chain (manual runs)
-        if: github.event_name == 'workflow_dispatch'
-        run: node evals/relevance_live.mjs "${{ inputs.endpoint }}"
-      - name: Wait for this branch's preview build (PR runs)
-        if: github.event_name == 'pull_request'
+      - name: Score the endpoint
+        env:
+          ENDPOINT: ${{ inputs.endpoint }}   # passed as data, never pasted into the script
         run: |
-          url="https://$(echo "${{ github.head_ref }}" | tr '/' '-' | cut -c1-28 | sed 's/-$//').replore.pages.dev/api/relevance"
-          tag=$(node -e "import('./functions/api/relevance.js').then(m=>console.log(m.buildTag()))")
-          echo "PREVIEW=$url" >> "$GITHUB_ENV"
-          for i in $(seq 1 40); do   # wait for the build of THIS commit's prompt + models, not an older preview
-            if curl -fsS "$url" | grep -q "\"tag\":\"$tag\""; then echo "preview ready: $url ($tag)"; exit 0; fi; sleep 10; done
-          echo "preview with tag $tag not ready"; exit 1
-      - name: Compare models on the preview build (PR runs)
-        if: github.event_name == 'pull_request'
-        run: node evals/relevance_live.mjs "$PREVIEW" --models "@cf/mistralai/mistral-small-3.1-24b-instruct,@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+          case "$ENDPOINT" in https://*.pages.dev/api/relevance) ;; *) echo "endpoint must be a *.pages.dev /api/relevance URL"; exit 2;; esac
+          node evals/relevance_live.mjs "$ENDPOINT"

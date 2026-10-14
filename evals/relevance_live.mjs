@@ -7,8 +7,7 @@ import { readFileSync } from "node:fs";
 
 const args = process.argv.slice(2);
 const ENDPOINT = args.find(a => a.startsWith("http")) || process.env.RELEVANCE_ENDPOINT || "https://replore.pages.dev/api/relevance";
-const mi = args.indexOf("--models");                         // RS34e: compare models on a preview build
-const MODELS = mi >= 0 ? args[mi + 1].split(",").map(s => s.trim()).filter(Boolean) : [null];
+const MODELS = [null];   // scores the endpoint's own chain (the model override used for the 2026-10-14 comparison is gone)
 const { items } = JSON.parse(readFileSync(new URL("./relevance_set.json", import.meta.url)));
 const byQuery = new Map();
 for (const it of items) { if (!byQuery.has(it.query)) byQuery.set(it.query, []); byQuery.get(it.query).push(it); }

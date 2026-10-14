@@ -250,7 +250,7 @@ console.log("bot check ok");
   await fn.cachedJudge(ex, repos, { AI: down, LLM_API_KEY: "k" }, fakeLLM('{"drop":[]}'), cache, "https://replore.pages.dev");
   assert.strictEqual(store.size, 0, "fallback answer is not cached");
   await fn.cachedJudge(ex, repos, { AI }, fetch, cache, "https://replore.pages.dev");
-  assert.ok([...store.keys()][0].startsWith("https://replore.pages.dev/__relevance-cache/v1/"));
+  assert.ok([...store.keys()][0].startsWith("https://replore.pages.dev/__relevance-cache/v2/"));
   const r = await fn.onRequestPost({ request: req(), env: { AI } }); const body = await r.json();
   assert.ok(!("first" in body) && !("cached" in body)); }
 console.log("second review regressions ok");
@@ -330,11 +330,15 @@ console.log("failure log ok");
   assert.ok(!("diag" in r));
   r = await (await fn.onRequestPost({ request: req({ query: "q", repos }, { "X-Replore-Diag": "1" }), env: { AI } })).json();
   assert.ok(Array.isArray(r.diag) && r.diag.length === 2); assert.ok(!JSON.stringify(r).includes("retired"));
-  // override ignored in production (no EVAL_MODELS), honoured from the allowlist on previews, never outside it
-  seen.length = 0; await fn.onRequestPost({ request: req({ query: "q", repos, model: "@cf/x/fast" }), env: { AI } });
+  // no build lets a client choose the model (the comparison-only override was removed)
+  seen.length = 0; await fn.onRequestPost({ request: req({ query: "q", repos, model: "@cf/x/fast" }), env: { AI, EVAL_MODELS: "@cf/x/fast" } });
   assert.ok(!seen.some(s => s[0] === "@cf/x/fast"));
-  seen.length = 0; await fn.onRequestPost({ request: req({ query: "q", repos, model: "@cf/x/fast" }), env: { AI, EVAL_MODELS: "@cf/x/fast, @cf/y" } });
-  assert.deepStrictEqual(seen.map(s => s[0]), ["@cf/x/fast"]);
-  seen.length = 0; await fn.onRequestPost({ request: req({ query: "q", repos, model: "@cf/expensive" }), env: { AI, EVAL_MODELS: "@cf/x/fast" } });
-  assert.ok(!seen.some(s => s[0] === "@cf/expensive")); }
+  // numeric-string indices are understood, junk is not
+  assert.deepStrictEqual(fn.parseDrops('{"drop":["2","x","-1"]}', 3), [{ i: 2, why: "" }]);
+  // diag also comes back on an error response
+  const bad = { run: async () => { throw new Error("AiError: 3010: bad input"); } };
+  const er = await (await fn.onRequestPost({ request: req({ query: "q", repos }, { "X-Replore-Diag": "1" }), env: { AI: bad } })).json();
+  assert.ok(Array.isArray(er.diag) && er.diag[0].code === "wai_error_3010"); }
+// wrangler.toml carries no client-model allowlist
+{ const w = readFileSync(new URL("../wrangler.toml", import.meta.url), "utf8"); assert.ok(!/EVAL_MODELS|\[env\./.test(w), "no model allowlist / env override in wrangler.toml"); }
 console.log("diag + model override ok");

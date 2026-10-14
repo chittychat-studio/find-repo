@@ -57,9 +57,10 @@ export function parseDrops(text, n) {
   if (!obj || !Array.isArray(obj.drop)) return null;
   const seen = new Set(), drop = [];
   for (const d of obj.drop) {
-    const i = Number.isInteger(d) ? d : d && d.i;   // {"drop":[2,5]} (current) or [{"i":2,"why":…}] (older replies)
+    const raw = typeof d === "string" && /^\d{1,3}$/.test(d) ? Number(d) : d;   // tolerate {"drop":["2"]}
+    const i = Number.isInteger(raw) ? raw : d && d.i;   // {"drop":[2,5]} (current) or [{"i":2,"why":…}] (older replies)
     if (!Number.isInteger(i) || i < 0 || i >= n || seen.has(i)) continue;
-    seen.add(i); drop.push({ i, why: Number.isInteger(d) ? "" : clean(d && d.why, 120) });
+    seen.add(i); drop.push({ i, why: Number.isInteger(raw) ? "" : clean(d && d.why, 120) });
   }
   return drop;
 }
@@ -202,9 +203,9 @@ export const EXAMPLE_QUERIES = [
 const EXAMPLE_SET = new Set(EXAMPLE_QUERIES);
 const CACHE_TTL = 86400;
 export async function cacheKey(query, repos, origin = "https://replore.pages.dev") {
-  const data = new TextEncoder().encode(JSON.stringify([1, query, repos.map(r => [r.name, r.description || "", r.topics || []])]));
+  const data = new TextEncoder().encode(JSON.stringify([2, query, repos.map(r => [r.name, r.description || "", r.topics || []])]));
   const hex = [...new Uint8Array(await crypto.subtle.digest("SHA-256", data))].map(b => b.toString(16).padStart(2, "0")).join("");
-  return new Request(`${origin}/__relevance-cache/v1/${hex}`);   // own origin: the Cache API is scoped to the zone
+  return new Request(`${origin}/__relevance-cache/v2/${hex}`);   // v2: Mistral + indices-only prompt   // own origin: the Cache API is scoped to the zone
 }
 export async function cachedJudge(query, repos, env, fetchImpl = fetch, cache = globalThis.caches && globalThis.caches.default, origin) {
   const usable = cache && EXAMPLE_SET.has(query);
@@ -282,13 +283,7 @@ async function handlePost(request, env, fetchImpl) {
   const bad = validate(body);
   if (bad) return json(400, { error: bad });
   if (!(await verifyTurnstile(request, env, fetchImpl))) return json(403, { error: "bot_check_failed" });
-  // RS34e: model comparison on preview builds only — a model from the EVAL_MODELS allowlist (set for previews in
-  // wrangler.toml, never in production) replaces the chain for this request, uncached.
-  const evalModels = String(env.EVAL_MODELS || "").split(",").map(s => s.trim()).filter(Boolean);
-  const override = evalModels.length && typeof body.model === "string" && evalModels.includes(body.model) ? body.model : null;
-  const out = override
-    ? await judgeChain(body.query, body.repos, { AI: env.AI, WORKERS_AI_MODEL: override }, fetchImpl)
-    : await cachedJudge(body.query, body.repos, env, fetchImpl, undefined, new URL(request.url).origin);
+  const out = await cachedJudge(body.query, body.repos, env, fetchImpl, undefined, new URL(request.url).origin);
   const meta = { trail: out.trail, example: EXAMPLE_SET.has(body.query) };
   const diag = request.headers.get("X-Replore-Diag") === "1" && out.diag ? { diag: out.diag } : {};   // codes + timings only
   return out.status === 200 ? json(200, { ...out.body, ...diag })   // internal flags (first, cached, trail) never leave
@@ -297,7 +292,7 @@ async function handlePost(request, env, fetchImpl) {
 
 // RS34e: a fingerprint of the prompt + model list, so the live eval can wait for the build it means to score
 export function buildTag() {
-  let h = 0x811c9dc5; const s = SYSTEM_PROMPT + "|" + WAI_MODELS.join(",");
+  let h = 0x811c9dc5; const s = SYSTEM_PROMPT + "|" + WAI_MODELS.join(",") + "|max120|parse3";
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
   return h.toString(16);
 }
