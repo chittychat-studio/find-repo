@@ -339,6 +339,15 @@
   .tcard .tc-desc{font-size:12.5px;color:var(--muted);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
   .tcard .tc-meta{font-size:11.5px;color:var(--muted)}
   @media (min-width:700px){ .tcard{flex-basis:46%} }
+  /* RS24 wide desktops: one top-down column that uses the full width (no split screen) */
+  @media (min-width:1000px){ .tcard{flex:0 0 calc((100% - 30px)/4);max-width:none} }
+  @media (min-width:1200px){
+    .page{max-width:1500px}
+    .hero{max-width:1100px}
+    .modes .mode-tile{max-width:none}
+    .out-wrap{max-width:none}
+  }
+  @media (min-width:1500px){ .tcard{flex-basis:calc((100% - 40px)/5)} }
   @media (max-width:999px){ body.has-results .tcar{display:none} }
   .res-more-hint{text-align:center;color:var(--muted);font-size:12.5px;margin:10px 4px 2px;min-height:18px}
   .res-empty{text-align:center;color:var(--muted);font-size:14px;margin:18px 4px}
@@ -492,11 +501,6 @@
       </div>
 
       <div id="quickpicks" class="quickpicks" aria-label="Quick examples to try"></div>
-      <section id="trendCar" class="tcar" aria-label="Rising on GitHub this month" hidden>
-        <div class="tcar-head"><b>🔥 Rising on GitHub this month</b>
-          <button type="button" class="link-btn" id="trendHome">See all trending →</button></div>
-        <div class="tcar-track" id="tcarTrack" tabindex="0"></div>
-      </section>
 
       <div id="status" class="status"></div>
       <div id="tsBox" class="ts-box"></div>
@@ -504,6 +508,11 @@
   </section>
 
   <section class="out-wrap">
+    <section id="trendCar" class="tcar" aria-label="Rising on GitHub this month" hidden>
+        <div class="tcar-head"><b>🔥 Rising on GitHub this month</b>
+          <button type="button" class="link-btn" id="trendHome">See all trending →</button></div>
+        <div class="tcar-track" id="tcarTrack" tabindex="0"></div>
+      </section>
     <div id="out" class="results"></div>
     <p class="privacy-note">🔒 Nothing you type is stored. Your search goes to GitHub and an AI fit-check; we keep neither.
       <button type="button" class="link-btn" onclick="openModal('privacyModal')">Privacy</button></p>
@@ -1560,7 +1569,7 @@ function buildTrendCarousel(){
 function showHome(){
   var out=document.getElementById("out");
   stopDemo("heroDemo");   // clear any previous carousel before replacing it
-  out.innerHTML='<div class="explain"><p class="lead">Type what you’re building above, or tap a quick pick. Here’s what happens:</p>'+
+  out.innerHTML='<div class="explain"><p class="lead">Describe what you’re building, or tap a quick pick. Here’s what happens:</p>'+
     '<div id="heroDemo" class="demo"></div></div>';
   buildDemo(document.getElementById("heroDemo"));
   if(window.__resetPicks) window.__resetPicks();
