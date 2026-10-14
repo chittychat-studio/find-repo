@@ -634,6 +634,10 @@ def test_web_page_is_safe_static(monkeypatch):
     assert 'fetch("/api/relevance"' in html and "function relevanceGate" in html and 'setAttribute("data-gate"' in html
     for gone in ("Couldn\\u2019t check relevance", "AI hid", 'id="showOff"', "free AI checks are used up", "gate-note"):
         assert gone not in html, gone
+    # RS35 trending: gallery tabs + home carousel; API-sorted, not scraped; no auto-rotate under reduced motion
+    assert "function showTrending" in html and 'id="trendCar"' in html and 'id="trendBtn"' in html
+    assert "&sort=" in html and "github.com/trending" not in html
+    assert 'prefers-reduced-motion: reduce)").matches) return;' in html
     # RS34 undo: dropped repos sit at the end behind one bottom line
     assert 'id="showLeft"' in html and "more we left out" in html and 'data-left="1"' in html
     # RS24 richness: cursor tilt + star count-up are native (no extra library)
