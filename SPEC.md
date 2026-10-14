@@ -155,7 +155,7 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
    sheet also offers "Find similar repos" and "Match a whole plan", so both modes stay one tap away), and the
    privacy line sits below the results, not in the search panel. On phones (below 1000px) the home screen reads top-down as
    what it does (the demo card) → the search → trending; the nav is Trending · Plugin · ★ Star, with Tour, How ranking
-   works and Next steps in the footer line; the two search modes are one line of text links under the search; six
+   works and Next steps in the footer line; the two other search modes (find repos like one you know, match a whole plan) live only in Filters, with no duplicate line under the search; below 700px the home screen is compact: the demo is a short icon-left row, the prompt pills are one swipeable row, and the whole home screen fits one phone screen; six
    quick-pick pills; the trending carousel hides once results show; result cards show the licence inside the verdict
    (tooltip) and the meta line, not as a separate pill; cards carry a faint orange wash in light mode. Desktop stays one top-down column (owner's decision: no split screen) but
    uses the width: from 1200px the page spans up to 1500px, the search area up to 1100px (wider bar, tiles and pill
