@@ -36,7 +36,8 @@
   *{box-sizing:border-box}
   [hidden]{display:none!important}
   /* RS24 hero shapes: a few faint circles/hexagons drifting slowly behind the top of the page */
-  .bg-shapes{position:absolute;top:0;left:0;right:0;height:640px;overflow:hidden;pointer-events:none;z-index:-1}
+  .bg-shapes{position:absolute;top:0;left:0;right:0;height:640px;overflow:hidden;pointer-events:none;z-index:-1;opacity:.4;
+    -webkit-mask-image:linear-gradient(to bottom,#000 35%,transparent 100%);mask-image:linear-gradient(to bottom,#000 35%,transparent 100%)}
   .bg-shapes .sh{position:absolute;display:block;animation:drift 18s ease-in-out infinite alternate}
   .sh.s1{width:240px;left:-150px;top:430px;opacity:.9;animation-duration:22s}
   .sh.s2{width:86px;right:7%;top:84px;opacity:.22;animation-name:driftSpin;animation-duration:26s}
