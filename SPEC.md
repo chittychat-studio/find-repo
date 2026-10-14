@@ -250,6 +250,11 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   "If no repo above covers a feature, list it under GAPS instead of stretching a repo to fit." The plugin skill
   says "No good match for: <need>" in the same case (single search and PRD mode). Fail closed (RS7): a missing
   piece is named, never papered over.
+- **RS28d** Questions first (owner request 2026-10-14). The plan prompt ends with: "Before you write anything: ask
+  me 5 short questions that would most improve this plan, all in one numbered message, then wait for my answers."
+  A short interview gives the user's AI the facts the search can't (audience, must-haves, hosting, timeline), so the
+  plan fits better. Trade-off accepted: the plan arrives one reply later. Exactly one round of questions, so the
+  hand-off never turns into an open-ended chat before the plan.
 - **RS28b** Other AI assistants (owner request 2026-10-14: "all three buttons equal importance"). The plan modal
   offers three same-style buttons in one row (stacked on phones): "Open in Claude", "Open in ChatGPT"
   (`https://chatgpt.com/?q=<encoded>`, best-effort and unofficial like the Claude link, dropped under the same length

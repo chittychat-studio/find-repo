@@ -1720,7 +1720,9 @@ document.addEventListener("keydown",function(e){ if(e.key==="Escape") closeModal
       "or REJECT, with a one-line reason, and build only on the ones you USE.\n\n"+
       "Include: overview and goals; key features; which repo above covers each part (with its GitHub URL); "+
       "data model and APIs; non-goals; and open questions. Use only the repos listed — don't invent libraries, versions, or statistics. "+
-      "If no repo above covers a feature, list it under GAPS instead of stretching a repo to fit.";   // RS28c
+      "If no repo above covers a feature, list it under GAPS instead of stretching a repo to fit.\n\n"+   // RS28c
+      "Before you write anything: ask me 5 short questions that would most improve this plan, all in one numbered "+
+      "message, then wait for my answers.";   // RS28d
   }
   if(clearBtn) clearBtn.addEventListener("click",function(){
     var cbs=out.querySelectorAll(".pick-cb"); for(var i=0;i<cbs.length;i++) cbs[i].checked=false;
