@@ -12,7 +12,7 @@ const fakeLLM = (content, status = 200) => async (url, init) => {
   return new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status });
 };
 const env = { LLM_API_KEY: "sk-test-SECRET" };
-const noTrail = o => { const { trail, ...rest } = o || {}; return rest; };   // RS34d trail is internal
+const noTrail = o => { const { trail, diag, ...rest } = o || {}; return rest; };   // RS34d/RS34e trail + diag are internal
 const post = (body, e = env, ct = "application/json") =>
   fn.onRequestPost({ request: new Request("https://x/api/relevance", { method: "POST", headers: { "Content-Type": ct }, body: typeof body === "string" ? body : JSON.stringify(body) }), env: e });
 
@@ -225,8 +225,8 @@ console.log("example cache ok");
   assert.strictEqual(r.status, 403); assert.strictEqual(aiCalls, 1);
   // GET returns only the public site key
   const g = await (await fn.onRequestGet({ env: tenv })).text();
-  assert.deepStrictEqual(JSON.parse(g), { turnstile: "0xSITE" }); assert.ok(!g.includes("ts-SECRET"));
-  assert.deepStrictEqual(await (await fn.onRequestGet({ env: {} })).json(), { turnstile: null });
+  assert.deepStrictEqual(JSON.parse(g), { turnstile: "0xSITE", v: 2 }); assert.ok(!g.includes("ts-SECRET"));
+  assert.deepStrictEqual(await (await fn.onRequestGet({ env: {} })).json(), { turnstile: null, v: 2 });
 }
 console.log("bot check ok");
 
@@ -313,3 +313,28 @@ console.log("model fallback ok");
   try { assert.strictEqual((await mk({ AI: { run: async () => { throw new Error("boom"); } }, RELEVANCE_LOG: bad })).status, 502); }
   finally { console.log = orig; } }
 console.log("failure log ok");
+
+// RS34e: compact reply format, keep rule, per-attempt diag, preview-only model override
+{ assert.deepStrictEqual(fn.parseDrops('{"drop":[2,0,2,9]}', 3), [{ i: 2, why: "" }, { i: 0, why: "" }]);   // numbers, dedup, range
+  assert.match(fn.SYSTEM_PROMPT, /\{"drop":\[2,5\]\}/); assert.match(fn.SYSTEM_PROMPT, /boilerplates/); assert.ok(!/at most 12 words/.test(fn.SYSTEM_PROMPT));
+  const seen = [];
+  const AI = { run: async (model, input) => { seen.push([model, input.max_tokens]);
+    if (model.endsWith("-fp8")) throw new Error("AiError: 5028: retired"); return { response: '{"drop":[1]}' }; } };
+  const out = await fn.judgeChain("q", repos, { AI });
+  assert.strictEqual(out.status, 200); assert.strictEqual(seen[0][1], 120);
+  assert.deepStrictEqual(out.diag.map(d => d.code), ["wai_error_5028", "ok"]); assert.ok(out.diag.every(d => typeof d.ms === "number" && d.model));
+  const req = (body, headers = {}) => new Request("https://x.pages.dev/api/relevance", { method: "POST",
+    headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify(body) });
+  // diag only on request, codes only
+  let r = await (await fn.onRequestPost({ request: req({ query: "q", repos }), env: { AI } })).json();
+  assert.ok(!("diag" in r));
+  r = await (await fn.onRequestPost({ request: req({ query: "q", repos }, { "X-Replore-Diag": "1" }), env: { AI } })).json();
+  assert.ok(Array.isArray(r.diag) && r.diag.length === 2); assert.ok(!JSON.stringify(r).includes("retired"));
+  // override ignored in production (no EVAL_MODELS), honoured from the allowlist on previews, never outside it
+  seen.length = 0; await fn.onRequestPost({ request: req({ query: "q", repos, model: "@cf/x/fast" }), env: { AI } });
+  assert.ok(!seen.some(s => s[0] === "@cf/x/fast"));
+  seen.length = 0; await fn.onRequestPost({ request: req({ query: "q", repos, model: "@cf/x/fast" }), env: { AI, EVAL_MODELS: "@cf/x/fast, @cf/y" } });
+  assert.deepStrictEqual(seen.map(s => s[0]), ["@cf/x/fast"]);
+  seen.length = 0; await fn.onRequestPost({ request: req({ query: "q", repos, model: "@cf/expensive" }), env: { AI, EVAL_MODELS: "@cf/x/fast" } });
+  assert.ok(!seen.some(s => s[0] === "@cf/expensive")); }
+console.log("diag + model override ok");

@@ -371,6 +371,15 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   (static dots, no label cycling) under prefers-reduced-motion, is aria-hidden decoration (the label text stays
   readable), stops once removed, and makes no network call.
 
+- **RS34e** Relevance-check diagnosis and model choice. Live eval (2026-10-14, production chain): 6/9 queries timed
+  out at 7 s, 2/9 returned unparseable output, and the one that ran dropped 4/6 relevant SaaS starters. Fixes: the
+  model replies with indices only (`{"drop":[2,5]}`, max 120 tokens — the per-repo reasons were never shown and made
+  replies long and slow); the prompt keeps templates/starters/boilerplates for the same kind of product even with extra
+  features. A request may ask for per-attempt diagnostics (`X-Replore-Diag: 1` → model, ms and code per attempt, no
+  text). Preview builds (wrangler `env.preview`) carry an `EVAL_MODELS` allowlist so the eval can compare models; the
+  production build has none, so a client can never pick a model there. The default model list changes only to a model
+  that passes the 84-item bar on the preview comparison.
+
 ## RX — Deliberately excluded (v0.1)
 
 - **RX1** Scraping github.com HTML, or any non-API source.

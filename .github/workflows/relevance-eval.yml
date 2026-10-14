@@ -1,11 +1,17 @@
-# SPEC RS34: run the 84-item relevance eval against the LIVE site's AI check. Manual only (plus PRs that change the
-# eval itself) — it spends ~9 AI checks from the site's free daily allowance, so it is never part of normal CI.
+# SPEC RS34/RS34e: run the 84-item relevance eval against the deployed AI check. Manual only (plus PRs that change the
+# eval itself) — it spends AI checks from the site's free daily allowance, so it is never part of normal CI.
+# On PRs it scores this branch's preview build and compares the preview-allowlisted models (wrangler.toml env.preview).
 name: relevance-eval-live
 on:
   workflow_dispatch:
+    inputs:
+      endpoint:
+        description: "Endpoint to score"
+        default: "https://replore.pages.dev/api/relevance"
   pull_request:
     paths:
       - evals/relevance_live.mjs
+      - functions/api/relevance.js
       - .github/workflows/relevance-eval.yml
 permissions:
   contents: read
@@ -17,4 +23,17 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - run: node evals/relevance_live.mjs https://replore.pages.dev/api/relevance
+      - name: Production chain (manual runs)
+        if: github.event_name == 'workflow_dispatch'
+        run: node evals/relevance_live.mjs "${{ inputs.endpoint }}"
+      - name: Wait for this branch's preview build (PR runs)
+        if: github.event_name == 'pull_request'
+        run: |
+          url="https://$(echo "${{ github.head_ref }}" | tr '/' '-' | cut -c1-28 | sed 's/-$//').replore.pages.dev/api/relevance"
+          echo "PREVIEW=$url" >> "$GITHUB_ENV"
+          for i in $(seq 1 30); do
+            if curl -fsS "$url" | grep -q '"v":2'; then echo "preview ready: $url"; exit 0; fi; sleep 10; done
+          echo "preview not ready"; exit 1
+      - name: Compare models on the preview build (PR runs)
+        if: github.event_name == 'pull_request'
+        run: node evals/relevance_live.mjs "$PREVIEW" --models "@cf/meta/llama-3.1-8b-instruct-fp8,@cf/meta/llama-3.1-8b-instruct-fast,@cf/meta/llama-3.2-3b-instruct,@cf/meta/llama-4-scout-17b-16e-instruct,@cf/mistralai/mistral-small-3.1-24b-instruct,@cf/google/gemma-3-12b-it,@cf/zai-org/glm-4.7-flash,@cf/meta/llama-3.3-70b-instruct-fp8-fast"
