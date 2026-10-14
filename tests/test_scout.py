@@ -649,6 +649,8 @@ def test_web_page_is_safe_static(monkeypatch):
     # RS34: dropped repos sit at the end under a divider and show without a click (no hidden undo button)
     assert 'class="left-div"' in html and "Less likely to fit" in html and 'data-left="1"' in html
     assert 'id="showLeft"' not in html and "more we left out" not in html
+    # RS36: demo steps use inline SVG art (theme colours), not emoji
+    assert "var ART={" in html and "ico:ART.describe" in html and 'ico:"🔍"' not in html
     # RS24 richness: cursor tilt + star count-up are native (no extra library)
     assert "attachTilt" in html and 'class="cnt"' in html
     for t in ("portfolio website", "iPhone app", "trip planner", "practice app"):
