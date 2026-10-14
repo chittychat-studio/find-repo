@@ -156,7 +156,7 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
    privacy line sits below the results, not in the search panel. Desktop stays one top-down column (owner's decision: no split screen) but
    uses the width: from 1200px the page spans up to 1500px, the search area up to 1100px (wider bar, tiles and pill
    rows), and the trending carousel (4 cards, 5 from 1500px) and results (4 columns) span the full page width. On the home
-   screen (no results yet) the opening section pairs the left-aligned heading, search, tiles and pills with the animated
+   screen (no results yet) the opening section pairs the heading (centred over the search box), search, tiles and pills with the animated
    how-it-works demo on the right, then the carousel runs full width below — a top-down page, not a split app; once
    results show everything stacks full width. Results render as
   compact cards (rank, stars, what it does, a colour-coded license pill, free/starter tags) instead of a wide
@@ -359,6 +359,15 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   prefers-reduced-motion, can be swiped, and disappears silently if GitHub can't be reached. On single-column screens
   it folds away with the intro once results show. No AI relevance check
   runs on it (there is no description to judge against). Web only; the plugin is a search tool and has no gallery.
+
+- **RS36** Thinking orb (web, decorative). On the home screen, under the how-it-works demo, a canvas "thinking orb":
+  a slowly rotating sphere of ~80 repo nodes joined to their nearest neighbours, in the page's accent colours (light
+  and dark theme), with up to six nodes labelled with real repo names from the cached Rising list (RS35 — no extra
+  API call; unlabelled if the list isn't cached) and a caption that cycles through what Replore does ("Scanning
+  open-source repos…", "Checking licences…", "Ranking by fit…"). It loops indefinitely but only animates while on
+  screen and the tab is visible; under prefers-reduced-motion it draws one still frame and the caption doesn't cycle.
+  It is decoration only: aria-hidden canvas, no data leaves the page, and it stops as soon as results replace the
+  home screen.
 
 ## RX — Deliberately excluded (v0.1)
 
