@@ -347,7 +347,17 @@
     color:var(--accent-ink);cursor:pointer;box-shadow:0 14px 30px -18px rgba(var(--shadow),.7)}
     .fb-fab:hover{border-color:var(--accent)} }
   .fb-err{color:var(--accent-ink);margin:-6px 0 8px}
-  .fb-alt{margin:10px 0 0;font-size:12.5px;text-align:center}
+  .fb-alt{margin:8px 0 0;font-size:12.5px;text-align:center}
+  /* RS39: compact feedback sheet — every field and Send visible without scrolling */
+  #fbModal .fb-sheet{padding:18px 20px 16px}
+  #fbModal .fb-sheet h2{margin-bottom:4px}
+  #fbModal .fb-sheet>.mut{margin:0 0 10px}
+  #fbModal .fb-sheet .field{margin:0 0 10px}
+  #fbModal .fb-sheet .field>label{margin-bottom:4px}
+  #fbModal .fb-sheet input,#fbModal .fb-sheet select{padding:9px 12px}
+  #fbModal .fb-sheet textarea{min-height:76px;resize:vertical}
+  #fbModal .fb-sheet .field-row{gap:10px}
+  @media (max-width:480px){ #fbModal .fb-sheet .field-row{flex-direction:column;gap:0} }
   .fb-ok{color:var(--good);font-weight:700;margin:-4px 0 8px}
   /* floating PRD action bar */
   .prd-bar{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:38;display:flex;align-items:center;
@@ -829,18 +839,20 @@
 
 <!-- RS39 feedback: opens a pre-filled GitHub issue; nothing is sent from this page -->
 <button type="button" class="fb-fab" id="fbFab">Feedback</button>
-<div class="modal" id="fbModal"><div class="sheet">
+<div class="modal" id="fbModal"><div class="sheet fb-sheet">
   <button class="x" data-close>&times;</button>
   <h2>Send feedback</h2>
   <p class="mut">Report a bug or suggest an improvement. It's sent to the Cardzo team (hello@cardzo.co.in).</p>
   <div class="field"><label for="fbTitle">Title</label>
     <input id="fbTitle" type="text" maxlength="120" autocomplete="off" placeholder="Short summary"></div>
-  <div class="field"><label for="fbType">Type</label>
-    <select id="fbType"><option>Bug</option><option selected>Feature request</option><option>Content issue</option><option>Other</option></select></div>
+  <div class="field-row">
+    <div class="field"><label for="fbType">Type</label>
+      <select id="fbType"><option>Bug</option><option selected>Feature request</option><option>Content issue</option><option>Other</option></select></div>
+    <div class="field"><label for="fbEmail">Your email <span class="mut">(optional)</span></label>
+      <input id="fbEmail" type="email" maxlength="120" autocomplete="email" placeholder="so we can reply"></div>
+  </div>
   <div class="field"><label for="fbDesc">Description</label>
-    <textarea id="fbDesc" maxlength="2000" rows="5" placeholder="What happened, or what would you like?"></textarea></div>
-  <div class="field"><label for="fbEmail">Your email <span class="mut">(optional, so we can reply)</span></label>
-    <input id="fbEmail" type="email" maxlength="120" autocomplete="email" placeholder="you@example.com"></div>
+    <textarea id="fbDesc" maxlength="2000" rows="3" placeholder="What happened, or what would you like?"></textarea></div>
   <input id="fbBot" type="checkbox" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px">
   <p class="mut fb-err" id="fbErr" hidden>Add a title first.</p>
   <p class="fb-ok" id="fbOk" role="status" hidden>Thanks — your feedback was sent to Cardzo.</p>

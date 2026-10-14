@@ -434,7 +434,9 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   reply-to; no other contact data. The Web3Forms access key is public by design and lives in the page; with no key
   configured, or when sending fails, the form says so and offers a `mailto:` link to the same address (max 1500
   chars) — it never shows "sent" unless Web3Forms answers success. A hidden honeypot box catches simple bots (they
-  see "sent", nothing is posted). Replore stores nothing; the privacy notice names Web3Forms.
+  see "sent", nothing is posted). Replore stores nothing; the privacy notice names Web3Forms. The sheet is compact (Type and
+  email side by side on wide screens, 3-line description) so every field and Send show without scrolling on a 650px-tall
+  window. **Verified live 2026-10-14:** owner sent a test from replore.cardzo.co.in and received it at hello@cardzo.co.in.
   Title and description are passed only through `encodeURIComponent` into the URL query, never into page HTML. If the title is empty the form does not submit and
   says so.
 
