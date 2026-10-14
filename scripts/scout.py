@@ -386,8 +386,7 @@ def render(result):
         out.append(f"    {r['license_use']} | Completely free? {r['free']}")
         out.append(f"    {r['url']}  [query: {r['query']}]")
         out.append(f"    How to start: {r['start_hint']}")
-        if r["description"]:
-            out.append(f"    {r['description']}")
+        out.append(f"    {_desc(r)}")
     out += ["", KEY, FREE_NOTE]
     return "\n".join(out)
 
@@ -409,13 +408,20 @@ def render_markdown_grouped(result):
             total += 1
             name = r["full_name"]
             link = f"[{_md(name)}](https://github.com/{name})" if _NAME.fullmatch(name) else _md(name)
-            out.append(f"| {link} | {_md(r['why'])} | {r['stars']:,} | {_md(r['description'])} | {_md(r['license'])} | "
+            out.append(f"| {link} | {_md(r['why'])} | {r['stars']:,} | {_md(_desc(r))} | {_md(r['license'])} | "
                        f"{r['license_use']} | {r['free']} | {'yes' if r['starter'] else 'no'} | {r['pushed']} |")
         out.append("")
     out += [f"{total} open-source repos across {len(result['groups'])} needs, each group ranked by fit "
             "(relevance, stars, license). Grouped by the first search that found each; not a scan of every "
             "repository. The plugin skill adds a semantic relevance check on top.", "", KEY, "", FREE_NOTE]
     return "\n".join(out)
+
+
+NO_DESC = "No description on GitHub"   # RS45: same words as the web page; JSON and CSV keep the empty value (data)
+
+
+def _desc(r):
+    return r["description"] or NO_DESC
 
 
 def render_csv(result):
@@ -469,7 +475,7 @@ def render_markdown(result):
         for r in rows:
             name = r["full_name"]
             link = f"[{_md(name)}](https://github.com/{name})" if _NAME.fullmatch(name) else _md(name)
-            out.append(f"| {r['rank']} | {link} | {_md(r['why'])} | {r['stars']:,} | {_md(r['description'])} | "
+            out.append(f"| {r['rank']} | {link} | {_md(r['why'])} | {r['stars']:,} | {_md(_desc(r))} | "
                        f"{_md(r['license'])} | {r['license_use']} | {r['free']} | {'yes' if r['starter'] else 'no'} | "
                        f"{r['pushed']} | {_md(r['start_hint'])} | {_md(r['query'])} |")
         out.append("")
