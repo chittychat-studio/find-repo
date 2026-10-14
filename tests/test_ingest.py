@@ -16,6 +16,22 @@ class _R(io.BytesIO):
     def __exit__(self, *a): return False
 
 
+def test_card_tricky_input_matches_server_golden():
+    # the same golden tests/test_relevance_fn.mjs asserts for relevance.js cardText
+    assert ingest.card_text("a/b", "\ufeffHi " + "\U0001F34E" * 60, ["\ufeff", "x"]) == "a/b. Hi " + "\U0001F34E" * 48 + " Topics: x"
+    assert ingest.card_text("a/b", "x" * 300, [f"t{i}" for i in range(9)]).endswith("Topics: t0, t1, t2, t3, t4")
+
+
+def test_bad_replies_fail_cleanly():
+    import pytest
+    lst = lambda req, timeout: _R(b"[]")
+    with pytest.raises(RuntimeError):
+        ingest.embed(["t"], "A", "K", opener=lst)
+    with pytest.raises(RuntimeError):
+        ingest.upsert([], "A", "K", "i", opener=lst)
+    assert ingest.search("s", 1, None, "2026-01-01", opener=lst) == []
+
+
 def test_card_matches_server_and_ids_are_stable():
     assert ingest.card_text("a/b", "Hello <b>world</b>", ["x", "y"]) == GOLDEN_CARD
     assert ingest.vector_id("Owner/Repo") == ingest.vector_id("owner/repo") and len(ingest.vector_id("a/b")) == 40

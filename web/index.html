@@ -883,9 +883,11 @@
 <div class="modal" id="privacyModal"><div class="sheet">
   <button class="x" data-close>&times;</button>
   <h2>Privacy</h2>
-  <p class="mut">Replore has no account, no database and no visitor analytics, and stores nothing you type. Its only server
+  <p class="mut">Replore has no account, no user database and no visitor analytics, and stores nothing you type. Its only server
     code is a small relevance check that passes your search to an AI and keeps none of it; if that check fails, it records
-    only the error type and time so we can fix it.</p>
+    only the error type and time so we can fix it. When our meaning-based search is switched on, the same check also asks an
+    AI model what your words mean and looks them up in an index of public repo names and descriptions (Cloudflare
+    Vectorize); every repo found that way is checked live on GitHub before you see it.</p>
   <ul class="guide">
     <li><b>Your search words</b> go from your browser straight to <b>GitHub</b> (with your IP address) to run the search.</li>
     <li><b>To show only relevant repos</b>, your search words and the list of repos found go through our relevance check
@@ -1551,26 +1553,31 @@ async function run(){
       lists.push(keep(items,minStars,platform,excluded,seen)); }
     var ranked=rankByFit(lists,preferStarters), top=ranked.slice(0,60);  // sane upper bound; we no longer cap at 20
     var gate=null;
-    if(top.length){ think(st,"Checking which repos fit");   // RS34 relevance check on the top 30
-      var drops=await relevanceGate(like?(text+" (similar to "+like+")"):text, top.slice(0,30));
+    if(top.length || window.__ragIndex!==false){ think(st,"Checking which repos fit");   // RS34 check on the top 30; RS42: an empty
+      var drops=await relevanceGate(like?(text+" (similar to "+like+")"):text, top.slice(0,30));   // list still asks the index
       if(gen!==window.__runGen) return;
-      if(drops==="off"){ gate=null; }
+      if(drops==="off"){ gate=null; window.__ragIndex=false; }
       else if(drops&&drops.fail){ gate={ok:false,error:drops.error,resetsIn:drops.resetsInSec}; }
       else if(drops){ var dropped={}; drops.forEach(function(d){ dropped[d.i]=1; });   // RS34: off-topic repos go to the end, shown
         var cut=top.slice(0,30);                                                        // after the kept ones, under "Less likely to fit"
         var keptRows=cut.filter(function(r,i){ return !dropped[i]; }), leftRows=cut.filter(function(r,i){ return dropped[i]; });
-        if(drops.sim||(drops.neighbors&&drops.neighbors.length)){   // RS42 hybrid (server switched on): keyword + BM25 + meaning
-          var simBy={}; if(drops.sim&&drops.sim.length===cut.length) cut.forEach(function(r,i){ simBy[r.name]=drops.sim[i]; });
-          var nb=(drops.neighbors||[]).filter(function(x){ return !Object.prototype.hasOwnProperty.call(seen,x.name); });
+        if(drops.sim||drops.neighbors){   // RS42 hybrid (server switched on): same rule as scripts/scout.py
+          var sims=null, simBy={};
+          if(drops.sim&&drops.sim.length===cut.length){ sims=[]; cut.forEach(function(r,i){ simBy[r.name]=drops.sim[i]; }); }
+          var nb=(drops.neighbors||[]).filter(function(x){ return !Object.prototype.hasOwnProperty.call(seen,x.name); }), score={};
+          nb.forEach(function(x){ score[x.name.toLowerCase()]=x.score; });
           if(nb.length && !(window.__ghLeft!=null && window.__ghLeft<=1)){   // RS41: skip only when GitHub says we're nearly out
-              // indexed repos count only once GitHub confirms them live
-            try{ think(st,"Checking repos found by meaning"); var cq=confirmQueries(nb.map(function(x){ return x.name; }))[0];
-              var conf=keep(await search(cq),minStars,platform,excluded,seen); if(gen!==window.__runGen) return;
-              nb.forEach(function(x){ simBy[x.name]=x.score; });
-              conf.forEach(function(r){ r.rel=10; r.found="meaning"; keptRows.push(r); });
+            try{ think(st,"Checking repos found by meaning");   // indexed repos (already AI-checked) count only once GitHub confirms them
+              var found=(await search(confirmQueries(nb.map(function(x){ return x.name; }))[0]))
+                .filter(function(it){ return it && score[String(it.full_name||"").toLowerCase()]!=null; });
+              var conf=keep(found,minStars,platform,{license:0,stale:0,low:0,fork:0,harm:0},seen);   // not counted as "excluded"
+              if(gen!==window.__runGen) return;
+              conf.sort(function(a,b){ return score[b.name.toLowerCase()]-score[a.name.toLowerCase()]; });
+              conf.forEach(function(r){ r.rel=10; r.whyText="Found by meaning, confirmed on GitHub"; keptRows.push(r); });
             }catch(_){}   // unconfirmed -> dropped (RS7); keyword results stand
           }
-          keptRows=hybridOrder(keptRows, like?(text+" "+like):text, keptRows.map(function(r){ return simBy[r.name]!=null?simBy[r.name]:0; }));
+          if(sims) sims=keptRows.map(function(r){ var k=r.name.toLowerCase(); return simBy[r.name]!=null?simBy[r.name]:(score[k]!=null?score[k]:0); });
+          keptRows=hybridOrder(keptRows, like?(text+" "+like):text, sims);
         }
         top=keptRows.concat(leftRows.map(function(r){ r.left=1; return r; }));
         gate={ok:true,hidden:drops.length}; } }

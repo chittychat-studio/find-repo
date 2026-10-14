@@ -15,11 +15,17 @@ from collections import Counter
 
 ENDPOINT = "https://replore.cardzo.co.in/api/relevance"
 RRF_K = 60
+FOUND_WHY = "Found by meaning, confirmed on GitHub"   # RS24: honest line for indexed repos (no fake query)
 # Same words as the web page's STOP list (tests/test_scout.py checks they stay identical).
 STOP = set(("a an the my our your for to with and or of in on app apps application build building make making want "
             "really nice looking simple create please that helps people some something cool new project using use it "
             "by from first show as into about i ill i'll sell answers questions").split())
 _NONWORD = re.compile(r"[^a-z0-9 +#.]")
+
+
+def _u16cut(text, n):
+    """Cut to n UTF-16 units: the server counts length the JavaScript way."""
+    return text.encode("utf-16-le")[: 2 * n].decode("utf-16-le", errors="ignore")
 
 
 def lex_tokens(text):
@@ -77,9 +83,10 @@ def hybrid_order(rows, description, sims=None):
 
 def semantic(description, rows, endpoint=ENDPOINT, timeout=12, opener=urllib.request.urlopen):
     """Opt-in: meaning scores for rows and indexed nearest repos. Any failure -> None (results stay keyword + BM25)."""
-    body = json.dumps({"mode": "semantic", "query": (description or "")[:200],
+    body = json.dumps({"mode": "semantic", "query": _u16cut(description or "", 200),
                        "repos": [{"name": r["full_name"], "description": (r.get("description") or "")[:100],
-                                  "topics": list(r.get("topics") or [])[:5]} for r in rows[:30]]}).encode()
+                                  "topics": list(r.get("topics") or [])[:5]} for r in rows[:30]]},
+                      ensure_ascii=False).encode("utf-8")   # non-ASCII stays one character, so the body fits the server cap
     req = urllib.request.Request(endpoint, data=body, method="POST",
                                  headers={"Content-Type": "application/json", "User-Agent": "replore-plugin"})
     try:
@@ -90,9 +97,11 @@ def semantic(description, rows, endpoint=ENDPOINT, timeout=12, opener=urllib.req
     if not isinstance(j, dict):
         return None
     sim = j.get("sim") if isinstance(j.get("sim"), list) and all(isinstance(x, (int, float)) for x in j["sim"]) else None
-    nb = [x for x in (j.get("neighbors") or []) if isinstance(x, dict) and isinstance(x.get("name"), str)
-          and re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", x["name"]) and isinstance(x.get("score"), (int, float))]
-    return {"sim": sim, "neighbors": nb[:8]}
+    nb = None   # None = the index did not run (same meaning as an absent "neighbors" on the page)
+    if isinstance(j.get("neighbors"), list):
+        nb = [x for x in j["neighbors"] if isinstance(x, dict) and isinstance(x.get("name"), str)
+              and re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", x["name"]) and isinstance(x.get("score"), (int, float))][:8]
+    return {"sim": sim, "neighbors": nb}
 
 
 def confirm_queries(names, limit=200):

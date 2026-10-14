@@ -56,6 +56,8 @@ def test_semantic_parses_and_fails_closed():
         return _Resp(json.dumps({"sim": [0.8], "neighbors": [{"name": "c/d", "score": 0.7}, {"name": "bad name", "score": 1}]}).encode())
     r = hybrid.semantic(DESC, rows, opener=ok)
     assert r == {"sim": [0.8], "neighbors": [{"name": "c/d", "score": 0.7}]}   # malformed names dropped (RS9)
+    absent = lambda req, timeout: _Resp(b'{"sim": [0.8]}')
+    assert hybrid.semantic(DESC, rows, opener=absent)["neighbors"] is None   # index did not run
     assert seen["body"]["mode"] == "semantic" and seen["body"]["repos"][0]["name"] == "a/b"
     def down(req, timeout): raise OSError("no network")
     assert hybrid.semantic(DESC, rows, opener=down) is None
@@ -94,7 +96,9 @@ def test_semantic_neighbors_only_after_live_confirm():
     names = [r["full_name"] for r in res["top"]]
     assert "c/real" in names and "d/gone" not in names            # unconfirmed indexed repo never shown (RS7)
     assert any(q.startswith("repo:c/real repo:d/gone") for q in calls)
-    assert res["semantic"] == "ok" and "found by meaning" in res["queries"]
+    assert res["semantic"] == "ok" and res["found_by_meaning"] == ["c/real"]
+    assert "found by meaning" not in res["queries"]                       # no fake search shown to the user (RS24)
+    assert next(r for r in res["top"] if r["full_name"] == "c/real")["why"] == hybrid.FOUND_WHY
 
 
 def test_semantic_unavailable_keeps_keyword_results():
@@ -155,7 +159,7 @@ def test_semantic_sanitises_hostile_replies():
     for payload in ([], "x", {"sim": ["0.9"], "neighbors": "nope"}, {"sim": [1], "neighbors": [{"name": "a/b repo:x/y", "score": 1}]}):
         opener = lambda req, timeout, p=payload: _Resp(json.dumps(p).encode())
         r = hybrid.semantic(DESC, rows, opener=opener)
-        assert r is None or (r["neighbors"] == [] and (r["sim"] is None or r["sim"] == [1]))
+        assert r is None or (not r["neighbors"] and (r["sim"] is None or r["sim"] == [1]))
     bad_json = lambda req, timeout: _Resp(b"<html>")
     assert hybrid.semantic(DESC, rows, opener=bad_json) is None
 
@@ -163,3 +167,37 @@ def test_semantic_sanitises_hostile_replies():
 def test_non_english_and_empty_descriptions_do_not_crash():
     for d in ("", "मेरे आहार ऐप", "🍎🏃", "a an the"):
         assert hybrid.hybrid_order([{"full_name": "a/b"}, {"full_name": "c/d"}], d) == [{"full_name": "a/b"}, {"full_name": "c/d"}]
+
+
+def test_confirm_search_does_not_change_exclusion_counts():
+    def fetch(q, token=None):
+        if q.startswith("repo:"):
+            return {"items": [dict(_repo("c/arch", 500, "x"), archived=True)]}
+        return _kw(q)
+    sem = lambda d, rows: {"sim": None, "neighbors": [{"name": "c/arch", "score": 0.9}]}
+    with_sem = scout.scout(["diet"], fetcher=fetch, now=NOW, semantic_on=True, semantic_fn=sem)
+    plain = scout.scout(["diet"], fetcher=fetch, now=NOW)
+    assert with_sem["excluded"] == plain["excluded"]
+
+
+def test_request_body_fits_server_cap_for_non_ascii():
+    rows = [{"full_name": f"o/r{i}", "description": "\u4e2d\u6587\u63cf\u8ff0" * 30, "topics": ["\u6807\u7b7e"] * 5} for i in range(30)]
+    seen = {}
+    def opener(req, timeout):
+        seen["n"] = len(req.data)
+        seen["q"] = json.loads(req.data)["query"]
+        return _Resp(b'{"sim": null, "neighbors": []}')
+    hybrid.semantic("\U0001F34E" * 150, rows, opener=opener)
+    assert seen["n"] <= 16384                                             # server MAX_BODY
+    assert len(seen["q"].encode("utf-16-le")) // 2 <= 200                 # server counts UTF-16 units
+
+
+def test_raw_github_items_give_the_same_bm25_as_the_page():
+    """Parity from raw GitHub data (peer review): topics in GitHub order, long text cut at a word, both clients."""
+    raw = json.loads((ROOT / "tests" / "fixtures" / "raw_items.json").read_text(encoding="utf-8"))
+    res = scout.scout(["x"], fetcher=lambda q, token=None: {"items": raw["items"]}, now=NOW, rank_mode="stars",
+                      license_mode="any", min_stars=0, max_age_months=0, top=None, candidates=None)
+    byname = {r["full_name"]: r for r in res["all"]}
+    rows = [byname[n] for n in raw["order"]]
+    docs = [hybrid.repo_text(r["full_name"], r["description"], r["topics"]) for r in rows]
+    assert hybrid.bm25_scores(raw["description"], docs) == raw["bm25"]

@@ -8,7 +8,9 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
 
 - **RS1** Input is any free-text project description. The `/replore:find` skill, running in the
   user's own Claude Code session, turns it into 1–4 GitHub search queries (keywords, optionally
-  `topic:` / `language:` qualifiers). The script never calls a model and holds no model API key.
+  `topic:` / `language:` qualifiers). The script never calls a model and holds no model API key. One opt-in exception:
+  `--semantic` (RS42) sends the description to Replore's own endpoint, which runs an embedding model server-side; the
+  script still holds no key and makes no model call itself.
 - **RS1a** When the skill starts without a description (bare `/replore:find`, or a request that does not say
   what is being built), it asks the user one plain question about the project or task, and runs no search until
   they answer. The question also offers two optional preferences: language or stack, and whether unlicensed repos are OK.
@@ -517,7 +519,8 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
     Cloudflare's published rates, bge-m3 1,075 neurons per million tokens, 10,000 free neurons a day): about 5 neurons
     per search.
   - **Phase 2 — vector index (recall).** A Cloudflare Vectorize index of repo cards (name, description, topics, stars,
-    license, last push), filled by a scheduled ingestion job from the GitHub API, plus repos that searches return.
+    license, last push), filled by `ops/ingest.py` from the seed searches in `ops/rag_seeds.txt` (run by hand or the manual
+    `rag-ingest` workflow). Never from what users search: that would store data shaped by what people typed.
     Only repo metadata is stored, never what users type (privacy promise unchanged). Retrieval is hybrid: the
     index's nearest neighbours join GitHub's keyword results, fused by reciprocal rank. **Freshness:** a repo from
     the index is shown only after a live GitHub search confirms it (one search with several `repo:` qualifiers) and
@@ -531,19 +534,37 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
     phases are implemented and switched **off**; each is switched on by the owner only after its gate passes.
     Same structure in both clients: keyword queries (RS16a) → GitHub search → BM25 against the whole description →
     meaning scores and indexed repos (server) → live GitHub confirm of indexed repos → reciprocal rank fusion of the
-    fit order, the BM25 order and the meaning order (k = 60; BM25 alone can lift a repo but not overturn the fit order).
+    fit order, the BM25 order and the meaning order (k = 60). RRF averages ranks, so BM25 alone moves a repo only part of
+    the way: it can swap near neighbours (even the first two) but cannot pull a low-ranked repo to the top; big moves need
+    the meaning score to agree.
     | Piece | Web page | Plugin | Switch |
     |---|---|---|---|
     | BM25 + RRF | `bm25Scores`, `hybridOrder` in `web/index.html` | `scripts/hybrid.py` (stdlib) | runs whenever the server returns meaning scores; plugin `--rank hybrid --describe "<text>"` |
-    | Meaning scores | `sim` in the `/api/relevance` reply | `--semantic` (opt-in) → `mode:"semantic"` on the same endpoint | Pages variable `RAG_RERANK=1` |
+    | Meaning scores | `sim` in the `/api/relevance` reply | `--semantic` (opt-in) → `mode:"semantic"` on the same endpoint | Pages variable `RAG_RERANK=1` (plugin path also needs `RAG_PLUGIN=1`) |
     | Indexed repos | `neighbors` in the reply → one live `repo:` search | same, via `--semantic` | `RAG_INDEX=1` + `[[vectorize]]` binding `REPOS_INDEX` |
     | Index filling | — | — | `ops/ingest.py` (dry run unless `--apply`), Actions `rag-ingest` (manual) |
     Both clients produce identical BM25 numbers and fused orders (golden values asserted in `tests/test_hybrid.py` and
-    `tests/test_web_logic.js`); `evals/hybrid_cases.json` holds 14 goal and edge cases (agreement, damping, empty, filler-only
+    `tests/test_web_logic.js`), also from raw GitHub items (`tests/fixtures/raw_items.json`: topics in GitHub order,
+    long text cut at a word in UTF-16 units, exactly like the page); `evals/hybrid_cases.json` holds 14 goal and edge cases (agreement, damping, empty, filler-only
     and non-English text, injection, keyword stuffing, malformed or flat or negative scores, plurals, dotted names, one row,
     a 2,000-character description), run by `evals/run.py` in CI, and the page must reproduce the plugin's exact order on each; the server and the ingester embed identical card text (`cardText` / `card_text`).
+    **AI check covers indexed repos (peer review 2026-10-14).** With `RAG_INDEX=1` the server looks up indexed repos first
+    (their stored description and topics travel with them), then runs ONE AI check (RS34) over the keyword results plus the
+    indexed repos; an indexed repo the AI drops never leaves the server. Indexed repos are added after the kept keyword
+    results in score order, labelled "Found by meaning, confirmed on GitHub", and are not counted in the excluded totals.
+    **One deadline:** embedding + index lookup share `SEM_BUDGET_MS` = 1.5 s, and the judge gets what is left of its 4.5 s,
+    so the reply stays inside the page's 8 s wait. With rerank only, meaning scores run alongside the judge and never
+    extend it. With the index on and rerank off, only the description is embedded. **Empty keyword results** still ask
+    the index (the page sends 0 repos; the server answers `{drop:[]}` without an AI call when there is nothing to judge).
+    **Cards** are capped at 100 description characters and 5 topics everywhere (client payload, server, ingester), so all
+    vectors sit on one scale. **One confirm search** per run in both clients (rate limit, RS41); indexed repos past it
+    are dropped (fail closed).
     `mode:"semantic"` returns meaning scores and indexed repos only — no AI judge, no Turnstile (it is cheap and the
-    `/api/relevance` path is under the RS41 rate limit); it answers 404 `semantic_off` while both switches are off.
+    `/api/relevance` path is under the RS41 rate limit). Because it has no bot check it has its own switch, `RAG_PLUGIN=1`,
+    off by default even when the web switches are on, and answers 404 `semantic_off` until it is set. Known risk when on: a
+    script can spend the shared Workers AI allowance (about 1 neuron per call at the card caps); turn it on only with a
+    budget alert, and turn it off if the allowance drains. Indexed repos returned to the plugin are not AI-checked by the
+    server; the skill's relevance gate (RS6, the user's own AI) judges them with the rest.
     The skill keeps the default `fit` ranking until Phase 1's gate passes, then switches to `--rank hybrid` (one-line change).
     Unverified until a preview runs with the switches on: the exact reply shapes of the Workers AI embedding call
     (`data`) and Vectorize `query` (`matches[].metadata.name`) are coded from Cloudflare's documented formats and

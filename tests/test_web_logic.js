@@ -58,6 +58,14 @@ assert.ok(s.keywordQueries("a diet app for iphone", "ios").every(q => q.includes
     const rows = c.rows.map(r => ({ name: r.name, desc: r.desc || "", topics: r.topics || [] }));
     const got = s.hybridOrder(rows, c.description === "LONG" ? LONG : c.description, c.sims).map(r => r.name);
     assert.deepStrictEqual(got, c.parity, "web/plugin parity: " + c.name); } }
+// RS42 parity from RAW GitHub items (peer review): the page builds rows with keep(), the plugin with scout.py; same BM25
+{ const raw = JSON.parse(require("fs").readFileSync(__dirname + "/fixtures/raw_items.json", "utf8"));
+  const ex = { license: 0, stale: 0, low: 0, fork: 0, harm: 0 };
+  const rows = s.keep(raw.items, 0, "", ex, {});
+  const by = {}; rows.forEach(r => { by[r.name] = r; });
+  const ordered = raw.order.map(n => by[n]);
+  assert.ok(ordered.every(Boolean), "all fixture rows kept");
+  assert.deepStrictEqual(Array.from(s.bm25Scores(raw.description, ordered.map(r => s.repoText(r.name, r.desc, r.topics)))), raw.bm25); }
 // RS28f: long text ends at a word with "…", short text untouched
 { const long = "Open-source Python-based fitness tracker web app using Flask. Features include workout logging, nutrition tracking, and progress visualization. Ideal for developers and fitness enthusiasts looking to build their own";
   const c = s.clean(long);

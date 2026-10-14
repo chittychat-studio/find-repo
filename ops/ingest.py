@@ -8,7 +8,7 @@ Only public repo metadata is stored. Standard library only.
 Cost gate: the default is a DRY RUN. It searches GitHub (free), counts repos and prints the estimated Workers AI usage
 and Vectorize storage, then stops. Nothing is embedded or written without --apply.
 
-  python ops/ingest.py                      # dry run: counts + cost estimate
+  python ops/ingest.py                      # dry run: counts + cost estimate (set GITHUB_TOKEN: ~90 searches)
   python ops/ingest.py --apply              # needs GITHUB_TOKEN, CF_ACCOUNT_ID, CF_API_TOKEN
 
 The index must exist first:  npx wrangler vectorize create replore-repos --dimensions=1024 --metric=cosine
@@ -33,17 +33,25 @@ DIMS = 1024                        # bge-m3 output size (create the index with t
 NEURONS_PER_M_TOKENS = 1075        # Cloudflare's published rate for bge-m3 (checked 2026-10-14)
 FREE_STORED_DIMS = 5_000_000       # Vectorize free tier, stored vector dimensions
 SEEDS = Path(__file__).with_name("rag_seeds.txt")
-_CTRL = re.compile(r"[\x00-\x1f\x7f-\x9f​-‏  ‪-‮⁦-⁩]")
+_CTRL = re.compile("[\x00-\x1f\x7f-\x9f\u200b-\u200f\u2028\u2029\u202a-\u202e\u2066-\u2069]")   # escaped: no invisible chars in source
+_JS_SPACE = re.compile("[\\s\ufeff]+")   # JavaScript's \s also covers U+FEFF; Python's does not
+CARD_DESC, CARD_TOPICS = 100, 5          # same caps as relevance.js CARD_DESC / CARD_TOPICS (one scale for all vectors)
 
 
-def clean(s, n):
-    return re.sub(r"\s+", " ", _CTRL.sub(" ", str(s or "")).replace("<", " ").replace(">", " ")).strip()[:n]
+def card_clean(s, n):
+    """Exactly relevance.js cardClean: strip control chars and <>, collapse whitespace, cut to n UTF-16 units,
+    never end on half a surrogate pair."""
+    t = _JS_SPACE.sub(" ", _CTRL.sub(" ", str(s or "")).replace("<", " ").replace(">", " ")).strip(" ")
+    units = t.encode("utf-16-le")[: 2 * n]
+    if len(units) >= 2 and 0xD8 <= units[-1] <= 0xDB:   # trailing high surrogate
+        units = units[:-2]
+    return units.decode("utf-16-le", errors="ignore")
 
 
 def card_text(name, description, topics):
     """Same card the server embeds at query time (relevance.js cardText), so index and query vectors match."""
-    t = ", ".join(clean(x, 30) for x in (topics or [])[:8] if clean(x, 30))
-    return f"{clean(name, 140)}. {clean(description, 160)}" + (f" Topics: {t}" if t else "")
+    t = ", ".join(x for x in (card_clean(x, 30) for x in (topics or [])[:CARD_TOPICS]) if x)
+    return f"{card_clean(name, 140)}. {card_clean(description, CARD_DESC)}" + (f" Topics: {t}" if t else "")
 
 
 def vector_id(name):
@@ -65,7 +73,8 @@ def search(seed, page, token, since, opener=urllib.request.urlopen):
                                  headers={"Accept": "application/vnd.github+json", "User-Agent": "replore-ingest"})
     if token:
         req.add_header("Authorization", f"Bearer {token}")
-    return _http(req, opener=opener).get("items") or []
+    out = _http(req, opener=opener)
+    return (out.get("items") if isinstance(out, dict) else None) or []
 
 
 def collect(seeds, pages, token, now=None, opener=urllib.request.urlopen, pause=2.1, sleep=time.sleep):
@@ -81,6 +90,8 @@ def collect(seeds, pages, token, now=None, opener=urllib.request.urlopen, pause=
                 cards.setdefault(name.lower(), {
                     "id": vector_id(name), "text": card_text(name, it.get("description"), it.get("topics")),
                     "metadata": {"name": name, "stars": int(it.get("stargazers_count") or 0),
+                                 "description": card_clean(it.get("description"), CARD_DESC),   # judged by the AI check
+                                 "topics": [card_clean(t, 30) for t in (it.get("topics") or [])[:CARD_TOPICS] if card_clean(t, 30)],
                                  "license": (it.get("license") or {}).get("spdx_id") or "",
                                  "pushed": (it.get("pushed_at") or "")[:10], "seed": seed}})
             if pause:
@@ -104,7 +115,7 @@ def embed(texts, acct, cf_token, opener=urllib.request.urlopen):
                                  headers={"Authorization": f"Bearer {cf_token}", "Content-Type": "application/json"})
     out = _http(req, timeout=60, opener=opener)
     data = (out.get("result") or {}).get("data") if isinstance(out, dict) else None
-    if not out.get("success") or not isinstance(data, list) or len(data) != len(texts):
+    if not isinstance(out, dict) or not out.get("success") or not isinstance(data, list) or len(data) != len(texts):
         raise RuntimeError("embedding failed")
     return data
 
@@ -114,7 +125,7 @@ def upsert(rows, acct, cf_token, index, opener=urllib.request.urlopen):
     req = urllib.request.Request(CF.format(acct=acct) + f"/vectorize/v2/indexes/{index}/upsert", method="POST", data=nd,
                                  headers={"Authorization": f"Bearer {cf_token}", "Content-Type": "application/x-ndjson"})
     out = _http(req, timeout=60, opener=opener)
-    if not out.get("success"):
+    if not isinstance(out, dict) or not out.get("success"):
         raise RuntimeError("upsert failed")
 
 
@@ -133,7 +144,8 @@ def main(argv=None):
     try:
         cards = collect(seed_list(), max(1, min(a.pages, 10)), token)
     except (urllib.error.URLError, OSError, ValueError) as e:
-        print(f"ingest: GitHub search failed ({getattr(e, 'code', '') or type(e).__name__}); nothing written.", file=sys.stderr)
+        hint = "" if token else " Set GITHUB_TOKEN: without it GitHub allows 10 searches a minute, fewer than the seeds need."
+        print(f"ingest: GitHub search failed ({getattr(e, 'code', '') or type(e).__name__}); nothing written.{hint}", file=sys.stderr)
         return 2
     est = estimate(cards)
     print(f"{est['repos']} repos from {len(seed_list())} seeds | ~{est['tokens']} tokens -> ~{est['neurons']} Workers AI "

@@ -38,8 +38,8 @@
    ]
   },
   {
-   "name": "keywords alone cannot overturn the fit order (damping)",
-   "goal": "without meaning scores, BM25 lifts a repo but the fit leader stays first",
+   "name": "keywords alone move a repo only part of the way (damping)",
+   "goal": "without meaning scores, BM25 lifts the diet repo one place but cannot pull it past the fit leader from third",
    "description": "voice based ai app to track my diet and step counter",
    "rows": [
     {

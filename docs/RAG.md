@@ -11,7 +11,7 @@ fused per query by weighted blend or reciprocal rank fusion (RRF), whichever the
 user description
    │
    ├─► needs-first keyword queries (RS16a) ─► GitHub search (live) ──┐
-   │                                                                  ├─► fuse (RRF) ─► AI check (RS34) ─► fit + meaning rank ─► cards
+   │                                                                  ├─► ONE AI check (RS34) on both ─► confirm ─► fuse (RRF) ─► cards
    └─► embed (Workers AI bge) ─► Vectorize nearest repos (Phase 2) ───┘        ▲
                                      │                                         │
                                      └─► live GitHub confirm + refresh ────────┘   (unconfirmed → dropped)
@@ -54,7 +54,7 @@ page (RS22). The pieces RS42 needs (one embedding call, one vector query, rank f
 3. Add repository secrets `CF_ACCOUNT_ID` and `CF_API_TOKEN` (token with Workers AI + Vectorize edit), then run again with *apply* on.
 4. Uncomment the `[[vectorize]]` block in `wrangler.toml` (a PR), then add `RAG_INDEX` = `1` for Preview, test, then Production.
 
-**Plugin:** `--semantic` works as soon as either switch is on in Production; `--rank hybrid` works offline any time.
+**Plugin:** `--semantic` needs `RAG_PLUGIN` = `1` as well (it has no bot check; see SPEC RS42 for the risk). `--rank hybrid` works offline any time.
 
 ## The pipeline in code
 

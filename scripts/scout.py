@@ -72,10 +72,25 @@ class ScoutError(Exception):
     """RS7: any failure that must end the run."""
 
 
+def _u16(text):
+    return len(text.encode("utf-16-le")) // 2
+
+
+def _u16cut(text, n):
+    return text.encode("utf-16-le")[: 2 * n].decode("utf-16-le", errors="ignore")
+
+
 def clean(text):
-    """RS9: strip control/bidi characters and cap length."""
+    """RS9: strip control/bidi characters and cap length. RS28f/RS42: long text ends at a word with an ellipsis,
+    measured in UTF-16 units: exactly the web page's clean(), so both clients score the same text."""
     text = _CTRL.sub(" ", text or "").strip()
-    return text if len(text) <= MAX_TEXT else text[: MAX_TEXT - 1] + "…"
+    if _u16(text) <= MAX_TEXT:
+        return text
+    cut = _u16cut(text, MAX_TEXT - 1)
+    sp = cut.rfind(" ")
+    if sp >= 0 and _u16(cut[:sp]) > 140:
+        cut = cut[:sp]
+    return re.sub("[\\s,.;:\\-\u2013\u2014]+$", "", cut) + "\u2026"
 
 
 def build_query(q):
@@ -225,7 +240,8 @@ def scout(queries, fetcher=fetch, top=20, candidates=40, license_mode="open", ma
 
     excluded = {"fork_or_archived": 0, "license": 0, "stale": 0, "low_stars": 0, "duplicate": 0}
     seen, by_query = {}, []  # name -> its kept row (or None if the name was seen but filtered out)
-    def take(q, items, kept, rel_floor=0):
+    def take(q, items, kept, rel_floor=0, ex=None, why=None):
+        ex = excluded if ex is None else ex  # RS42: confirm searches don't add to the user-facing exclusion counts
         for idx, it in enumerate(items):
             idx += rel_floor
             if not isinstance(it, dict):
@@ -238,23 +254,23 @@ def scout(queries, fetcher=fetch, top=20, candidates=40, license_mode="open", ma
                 if prev is not None and idx < prev["rel"]:
                     prev["rel"] = idx
                     prev["why"] = why_relevant(prev["query"], prev["full_name"], prev["description"], idx)
-                excluded["duplicate"] += 1
+                ex["duplicate"] += 1
                 continue
             seen[name] = None  # mark seen; set to the row below once it survives the filters
             if it.get("fork") or it.get("archived") or it.get("disabled"):
-                excluded["fork_or_archived"] += 1
+                ex["fork_or_archived"] += 1
                 continue
             spdx = (it.get("license") or {}).get("spdx_id")
             is_open = spdx in OPEN_LICENSES
             if license_mode == "open" and not is_open:
-                excluded["license"] += 1
+                ex["license"] += 1
                 continue
             pushed = _pushed(it)
             if cutoff and (pushed is None or pushed < cutoff):
-                excluded["stale"] += 1
+                ex["stale"] += 1
                 continue
             if int(it.get("stargazers_count") or 0) < min_stars:  # RS4a
-                excluded["low_stars"] += 1
+                ex["low_stars"] += 1
                 continue
             if is_open:
                 label = spdx
@@ -280,8 +296,8 @@ def scout(queries, fetcher=fetch, top=20, candidates=40, license_mode="open", ma
                 "query": q,
                 "description": cdesc,
                 "rel": idx,  # RS2: best-match position, drives relevance in fit ranking (RS5)
-                "why": why_relevant(q, cname, cdesc, idx),  # RS24
-            "topics": sorted(topics)[:8],
+                "why": why or why_relevant(q, cname, cdesc, idx),  # RS24
+                "topics": [str(t).lower() for t in (it.get("topics") or [])][:8],  # RS42: same rule as the page
             }
             kept.append(row)
             seen[name] = row
@@ -300,34 +316,33 @@ def scout(queries, fetcher=fetch, top=20, candidates=40, license_mode="open", ma
 
     fit_mode = "fit" if rank_mode == "hybrid" else rank_mode
     kept = rank(by_query, fit_mode, prefer_starters)  # RS5, RS15
-    semantic_status, sims = None, None
-    if semantic_on:  # RS42: opt-in meaning scores + indexed repos, confirmed live on GitHub before they count
-        res = (semantic_fn or hybrid.semantic)(description or " ".join(queries), kept)
+    # RS42 hybrid: the same rule as the page. The first 30 rows (what the page sends) get meaning scores; indexed repos
+    # are confirmed by ONE live GitHub search, appended in score order, then fit + BM25 (+ meaning) are fused by RRF.
+    semantic_status, sims, extra, head, tail, fused = None, None, [], kept[:30], kept[30:], rank_mode == "hybrid"
+    if semantic_on:
+        res = (semantic_fn or hybrid.semantic)(description or " ".join(queries), head)
         semantic_status = "ok" if res else "unavailable"
-        if res and res["neighbors"]:
-            extra, nscore = [], {}
-            for cq in hybrid.confirm_queries([x["name"] for x in res["neighbors"] if x["name"] not in seen]):
+        if res:
+            if res["sim"] is not None and len(res["sim"]) == len(head):
+                sims = list(res["sim"])
+            fused = fused or sims is not None or res["neighbors"] is not None   # same trigger as the page
+            nb = [x for x in (res["neighbors"] or []) if x["name"] not in seen]
+            score = {x["name"].lower(): x["score"] for x in nb}
+            if nb:
                 try:
-                    data = fetcher(build_query(cq), token)
+                    data = fetcher(build_query(hybrid.confirm_queries([x["name"] for x in nb])[0]), token)
                 except ScoutError:
-                    continue  # unconfirmed indexed repos are dropped (fail closed), the keyword results stand
+                    data = None  # unconfirmed indexed repos are dropped (fail closed), the keyword results stand
                 items = data.get("items") if isinstance(data, dict) else None
                 if isinstance(items, list):
-                    take("found by meaning", items, extra, rel_floor=10)
-            for x in res["neighbors"]:
-                nscore[x["name"]] = x["score"]
-            if extra:
-                by_query.append(extra)
-                queries = queries + ["found by meaning"]
-                kept = rank(by_query, fit_mode, prefer_starters)
-            if res["sim"] is not None and len(res["sim"]) == min(30, len(kept) - len(extra)):
-                base = {r["full_name"]: v for r, v in zip([r for r in kept if r not in extra][:30], res["sim"])}
-                base.update({r["full_name"]: nscore.get(r["full_name"], 0.0) for r in extra})
-                sims = [base.get(r["full_name"], 0.0) for r in kept]
-        elif res and res["sim"] is not None and len(res["sim"]) == min(30, len(kept)):
-            sims = res["sim"] + [0.0] * (len(kept) - len(res["sim"]))
-    if rank_mode == "hybrid" or sims is not None:
-        kept = hybrid.hybrid_order(kept, description or " ".join(queries), sims)
+                    take("found by meaning", [it for it in items if isinstance(it, dict)
+                                              and str(it.get("full_name", "")).lower() in score],
+                         extra, rel_floor=10, ex={k: 0 for k in excluded}, why=hybrid.FOUND_WHY)
+                extra.sort(key=lambda r: -score.get(r["full_name"].lower(), 0.0))
+                if sims is not None:
+                    sims += [score.get(r["full_name"].lower(), 0.0) for r in extra]
+    if fused:
+        kept = hybrid.hybrid_order(head + extra, description or " ".join(queries), sims) + tail
     # RS23: per-feature groups (a repo appears under the first query that returned it); build before _pushed is dropped
     groups = [{"query": queries[i], "repos": _order(by_query[i], prefer_starters)} for i in range(len(queries))]
     for i, r in enumerate(kept, 1):
@@ -343,6 +358,7 @@ def scout(queries, fetcher=fetch, top=20, candidates=40, license_mode="open", ma
         "min_stars": min_stars,
         "rank_mode": rank_mode,
         "semantic": semantic_status,
+        "found_by_meaning": [r["full_name"] for r in extra],
         "prefer_starters": prefer_starters,
         "excluded": excluded,
         "top": kept[:cap],
