@@ -46,10 +46,10 @@ open-source match that passes the filters, not every repo on GitHub.
 
 ## Web page (no install)
 
-**Try it live: [replore.pages.dev](https://replore.pages.dev)** — type a project and see the top repos in your
+**Try it live: [replore.cardzo.co.in](https://replore.cardzo.co.in)** — type a project and see the top repos in your
 browser, no Claude and no Python needed.
 
-A static page at `web/index.html` powers it. It auto-deploys to [replore.pages.dev](https://replore.pages.dev)
+A static page at `web/index.html` powers it. It auto-deploys (Cloudflare Pages) to [replore.cardzo.co.in](https://replore.cardzo.co.in)
 (Cloudflare Pages) on every push to `main`. To self-host it elsewhere, it also deploys free on GitHub Pages:
 
 1. Settings → Pages → Source → **GitHub Actions**.
@@ -134,7 +134,7 @@ python3 scripts/scout.py "diet tracker app" "calorie counter" --markdown
 ```
 
 Same filters, ranking and license labels in every path. Browser-only chats with no local tools can't run it — use
-the [web page](https://replore.pages.dev) there.
+the [web page](https://replore.cardzo.co.in) there.
 
 ## How it works (rules in `SPEC.md`)
 

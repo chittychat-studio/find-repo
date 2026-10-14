@@ -205,6 +205,10 @@ console.log("example cache ok");
   assert.strictEqual((await fn.onRequestPost({ request: req({ Origin: "https://evil.example" }), env: { AI } })).status, 403);
   assert.strictEqual((await fn.onRequestPost({ request: req({ Origin: "https://replore.pages.dev" }), env: { AI } })).status, 200);
   assert.strictEqual((await fn.onRequestPost({ request: req({ Origin: "null" }), env: { AI } })).status, 403);
+  // RS40: the official custom domain passes the same-origin check with no allowlist change
+  const onCardzo = new Request("https://replore.cardzo.co.in/api/relevance", { method: "POST",
+    headers: { "Content-Type": "application/json", Origin: "https://replore.cardzo.co.in" }, body: JSON.stringify({ query: "q", repos }) });
+  assert.strictEqual((await fn.onRequestPost({ request: onCardzo, env: { AI } })).status, 200);
   // Turnstile on
   const tenv = { AI, TURNSTILE_SECRET: "ts-SECRET", TURNSTILE_SITE_KEY: "0xSITE" };
   let sv = null;

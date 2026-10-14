@@ -432,8 +432,8 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
 - **RS40** Brand and official address (owner decision 2026-10-14). Replore is a **Cardzo** product: the page footer
   says "A Cardzo product" and links to `https://cardzo.co.in` (a plain link, no script or tracking). The official address
   is the subdomain `replore.cardzo.co.in` (a Cloudflare Pages custom domain on the same project; a subdomain, not a
-  `cardzo.co.in/replore` path, so the company site's routing is untouched). Until that domain is Active, links stay on
-  `replore.pages.dev`; switching them is a separate change. The GitHub Pages copy (`chittychat-studio.github.io/replore`)
+  `cardzo.co.in/replore` path, so the company site's routing is untouched). README, privacy notice and the live-eval
+  default point there; `replore.pages.dev` keeps serving the same deploy. The GitHub Pages copy (`chittychat-studio.github.io/replore`)
   is retired: it served `web/` without the relevance Function, so its AI check could never run. The relevance Function
   needs no change for a new domain (it checks the request's own origin). The manual live eval accepts the official
   domain as well as `*.pages.dev`.

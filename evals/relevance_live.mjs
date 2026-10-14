@@ -1,12 +1,12 @@
 // SPEC RS34/RS34a: score the LIVE relevance check (the deployed /api/relevance — Workers AI first, then any fallback)
 // against evals/relevance_set.json (84 hand-labelled repos, 9 queries). No key needed: it calls the public endpoint
 // exactly like the web page does. Spends one AI check per query (9) from the site's free daily allowance.
-//   node evals/relevance_live.mjs [https://replore.pages.dev/api/relevance]
+//   node evals/relevance_live.mjs [https://replore.cardzo.co.in/api/relevance]
 // Same pass bar as relevance_llm.mjs: keep >= 95% of relevant repos AND drop >= 80% of off-topic ones.
 import { readFileSync } from "node:fs";
 
 const args = process.argv.slice(2);
-const ENDPOINT = args.find(a => a.startsWith("http")) || process.env.RELEVANCE_ENDPOINT || "https://replore.pages.dev/api/relevance";
+const ENDPOINT = args.find(a => a.startsWith("http")) || process.env.RELEVANCE_ENDPOINT || "https://replore.cardzo.co.in/api/relevance";
 const MODELS = [null];   // scores the endpoint's own chain (the model override used for the 2026-10-14 comparison is gone)
 const { items } = JSON.parse(readFileSync(new URL("./relevance_set.json", import.meta.url)));
 const byQuery = new Map();

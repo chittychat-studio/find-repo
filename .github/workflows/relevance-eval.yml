@@ -6,7 +6,7 @@ on:
     inputs:
       endpoint:
         description: "Endpoint to score (production or a preview URL)"
-        default: "https://replore.pages.dev/api/relevance"
+        default: "https://replore.cardzo.co.in/api/relevance"
 permissions:
   contents: read
 concurrency:
