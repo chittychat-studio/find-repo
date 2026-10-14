@@ -55,7 +55,7 @@
   @keyframes driftSpin{from{transform:translateY(-6px) rotate(0)}to{transform:translateY(8px) rotate(30deg)}}
   @media (max-width:700px){ .sh.s3,.sh.s4,.sh.s6{display:none} .sh.s1{width:150px;left:-95px;top:230px} .sh.s2{width:52px;top:120px;right:4%}
     .sh.s5{width:110px;right:-40px;top:360px}
-    .sh.c3,.sh.c4,.sh.c5{display:none} .sh.half{width:110px;left:-55px;top:240px} .sh.c1{width:64px;left:3%;top:250px} .sh.c2{width:56px;right:3%;top:40px} }
+    .sh.c3,.sh.c4,.sh.c5{display:none} .sh.half{width:110px;left:-55px;top:240px} .sh.s1,.sh.s5{display:none} .sh.c1{width:70px;left:auto;right:4%;top:330px} .sh.c2{width:56px;right:3%;top:40px} }   /* phones: one shape per edge, no overlap; code symbol on the right */
   html,body{min-height:100%}
   body{margin:0;color:var(--ink);overflow-x:hidden;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
     background:radial-gradient(1200px 700px at 12% -8%,var(--bg2),transparent 60%),
@@ -516,6 +516,7 @@
   @keyframes viewIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
   #out > *:not(.grid){animation:viewIn .45s cubic-bezier(.22,1,.36,1) both}
   .rcard.reveal{animation:viewIn .45s cubic-bezier(.22,1,.36,1) both}
+  .rcard.rv-wait{opacity:0}
   .tcar:not([hidden]){animation:fadeIn .6s ease both}
   /* RS37 warm cards: a faint orange wash + warm edge in light mode so cards lift off the page (dark mode unchanged) */
   .rcard,.tcard{background:var(--card-bg,var(--card));border-color:var(--card-line,var(--line));
@@ -1053,12 +1054,22 @@ function cardHtml(r,i,qtokens){
     '</div>'+
   '</article>';
 }
+// RS38: cards ease in when they scroll into view (not off-screen, where the animation would be missed)
+var __reduceMotion=!!(window.matchMedia&&matchMedia("(prefers-reduced-motion:reduce)").matches);
+var __rvIO=("IntersectionObserver" in window)?new IntersectionObserver(function(es){ es.forEach(function(e){
+  if(!e.isIntersecting) return; var c=e.target; __rvIO.unobserve(c);
+  c.classList.remove("rv-wait","reveal"); void c.offsetWidth; c.classList.add("reveal"); }); },{rootMargin:"0px 0px -30px 0px"}):null;
+function queueReveal(c){ if(!__rvIO||__reduceMotion){ return; } c.classList.add("rv-wait"); __rvIO.observe(c); }
+function inView(el){ var r=el.getBoundingClientRect(); return r.top<(window.innerHeight||800) && r.bottom>0; }
 function animateCards(container){
   var G=window.gsap, reduce=window.matchMedia&&matchMedia("(prefers-reduced-motion:reduce)").matches;
   attachTilt(container, reduce);
+  var all=[].slice.call(container.querySelectorAll(".rcard")), now;
+  all.forEach(function(c){ c.classList.remove("rv-wait"); });   // saved results may carry the class; never leave a card invisible
   if(!G||reduce) return;
-  G.from(container.querySelectorAll(".rcard"),{opacity:0,y:18,rotateX:-8,duration:.5,stagger:.04,
-    ease:"power3.out",transformOrigin:"50% 100%"});
+  now=all.filter(inView);
+  if(now.length) G.from(now,{opacity:0,y:18,rotateX:-8,duration:.5,stagger:.04,ease:"power3.out",transformOrigin:"50% 100%"});
+  all.forEach(function(c){ if(now.indexOf(c)<0) queueReveal(c); });   // the rest ease in as they scroll into view
   // star count-up
   container.querySelectorAll(".cnt").forEach(function(elc){
     var v=+elc.getAttribute("data-v")||0; if(v<1000) return;
@@ -1120,7 +1131,7 @@ function applyResultFilter(){
   for(var i=0;i<cards.length;i++){ var c=cards[i];
     var ok = (f==="all" || (f==="com"&&c.getAttribute("data-com")==="1")
       || (f==="starter"&&c.getAttribute("data-starter")==="1"));   // RS34: left-out repos are last, so they reveal after the kept ones
-    if(ok){ matched++; if(shown<limit){ if(c.style.display==="none"){ c.classList.remove("reveal"); void c.offsetWidth; c.classList.add("reveal"); }
+    if(ok){ matched++; if(shown<limit){ if(c.style.display==="none"){ c.style.display=""; if(inView(c)){ c.classList.remove("reveal"); void c.offsetWidth; c.classList.add("reveal"); } else queueReveal(c); }
         c.style.display=""; shown++; } else c.style.display="none"; }
     else c.style.display="none";
   }
