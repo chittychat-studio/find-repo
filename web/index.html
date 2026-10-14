@@ -394,10 +394,10 @@
   .explain .lead{font-size:14.5px;color:var(--muted);max-width:560px;margin:0 0 14px}
 
   /* home demo: one bigger step card at a time, auto-advancing smoothly */
-  .demo{width:100%;max-width:540px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:20px;
-    box-shadow:0 20px 44px -24px rgba(var(--shadow),.6);overflow:hidden}
-  .demo-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px 12px;
-    border-top:1px solid var(--line)}
+  /* RS36: no card frame — the demo sits straight on the page background */
+  .demo{width:100%;max-width:540px;margin:0 auto;background:none;border:0;box-shadow:none;overflow:hidden}
+  .demo-foot{display:flex;align-items:center;justify-content:center;gap:22px;padding:10px 16px 12px}
+  .demo .demo-card .num{display:none}   /* no frame to pin it to; the dots already show the step */
   .demo-foot .demo-dots{margin:0}
   .demo-think:empty{display:none}
   .demo-think .think{border:0;box-shadow:none;background:none;padding:0;gap:10px}
@@ -444,10 +444,10 @@
   .rcard.reveal{animation:viewIn .45s cubic-bezier(.22,1,.36,1) both}
   .tcar:not([hidden]){animation:fadeIn .6s ease both}
   /* RS37 warm cards: a faint orange wash + warm edge in light mode so cards lift off the page (dark mode unchanged) */
-  .rcard,.tcard,.demo{background:var(--card-bg,var(--card));border-color:var(--card-line,var(--line));
+  .rcard,.tcard{background:var(--card-bg,var(--card));border-color:var(--card-line,var(--line));
     box-shadow:0 16px 34px -24px rgba(var(--card-glow,var(--shadow)),.45)}
   body.view-trending .tcar, body.has-results .tcar{display:none}
-  body,.sheet,.demo,.tcard,.vibebar,.think,.trend-tab{transition:background-color .3s ease,border-color .3s ease,color .3s ease,box-shadow .3s ease}
+  body,.sheet,.tcard,.vibebar,.think,.trend-tab{transition:background-color .3s ease,border-color .3s ease,color .3s ease,box-shadow .3s ease}
   .rcard{transition:background-color .3s ease,border-color .3s ease,box-shadow .3s ease}   /* colours only: GSAP + tilt own its transform */
   .sheet{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;max-width:540px;width:100%;
     box-shadow:0 40px 80px -30px rgba(var(--shadow),.7);max-height:88vh;overflow:auto}
