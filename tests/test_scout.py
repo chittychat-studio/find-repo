@@ -635,6 +635,7 @@ def test_web_page_is_safe_static(monkeypatch):
     gem = html[html.index('getElementById("prdGemini")'):]
     gem = gem[:gem.index("gemini.google.com/app")]
     assert 'execCommand("copy")' in gem and "say(false)" in gem
+    assert 'class="hero-pill"' in html and "AI-powered repo finder" in html   # RS29c owner wording
     # RS34: the page does run an AI relevance check, so no copy may claim otherwise
     for stale in ("There is no AI in this page", "For AI-written searches, a relevance check", "runs a semantic relevance check"):
         assert stale not in html, stale

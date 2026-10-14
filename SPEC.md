@@ -259,7 +259,7 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   filter" message. Filters apply only to the single top-matches list, not the grouped PRD view.
 - **RS29c** *(retired)* A per-results "this is keyword search" banner was shown, then removed at the owner's
   call: each card's "Matches your words" line already shows the match is lexical, and the plugin stays one click
-  away (menu + the "Want every suitable repo?" banner). The "How ranking works" modal still states the page is keyword search (matches words, not meaning), followed by a small AI check that hides repos that clearly don't fit (RS34). No copy on the page says there is no AI or no relevance check, and none calls it "AI-powered": AI only filters, it doesn't find or rank (owner question 2026-10-14).
+  away (menu + the "Want every suitable repo?" banner). The "How ranking works" modal still states the page is keyword search (matches words, not meaning), followed by a small AI check that hides repos that clearly don't fit (RS34). No copy on the page says there is no AI or no relevance check. The hero carries a small pill "✦ AI-powered repo finder" (owner decision 2026-10-14, over the maintainer's note that the AI only filters results, it doesn't find or rank them, and that results are plain keyword search when the AI check is unavailable); it folds away with the tagline once results show on single-column screens.
 - **RS29a** One license verdict per card (RS14/RS20 on the web page). A card shows a **single** plain-English
   license verdict — ✅ free for commercial use / ✅ paid-use OK, changes stay open / ⚠ must open-source your app /
   ⚠ share your code even as a web app / ⛔ no licence — not the earlier redundant "Paid-use OK" + "Completely
