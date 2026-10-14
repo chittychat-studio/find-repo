@@ -225,8 +225,8 @@ console.log("example cache ok");
   assert.strictEqual(r.status, 403); assert.strictEqual(aiCalls, 1);
   // GET returns only the public site key
   const g = await (await fn.onRequestGet({ env: tenv })).text();
-  assert.deepStrictEqual(JSON.parse(g), { turnstile: "0xSITE", v: 2 }); assert.ok(!g.includes("ts-SECRET"));
-  assert.deepStrictEqual(await (await fn.onRequestGet({ env: {} })).json(), { turnstile: null, v: 2 });
+  assert.deepStrictEqual(JSON.parse(g), { turnstile: "0xSITE", v: 2, tag: fn.buildTag() }); assert.ok(!g.includes("ts-SECRET"));
+  assert.deepStrictEqual(await (await fn.onRequestGet({ env: {} })).json(), { turnstile: null, v: 2, tag: fn.buildTag() });
 }
 console.log("bot check ok");
 

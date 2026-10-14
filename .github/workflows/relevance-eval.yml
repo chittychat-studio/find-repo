@@ -30,10 +30,11 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           url="https://$(echo "${{ github.head_ref }}" | tr '/' '-' | cut -c1-28 | sed 's/-$//').replore.pages.dev/api/relevance"
+          tag=$(node -e "import('./functions/api/relevance.js').then(m=>console.log(m.buildTag()))")
           echo "PREVIEW=$url" >> "$GITHUB_ENV"
-          for i in $(seq 1 30); do
-            if curl -fsS "$url" | grep -q '"v":2'; then echo "preview ready: $url"; exit 0; fi; sleep 10; done
-          echo "preview not ready"; exit 1
+          for i in $(seq 1 40); do   # wait for the build of THIS commit's prompt + models, not an older preview
+            if curl -fsS "$url" | grep -q "\"tag\":\"$tag\""; then echo "preview ready: $url ($tag)"; exit 0; fi; sleep 10; done
+          echo "preview with tag $tag not ready"; exit 1
       - name: Compare models on the preview build (PR runs)
         if: github.event_name == 'pull_request'
         run: node evals/relevance_live.mjs "$PREVIEW" --models "@cf/mistralai/mistral-small-3.1-24b-instruct,@cf/meta/llama-3.3-70b-instruct-fp8-fast"

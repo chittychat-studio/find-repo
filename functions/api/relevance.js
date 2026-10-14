@@ -295,9 +295,15 @@ async function handlePost(request, env, fetchImpl) {
     : json(out.status, { ...(out.resetsInSec ? { error: out.error, resetsInSec: out.resetsInSec } : { error: out.error }), ...diag }, meta);
 }
 
+// RS34e: a fingerprint of the prompt + model list, so the live eval can wait for the build it means to score
+export function buildTag() {
+  let h = 0x811c9dc5; const s = SYSTEM_PROMPT + "|" + WAI_MODELS.join(",");
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h.toString(16);
+}
 // RS34c: the page asks which bot check to load (the site key is public by design; the secret never leaves here)
 export async function onRequestGet({ env }) {
-  return new Response(JSON.stringify({ turnstile: env.TURNSTILE_SITE_KEY || null, v: 2 }), {
+  return new Response(JSON.stringify({ turnstile: env.TURNSTILE_SITE_KEY || null, v: 2, tag: buildTag() }), {
     headers: { "Content-Type": "application/json", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" },
   });
 }
