@@ -59,7 +59,7 @@ A static page at `web/index.html` powers it. It auto-deploys to [replore.pages.d
 It calls the public GitHub search API from the browser (about 10 searches a minute, no login, no key) and runs
 the same filters, ranking and license labels as the plugin. The searches are keyword-based; then a small server-side
 **relevance check** (`functions/api/relevance.js`, SPEC RS34) asks an AI which of the top 30 repos don't fit what you
-described, and moves them behind a "Show N more we left out" line at the bottom. If the check is unavailable or over its free limit, you get the plain keyword
+described, and moves them to the end under a "Less likely to fit" divider. If the check is unavailable or over its free limit, you get the plain keyword
 results. The page shows no note either way; the outcome is in the results' `data-gate` attribute for debugging.
 Failed checks are logged as codes and timings only (SPEC RS34d) to the Cloudflare log (Pages → your project → the
 deployment → Functions → Real-time logs; live only, not stored). To keep them, enable Workers Analytics Engine on the

@@ -327,9 +327,9 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   is unchanged. A per-IP Cloudflare rate-limiting rule on `/api/relevance` is the owner's dashboard setting, not code.
   Limits of this: an agent driving a real browser slowly can still pass; on the Workers Free plan the worst case of
   abuse is a day of keyword-only results, never a bill. The page shows only the kept repos and puts no note about the
-  check above them (owner's decision, 2026-10-13). Dropped repos move to the end, hidden; once the visitor reaches the
-  last kept card, one quiet line "Show N more we left out" appears at the very bottom and reveals them as ordinary
-  cards (the undo for a wrong drop; owner's decision, same day). Rules: repo text
+  check above them (owner's decision, 2026-10-13). Dropped repos move to the end and show automatically after the
+  last kept card, under one quiet divider "Less likely to fit" — no click needed (owner's decision, 2026-10-14, replacing
+  the earlier "Show N more we left out" button). So the check reorders and labels; it never hides a repo. Rules: repo text
   and the description are data, never instructions (RS9, RS25), and the prompt says so; the LLM may only drop or keep,
   never add, rename or reorder (mirrors RS6 — fit order stays deterministic); a response that isn't valid JSON or names
   an unknown index is ignored. **Fail open, silent:** if the function is missing, unconfigured, over a limit, slow
@@ -401,7 +401,7 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   lead line explaining the demo, card "why" lines only when the search words actually match (no generic "Related to
   your search"), search/exclusion details folded into a "How we searched" toggle, the plugin pitch as one line, no
   marketing clichés ("seamless", "elevate", "start shipping"…). Facts that matter stay visible: licence verdict,
-  stars, last update, the "Show N more we left out" undo, and the privacy line (shortened, linking to the full notice).
+  stars, last update, the "Less likely to fit" divider, and the privacy line (shortened, linking to the full notice).
 
 - **RS38** Motion (web, owner request "transitions … smooth look"). One motion language: views swapped into the
   results area (home demo, results, trending, errors) fade and rise in; cards revealed by scrolling or filters ease in;
