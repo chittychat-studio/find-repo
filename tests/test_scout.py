@@ -640,7 +640,7 @@ def test_web_page_is_safe_static(monkeypatch):
     # RS35 trending: gallery tabs + home carousel; API-sorted, not scraped; no auto-rotate under reduced motion
     assert "function showTrending" in html and 'id="trendCar"' in html and 'id="trendBtn"' in html
     assert "&sort=" in html and "github.com/trending" not in html
-    assert "body.view-trending .tcar{display:none}" in html  # no Rising list twice
+    assert "body.view-trending .tcar, body.has-results .tcar{display:none}" in html  # no Rising list twice; results focus
     assert 'prefers-reduced-motion: reduce)").matches) return;' in html
     # RS36 thinking orb pill: dotted sphere + label, under the home demo and as the search loading indicator
     assert "function startDotOrb" in html and "function think(" in html and 'id="homeThink"' in html

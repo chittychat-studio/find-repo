@@ -6,7 +6,7 @@ const code = html.match(/<script>([\s\S]*)<\/script>/)[1].replace('"use strict";
 const el = () => ({value:"",checked:false,textContent:"",innerHTML:"",type:"",className:"",dataset:{},style:{},
                    addEventListener(){}, appendChild(){}, focus(){}, querySelector:()=>el(), querySelectorAll:()=>[],
                    classList:{add(){},remove(){},toggle(){}}, getAttribute:()=>null, setAttribute(){}, clientWidth:560});
-global.document = {getElementById: el, createElement: el, querySelectorAll:()=>[], addEventListener(){},
+global.document = {getElementById: el, createElement: el, querySelectorAll:()=>[], querySelector:()=>null, addEventListener(){},
                    documentElement: el()};
 global.matchMedia = () => ({matches:false});
 global.fetch = () => Promise.reject(new Error("no network in tests"));   // RS35 carousel must not reach GitHub from CI

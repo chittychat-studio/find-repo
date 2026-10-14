@@ -17,19 +17,19 @@
 <style>
   :root{
     /* warm clay-orange accents on a half-white cream background */
-    --bg:#f1ece2; --bg2:#f7f3ea; --card:#fdfcf9; --ink:#28261f; --muted:#6b6557; --line:#e4ddcf;
+    --bg:#f1ece2; --bg2:#f7f3ea; --card:#fdfcf9; --card-bg:linear-gradient(180deg,#fff3e8 0%,#fffaf4 55%,#fffcf8 100%); --card-line:#efd6c2; --card-glow:192,83,44; --ink:#28261f; --muted:#6b6557; --line:#e4ddcf;
     --accent:#c0532c; --accent-ink:#9c3d1c; --accent2:#d9743f; --good:#5f7a3c; --warn:#a06a1e;
     --warnbg:#f3e8cb; --goodbg:#e7ecd6; --offbg:#efe9dd; --shadow:30,20,10;
   }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
-      --bg:#1b1915; --bg2:#231f1a; --card:#2a2823; --ink:#efe9dd; --muted:#a8a192; --line:#3d3a33;
+      --bg:#1b1915; --bg2:#231f1a; --card:#2a2823; --card-bg:var(--card); --card-line:var(--line); --card-glow:0,0,0; --ink:#efe9dd; --muted:#a8a192; --line:#3d3a33;
       --accent:#bf5629; --accent-ink:#d97740; --accent2:#9a4a22; --good:#a3bf7e; --warn:#d8a95c;
       --warnbg:#342a15; --goodbg:#272f1c; --offbg:#33302a; --shadow:0,0,0;
     }
   }
   :root[data-theme="dark"]{
-    --bg:#1b1915; --bg2:#231f1a; --card:#2a2823; --ink:#efe9dd; --muted:#a8a192; --line:#3d3a33;
+    --bg:#1b1915; --bg2:#231f1a; --card:#2a2823; --card-bg:var(--card); --card-line:var(--line); --card-glow:0,0,0; --ink:#efe9dd; --muted:#a8a192; --line:#3d3a33;
     --accent:#bf5629; --accent-ink:#d97740; --accent2:#9a4a22; --good:#a3bf7e; --warn:#d8a95c;
     --warnbg:#342a15; --goodbg:#272f1c; --offbg:#33302a; --shadow:0,0,0;
   }
@@ -107,6 +107,11 @@
 
   /* two clean mode tiles (like the reference's cards) */
   .modes{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  .modes-links{gap:8px;align-items:baseline;font-size:14px}
+  .demo-slot:empty{display:none} .demo-slot{margin:6px 0 18px;text-align:left}
+  .mode-link{background:none;border:0;padding:0;font:inherit;font-weight:600;color:var(--accent-ink);cursor:pointer;
+    text-decoration:underline;text-decoration-color:rgba(192,83,44,.35);text-underline-offset:3px}
+  .mode-link:hover{text-decoration-color:currentColor}
   .left-more{text-align:center;margin:14px 0 4px;font-size:13px}
   .fm-modes{display:flex;flex-direction:column;gap:8px;margin:4px 0 14px}
   .fm-modes .mode-tile{width:100%;min-width:0}
@@ -430,7 +435,10 @@
   #out > *:not(.grid){animation:viewIn .45s cubic-bezier(.22,1,.36,1) both}
   .rcard.reveal{animation:viewIn .45s cubic-bezier(.22,1,.36,1) both}
   .tcar:not([hidden]){animation:fadeIn .6s ease both}
-  body.view-trending .tcar{display:none}
+  /* RS37 warm cards: a faint orange wash + warm edge in light mode so cards lift off the page (dark mode unchanged) */
+  .rcard,.tcard,.demo{background:var(--card-bg,var(--card));border-color:var(--card-line,var(--line));
+    box-shadow:0 16px 34px -24px rgba(var(--card-glow,var(--shadow)),.45)}
+  body.view-trending .tcar, body.has-results .tcar{display:none}
   body,.sheet,.demo,.tcard,.vibebar,.think,.trend-tab{transition:background-color .3s ease,border-color .3s ease,color .3s ease,box-shadow .3s ease}
   .rcard{transition:background-color .3s ease,border-color .3s ease,box-shadow .3s ease}   /* colours only: GSAP + tilt own its transform */
   .sheet{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;max-width:540px;width:100%;
@@ -505,10 +513,7 @@
     </svg><h1>Replore</h1></div>
   <nav class="nav" id="nav">
     <button id="trendBtn" class="nav-btn" title="Popular open-source repos right now">Trending</button>
-    <button id="tourBtn" class="nav-btn" title="Watch how it works">Tour</button>
     <button id="pluginBtn" class="nav-btn" title="Use the plugin in Claude Code, Codex, Cursor or any AI agent">Plugin</button>
-    <button id="aboutBtn" class="nav-btn" title="How results are ranked">How ranking works</button>
-    <button id="nextBtn" class="nav-btn" title="Found repos — what to do next">Next steps</button>
     <a id="starBtn" class="nav-btn nav-star" href="https://github.com/chittychat-studio/replore" target="_blank" rel="noopener" title="If Replore helped, a star on GitHub means a lot — thank you!">★ Star</a>
   </nav>
   <div class="topbar-right">
@@ -520,6 +525,7 @@
   <section class="hero">
     <h2 class="hero-title" id="heroTitle">Describe it.<br><em>Get repos that fit.</em></h2>
     <p class="sub">Popular, free-to-use, maintained repos for what you’re building.</p>
+    <div id="demoSlot" class="demo-slot"></div>   <!-- RS24: on phones the demo sits here, before the search -->
 
     <div class="search">
       <div class="vibebar">
@@ -530,15 +536,11 @@
         <button id="go" class="go-btn" title="Find repos">Find <span class="arr">→</span></button>
       </div>
 
-      <div class="modes">
-        <button class="mode-tile" id="likeTile" type="button" aria-haspopup="dialog">
-          <span class="mt-ico">✨</span>
-          <span class="mt-txt"><b>Find similar repos</b><small>A repo you like + a few words</small></span>
-        </button>
-        <label class="mode-tile" for="prd">
-          <span class="mt-ico">📄</span>
-          <span class="mt-txt"><b>Match a whole plan</b><small>Upload a plan / PRD — read locally</small></span>
-        </label>
+      <div class="modes modes-links">
+        <span class="mut">or</span>
+        <button class="mode-link" id="likeTile" type="button" aria-haspopup="dialog">find repos like one you know</button>
+        <span class="mut">·</span>
+        <label class="mode-link" for="prd">match a whole plan (PRD)</label>
         <input id="prd" type="file" accept=".md,.markdown,.txt,.text,text/plain,text/markdown" hidden>
       </div>
 
@@ -557,7 +559,10 @@
       </section>
     <div id="out" class="results"></div>
     <p class="privacy-note">🔒 Nothing you type is stored.
-      <button type="button" class="link-btn" onclick="openModal('privacyModal')">Privacy</button></p>
+      <button type="button" class="link-btn" onclick="openModal('privacyModal')">Privacy</button> ·
+      <button type="button" class="link-btn" id="tourBtn">Tour</button> ·
+      <button type="button" class="link-btn" id="aboutBtn">How ranking works</button> ·
+      <button type="button" class="link-btn" id="nextBtn">Next steps</button></p>
   </section>
 </main>
 
@@ -905,11 +910,10 @@ function cardHtml(r,i,qtokens){
     (function(w){ return w?'<div class="why">'+esc(w)+'</div>':''; })(whyRelevant(r,qtokens))+
     '<p class="desc">'+esc(r.desc||"—")+'</p>'+
     '<div class="tags">'+
-      '<span class="tag '+v.c+'" title="'+esc(paid)+' · Completely free? '+esc(free)+'">'+v.t+'</span>'+
+      '<span class="tag '+v.c+'" title="License: '+esc(r.spdx)+' · '+esc(paid)+' · Completely free? '+esc(free)+'">'+v.t+'</span>'+
       (r.starter?'<span class="tag t-star" title="A ready-made template to start your project from">Starter</span>':'')+
-      '<span class="tag t-star" title="Its open-source license">License: '+esc(r.spdx)+'</span>'+
     '</div>'+
-    '<div class="meta">updated '+esc(r.pushed)+'</div>'+
+    '<div class="meta">'+esc(r.spdx)+' · updated '+esc(r.pushed)+'</div>'+
     '<label class="pick"><input type="checkbox" class="pick-cb" data-name="'+esc(r.name)+'" data-url="'+esc(r.url)+
       '" data-desc="'+esc(r.desc||"")+'"> ＋ Add to plan</label>'+
   '</article>';
@@ -1096,9 +1100,11 @@ function buildExamples(box){
     box.appendChild(b); });
 }
 // quick-pick chips under the bar: click one to fill the box and search straight away (RS21)
+var PILL_IDX=[0,1,2,4,5,6];   // portfolio, SaaS, iPhone, PDF chatbot, spreadsheet dashboard, 2D game
 function buildQuickpicks(box){
   if(!box || box.dataset.built) return; box.dataset.built="1";
-  EXAMPLES.forEach(function(ex,i){ var b=document.createElement("button"); b.type="button"; b.className="chip";
+  EXAMPLES.forEach(function(ex,i){ if(PILL_IDX.indexOf(i)<0) return;   // RS37: six pills, not ten
+    var b=document.createElement("button"); b.type="button"; b.className="chip";
     b.textContent=ex.label; b.style.animationDelay=(i*30)+"ms";
     b.addEventListener("click",function(){ pickExample(ex); });
     box.appendChild(b); });
@@ -1639,12 +1645,12 @@ function buildTrendCarousel(){
     var cards=track.querySelectorAll(".tcard");
     // RS35 curved gallery: cards bend away from the centre like the inside of a cylinder
     function curve(){
-      var tr=track.getBoundingClientRect(), mid=tr.left+tr.width/2, half=tr.width/2||1;
+      var tr=track.getBoundingClientRect(), mid=tr.left+tr.width/2, half=tr.width/2||1, k=Math.min(1,tr.width/1000);   // gentler bend on phones
       for(var i=0;i<cards.length;i++){ var cr=cards[i].getBoundingClientRect();
         if(cr.right<tr.left-cr.width || cr.left>tr.right+cr.width) continue;   // off-screen: skip the work
         var d=Math.max(-1.4,Math.min(1.4,(cr.left+cr.width/2-mid)/half)), a=Math.abs(d);
-        cards[i].style.transform="rotateY("+(-d*24).toFixed(2)+"deg) translateZ("+(-Math.pow(a,1.6)*70).toFixed(1)+"px) scale("+(1-a*0.06).toFixed(3)+")";
-        cards[i].style.opacity=(1-Math.max(0,a-0.55)*0.55).toFixed(3); }
+        cards[i].style.transform="rotateY("+(-d*24*k).toFixed(2)+"deg) translateZ("+(-Math.pow(a,1.6)*70*k).toFixed(1)+"px) scale("+(1-a*0.06*k).toFixed(3)+")";
+        cards[i].style.opacity=(1-Math.max(0,a-0.55)*0.55*k).toFixed(3); }
     }
     track.addEventListener("scroll",function(){ requestAnimationFrame(curve); },{passive:true});
     window.addEventListener("resize",curve); curve();
@@ -1669,7 +1675,18 @@ function buildTrendCarousel(){
 }
 (function(){ var go=function(){ buildTrendCarousel(); };
   if(window.requestIdleCallback) requestIdleCallback(go,{timeout:2500}); else setTimeout(go,800); })();
+// RS24 mobile order: what it does (demo) → search → trending. Below 1000px the home demo moves above the search box;
+// on wider screens it stays in the results column. Removed as soon as results replace the home screen.
+var DEMO_MQ=window.matchMedia?matchMedia("(max-width: 999px)"):null;
+function placeDemo(){
+  var ex=document.querySelector(".explain"), slot=document.getElementById("demoSlot"), out=document.getElementById("out");
+  if(!ex||!slot||!out) return;
+  if(DEMO_MQ&&DEMO_MQ.matches){ if(ex.parentNode!==slot) slot.appendChild(ex); }
+  else if(ex.parentNode!==out && !out.querySelector(".rcard, .group-h, .err")) out.appendChild(ex);
+}
+if(DEMO_MQ){ try{ DEMO_MQ.addEventListener("change",placeDemo); }catch(e){ DEMO_MQ.addListener&&DEMO_MQ.addListener(placeDemo); } }
 function showHome(){
+  var oldSlot=document.getElementById("demoSlot"); if(oldSlot&&oldSlot.firstChild){ stopDemo("heroDemo"); oldSlot.innerHTML=""; }
   var out=document.getElementById("out");
   stopDemo("heroDemo");   // clear any previous carousel before replacing it
   out.innerHTML='<div class="explain">'+
@@ -1678,6 +1695,7 @@ function showHome(){
   var hd=document.getElementById("heroDemo"); buildDemo(hd);
   var slot=hd&&hd.querySelector(".demo-think");   // RS36: the orb lives inside the demo card's footer — one component
   if(slot){ slot.id="homeThink"; slot.innerHTML=thinkPill(STEPS[0].doing); startHomeThinking(slot, hd); }
+  placeDemo();
   if(window.__resetPicks) window.__resetPicks();
 }
 // remember the last results so a page refresh brings them back (cached locally, no new API call)
@@ -1726,7 +1744,9 @@ function syncClearQ(){ var x=document.getElementById("clearQ"); if(!x) return;
     || document.querySelector("#out .rcard, #out .group-h, #out .err"));   // results on screen also count
   // RS24: with results on a single-column screen, fold the intro so the search bar sits right above the matches
   document.body.classList.toggle("has-results", !!document.querySelector("#out .rcard, #out .group-h"));
-  document.body.classList.toggle("view-trending", !!document.querySelector("#out .trend-tabs")); }   // RS35: no Rising twice
+  document.body.classList.toggle("view-trending", !!document.querySelector("#out .trend-tabs"));   // RS35: no Rising twice
+  var ds=document.getElementById("demoSlot");   // RS24: a demo moved above the search goes once results show
+  if(ds && ds.firstChild && document.querySelector("#out .rcard, #out .group-h, #out .err")){ stopDemo("heroDemo"); ds.innerHTML=""; } }
 (function(){ var brand=document.getElementById("brandHome"), x=document.getElementById("clearQ");
   if(brand){ brand.addEventListener("click",resetAll);
     brand.addEventListener("keydown",function(e){ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); resetAll(); } }); }
