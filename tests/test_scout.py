@@ -780,3 +780,9 @@ def test_empty_description_is_said_plainly():
     html = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
     assert 'var NO_DESC="No description on GitHub";' in html and scout.NO_DESC == "No description on GitHub"
     assert 'esc(r.desc||"—")' not in html
+def test_about_text_matches_what_the_page_does():
+    """RS34, RS16a, RS43: About must not say poor fits are hidden (they move to 'Less likely to fit')."""
+    html = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
+    about = html[html.index('id="aboutModal"'):html.index("</div></div>", html.index('id="aboutModal"'))]
+    assert "hides repos" not in about and "Less likely to fit" in about and "Less likely to fit" in html.split('id="aboutModal"')[1]
+    assert "specific needs first" in about and "within an hour" in about and "not legal advice" in about

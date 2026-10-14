@@ -944,15 +944,19 @@
 <div class="modal" id="aboutModal"><div class="sheet">
   <button class="x" data-close>&times;</button>
   <h2>About the results</h2>
-  <p class="mut">Results are ranked by <b>fit</b> — how well a repo matches your words, how popular it is (stars),
-    and how freely you can use its license — so the top pick is relevant <i>and</i> popular <i>and</i> free to use,
-    not just the most-starred. Each card says why it's relevant. This page is <b>keyword search</b>: it matches
-    your words, then a small AI check hides repos that clearly don't fit. The
-    <a href="https://github.com/chittychat-studio/replore" target="_blank" rel="noopener">plugin</a>
-    goes further: it has your AI write the searches and judge every result, and reads a whole plan
-    feature by feature. Results are GitHub search matches, not a scan of every repository. Stars measure
-    popularity, not quality, and can be bought. "Completely free?" and "OK in a paid product?" are read from the
-    license only — a plain summary, not legal advice; some projects also sell a paid hosted version or add-ons.</p>
+  <p class="mut">Results are ranked by <b>fit</b>: how well a repo matches your words, how popular it is (stars)
+    and how freely you can use its license. So the top pick is relevant, popular and free to use, not just the
+    most-starred. Each card says why it fits.</p>
+  <p class="mut" style="margin-top:12px"><b>How this page searches:</b> it splits what you describe into separate needs
+    and searches GitHub for each, specific needs first. An AI check then reads the top 30 and moves repos that don't
+    fit to the end, under "Less likely to fit". If the check is unavailable you get the keyword results unchanged.
+    A search you repeat within an hour comes back instantly from your own browser.</p>
+  <p class="mut" style="margin-top:12px">The <a href="https://github.com/chittychat-studio/replore" target="_blank" rel="noopener">plugin</a>
+    goes further: your own AI writes the searches, judges every result and reads a whole plan feature by feature.</p>
+  <p class="mut" style="margin-top:12px"><b>Limits:</b> results are GitHub search matches, not a scan of every
+    repository. Stars measure popularity, not quality, and can be bought. "Completely free?" and "OK in a paid
+    product?" come from the license only: a plain summary, not legal advice. Some projects also sell a paid hosted
+    version or add-ons.</p>
   <p class="mut rag-only" style="margin-top:12px" hidden><b>Hybrid search:</b> repos are ranked by your words and by what you mean, so "voice notes" also finds "speech-to-text". Repos our index finds that the word search missed are checked on GitHub before you see them.</p>
 </div></div>
 
