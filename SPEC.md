@@ -165,10 +165,14 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
    results show everything stacks full width. The hero blends into the page (owner request 2026-10-14): the search bar is see-through with a soft shadow,
    prompt pills are outlines, and a few faint decorative shapes drift slowly behind the top of the page — circles,
    hexagons and vibe-coding motifs (`</>`, `{ }`, a `>_` terminal, a git branch, a sparkle), placed clear of the text,
-   kept barely visible (whole layer at 40%, fading out downwards), fewer on phones, `aria-hidden`, still under reduced motion. That full-width layout starts the moment a search starts, so
+   kept barely visible (whole layer at 60%, fading out downwards), fewer on phones, `aria-hidden`, still under reduced motion. That full-width layout starts the moment a search starts, so
    the search bar never shrinks to the left column while the demo is gone and results haven't arrived. Results render as
-  compact cards (rank, stars, what it does, a colour-coded license pill, free/starter tags) instead of a wide
-  table. The plain-English license meaning (e.g. "OK to use in a paid product" / "Completely free?") renders as
+  cards instead of a wide table (owner request 2026-10-14 "just boring cards"): a head with a coloured owner-initial
+  tile (hue from the owner name, no image fetched), owner / repo name and rank (top 3 highlighted); stars and forks
+  pills and a Starter tag; the "Matches:" line; the description; up to 3 of the repo's own topics; licence and
+  "updated N ago"; and a footer with the licence verdict and "＋ Add to plan" as a clear accent button that turns
+  solid "✓ In plan" when picked (RS28). Every field comes from the GitHub API response; nothing is invented.
+  On wide screens the home demo is larger (art, type and frame) to use its half of the opening section. The plain-English license meaning (e.g. "OK to use in a paid product" / "Completely free?") renders as
   a line on every card at every breakpoint — not only on wide screens — so the core promise is visible on phones.
   Motion comes from GSAP, loaded from cdnjs at a pinned version as the one external script; every GSAP
   use is guarded so the page works fully without it, and all motion is disabled under prefers-reduced-motion.

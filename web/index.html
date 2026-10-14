@@ -36,7 +36,7 @@
   *{box-sizing:border-box}
   [hidden]{display:none!important}
   /* RS24 hero shapes: a few faint circles/hexagons drifting slowly behind the top of the page */
-  .bg-shapes{position:absolute;top:0;left:0;right:0;height:640px;overflow:hidden;pointer-events:none;z-index:-1;opacity:.4;
+  .bg-shapes{position:absolute;top:0;left:0;right:0;height:640px;overflow:hidden;pointer-events:none;z-index:-1;opacity:.6;
     -webkit-mask-image:linear-gradient(to bottom,#000 35%,transparent 100%);mask-image:linear-gradient(to bottom,#000 35%,transparent 100%)}
   .bg-shapes .sh{position:absolute;display:block;animation:drift 18s ease-in-out infinite alternate}
   .sh.s1{width:240px;left:-150px;top:430px;opacity:.9;animation-duration:22s}
@@ -284,15 +284,48 @@
       rgba(255,255,255,.16),transparent 60%)}
   .rcard:hover::after{opacity:1}
   .rcard>*{position:relative}
-  .rcard .rank{position:absolute;top:-9px;left:12px;background:linear-gradient(135deg,var(--accent),var(--accent-ink));
-    color:#fff;font-size:12px;font-weight:700;border-radius:999px;padding:2px 9px;box-shadow:0 6px 14px -6px rgba(192,83,44,.8)}
-  .rcard .stars{position:absolute;top:12px;right:12px;font-weight:800;font-size:14px;color:var(--accent-ink)}
-  .rcard .name{font-weight:800;font-size:16px;line-height:1.3;margin:10px 56px 5px 0;word-break:break-word}
+  /* RS24 result card: head (owner tile, owner / repo, rank), stats, why, description, topics, footer */
+  .rcard{display:flex;flex-direction:column;padding:16px 16px 14px;border-radius:16px}
+  .rcard .rc-head{display:flex;align-items:center;gap:11px}
+  .rcard .avatar{flex:0 0 auto;width:38px;height:38px;border-radius:11px;display:grid;place-items:center;
+    font:800 17px/1 "Spectral",Georgia,serif;color:#fff;
+    background:linear-gradient(135deg,hsl(var(--h) 62% 58%),hsl(calc(var(--h) + 24) 58% 40%));
+    box-shadow:0 8px 18px -10px hsl(var(--h) 60% 40% / .8)}
+  .rcard .rc-title{min-width:0;flex:1}
   .rcard .name a{color:var(--ink)} .rcard .name a:hover{color:var(--accent-ink)}   /* RS37: dark names read on the warm cards */
+  .rcard .owner{display:block;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rcard .name{font-weight:800;font-size:17px;line-height:1.25;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rcard .rank{flex:0 0 auto;align-self:flex-start;font-size:11.5px;font-weight:700;color:var(--muted);
+    border:1px solid var(--line);border-radius:999px;padding:1px 8px}
+  .rcard.top1 .rank,.rcard.top2 .rank,.rcard.top3 .rank{color:#fff;border-color:transparent;
+    background:linear-gradient(135deg,var(--accent),var(--accent-ink));box-shadow:0 6px 14px -6px rgba(192,83,44,.8)}
+  .rcard.top1{border-color:color-mix(in srgb,var(--accent) 45%,var(--card-line,var(--line)))}
+  .rcard .rc-stats{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0 2px}
+  .rcard .stars,.rcard .forks{font-weight:700;font-size:12.5px;border-radius:999px;padding:3px 9px}
+  .rcard .stars{color:var(--accent-ink);background:color-mix(in srgb,var(--accent) 12%,transparent)}
+  .rcard .forks{color:var(--muted);background:var(--offbg)}
+  .rcard .topics{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 4px}
+  .rcard .topics span{font-size:11.5px;color:var(--muted);border:1px dashed var(--line);border-radius:6px;padding:1px 7px}
+  .rcard .meta{font-size:11.5px;color:var(--muted);margin:0 0 2px}
+  .rcard .rc-foot{margin-top:auto;padding-top:12px;border-top:1px solid color-mix(in srgb,var(--line) 70%,transparent);
+    display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px}
+  /* RS28: "Add to plan" is the card's main action — an accent button; ticked = solid "✓ In plan" */
+  .rcard .rc-foot .pick{margin:0 0 0 auto;padding:8px 15px;border:1.5px solid var(--accent);border-radius:999px;
+    font-size:13px;font-weight:700;color:var(--accent-ink);background:color-mix(in srgb,var(--accent) 8%,transparent);
+    transition:background .18s,color .18s,box-shadow .18s,transform .12s}
+  .rcard .rc-foot .pick:hover{background:color-mix(in srgb,var(--accent) 16%,transparent);transform:translateY(-1px)}
+  .rcard .rc-foot .pick input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+  .rcard .rc-foot .pick:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+  .rcard .rc-foot .pick .pk-in{display:none}
+  .rcard .rc-foot .pick:has(input:checked){background:linear-gradient(135deg,var(--accent),var(--accent-ink));color:#fff;
+    border-color:transparent;box-shadow:0 8px 18px -8px rgba(192,83,44,.8)}
+  .rcard .rc-foot .pick:has(input:checked) .pk-add{display:none}
+  .rcard .rc-foot .pick:has(input:checked) .pk-in{display:inline}
+  .rcard:has(.pick-cb:checked){border-color:var(--accent)}
   details.excl summary{cursor:pointer;color:var(--muted)}
-  .rcard .why{font-size:12px;font-weight:600;color:var(--ink);margin:8px 56px 7px 0;line-height:1.35}
+  .rcard .why{font-size:12px;font-weight:600;color:var(--ink);margin:8px 0 4px;line-height:1.35}
   .rcard .why::before{content:"✦ ";color:var(--accent-ink)}
-  .rcard .desc{font-size:13.5px;line-height:1.5;color:var(--muted);margin:0 0 11px;
+  .rcard .desc{font-size:13.5px;line-height:1.5;color:var(--muted);margin:8px 0 10px;
     display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;min-height:2.6em}
   .rcard .tags{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
   .tag{display:inline-block;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
@@ -413,6 +446,17 @@
     body:not(.has-results):not(.searching) .out-wrap > .privacy-note{grid-area:foot}
   }
   @media (min-width:1500px){ .tcard{flex-basis:calc((100% - 40px)/5)} }
+  /* RS36: on wide screens the home demo fills its half of the opening section (bigger art, type and frame) */
+  @media (min-width:1200px){
+    body:not(.has-results):not(.searching) #heroDemo{max-width:680px}
+    #heroDemo .demo-stage{height:330px}
+    #heroDemo .demo-card .ico svg{width:220px;height:176px}
+    #heroDemo .demo-card .t{font-size:30px}
+    #heroDemo .demo-card .d{font-size:17px;max-width:440px}
+    #heroDemo .demo-think .think-orb{width:38px;height:38px}
+    #heroDemo .demo-think .think-txt{font-size:16px}
+    #heroDemo .demo-dot{width:10px;height:10px}
+  }
   @media (max-width:999px){ body.has-results .tcar{display:none} }
   .res-more-hint{text-align:center;color:var(--muted);font-size:12.5px;margin:10px 4px 2px;min-height:18px}
   .res-empty{text-align:center;color:var(--muted);font-size:14px;margin:18px 4px}
@@ -753,7 +797,7 @@
   <h2>Found some repos — what now?</h2>
   <p class="mut">You've got a shortlist. Here's how to go from "a list of repos" to actually building, in three steps.</p>
   <ol class="guide">
-    <li><b>Pick the ones that fit</b> — tick <i>＋ Add to plan</i> on the 2–3 cards you like. Compare them:
+    <li><b>Pick the ones that fit</b> — tap <i>＋ Add to plan</i> on the 2–3 cards you like. Compare them:
       check the license verdict (can you use it in a paid product?) and the <i>updated</i> date before you commit to one.</li>
     <li><b>Get a build plan</b> — hit <i>Generate plan</i> on the bar that appears. Replore turns your picks plus
       what you're building into a step-by-step prompt — no AI runs here, it hands the prompt to <b>your own</b> AI.</li>
@@ -974,22 +1018,34 @@ function licenseVerdict(spdx){
   if(NETWORK.has(spdx))    return {c:"t-warn", t:"⚠ Share your code, even as a web app"};
   return {c:"t-warn", t:"⛔ No license — can't reuse"};
 }
+// RS24 result card helpers: owner initial tile (colour from the name, no image fetch) and "updated N ago"
+function ownerHue(o){ var h=0; for(var k=0;k<o.length;k++) h=(h*31+o.charCodeAt(k))>>>0; return [14,24,32,198,152,268,340][h%7]; }
+function agoText(d){ var t=Date.parse(d); if(!t) return ""; var days=Math.floor((Date.now()-t)/864e5);
+  return days<1?"today":days<2?"yesterday":days<31?days+" days ago":days<365?Math.round(days/30)+" mo ago":Math.round(days/365)+" yr ago"; }
 function cardHtml(r,i,qtokens){
   var free=freeText(r.spdx), paid=lu(r.spdx), v=licenseVerdict(r.spdx);
   var okCom=v.c==="t-good"?1:0;   // one "free for commercial use" flag = the green verdict (permissive + weak copyleft)
-  return '<article class="rcard" data-com="'+okCom+'" data-starter="'+(r.starter?1:0)+'"'+(r.left?' data-left="1"':'')+'>'+
-    (i!=null?'<span class="rank">#'+(i+1)+'</span>':'')+
-    '<span class="stars">★ <span class="cnt" data-v="'+r.stars+'">'+kstars(r.stars)+'</span></span>'+
-    '<div class="name"><a href="'+esc(r.url)+'" target="_blank" rel="noopener">'+esc(r.name)+'</a></div>'+
+  var parts=String(r.name).split("/"), owner=parts.length>1?parts[0]:"", repo=parts.length>1?parts.slice(1).join("/"):r.name;
+  var tops=(r.topics||[]).filter(function(t){ return /^[a-z0-9][a-z0-9-]{0,30}$/.test(t); }).slice(0,3);
+  return '<article class="rcard'+(i!=null&&i<3?' top'+(i+1):'')+'" data-com="'+okCom+'" data-starter="'+(r.starter?1:0)+'"'+(r.left?' data-left="1"':'')+'>'+
+    '<div class="rc-head">'+
+      '<span class="avatar" aria-hidden="true" style="--h:'+ownerHue(owner||repo)+'">'+esc((owner||repo).charAt(0).toUpperCase())+'</span>'+
+      '<div class="rc-title">'+(owner?'<span class="owner">'+esc(owner)+' /</span>':'')+
+        '<div class="name"><a href="'+esc(r.url)+'" target="_blank" rel="noopener" title="'+esc(r.name)+'">'+esc(repo)+'</a></div></div>'+
+      (i!=null?'<span class="rank">#'+(i+1)+'</span>':'')+
+    '</div>'+
+    '<div class="rc-stats"><span class="stars">★ <span class="cnt" data-v="'+r.stars+'">'+kstars(r.stars)+'</span></span>'+
+      (r.forks?'<span class="forks" title="Forks">⑂ '+kstars(r.forks)+'</span>':'')+
+      (r.starter?'<span class="tag t-star" title="A ready-made template to start your project from">Starter</span>':'')+'</div>'+
     (function(w){ return w?'<div class="why">'+esc(w)+'</div>':''; })(whyRelevant(r,qtokens))+
     '<p class="desc">'+esc(r.desc||"—")+'</p>'+
-    '<div class="tags">'+
-      '<span class="tag '+v.c+'" title="License: '+esc(r.spdx)+' · '+esc(paid)+' · Completely free? '+esc(free)+'">'+v.t+'</span>'+
-      (r.starter?'<span class="tag t-star" title="A ready-made template to start your project from">Starter</span>':'')+
+    (tops.length?'<div class="topics">'+tops.map(function(t){ return '<span>#'+esc(t)+'</span>'; }).join("")+'</div>':'')+
+    '<div class="meta">'+esc(r.spdx)+' · updated <span title="'+esc(r.pushed)+'">'+esc(agoText(r.pushed)||r.pushed)+'</span></div>'+
+    '<div class="rc-foot">'+
+      '<div class="tags"><span class="tag '+v.c+'" title="License: '+esc(r.spdx)+' · '+esc(paid)+' · Completely free? '+esc(free)+'">'+v.t+'</span></div>'+
+      '<label class="pick"><input type="checkbox" class="pick-cb" data-name="'+esc(r.name)+'" data-url="'+esc(r.url)+
+        '" data-desc="'+esc(r.desc||"")+'"><span class="pk-add">＋ Add to plan</span><span class="pk-in">✓ In plan</span></label>'+
     '</div>'+
-    '<div class="meta">'+esc(r.spdx)+' · updated '+esc(r.pushed)+'</div>'+
-    '<label class="pick"><input type="checkbox" class="pick-cb" data-name="'+esc(r.name)+'" data-url="'+esc(r.url)+
-      '" data-desc="'+esc(r.desc||"")+'"> ＋ Add to plan</label>'+
   '</article>';
 }
 function animateCards(container){
@@ -1836,7 +1892,7 @@ function showHome(){
   if(window.__resetPicks) window.__resetPicks();
 }
 // remember the last results so a page refresh brings them back (cached locally, no new API call)
-var LAST="findrepo_last", CACHE_V="8";  // bump when saved markup changes, so stale caches are dropped
+var LAST="findrepo_last", CACHE_V="9";  // bump when saved markup changes, so stale caches are dropped
 // strip any inline opacity/transform the animation left on cards, so the cache never stores invisible cards
 function cleanCards(root){ var c=root.querySelectorAll(".rcard"); for(var i=0;i<c.length;i++){ c[i].style.opacity=""; c[i].style.transform=""; } }
 function saveResults(){ try{ var out=document.getElementById("out"); cleanCards(out);
