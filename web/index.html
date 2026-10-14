@@ -541,7 +541,7 @@
         <span class="mut">or</span>
         <button class="mode-link" id="likeTile" type="button" aria-haspopup="dialog">find repos like one you know</button>
         <span class="mut">·</span>
-        <label class="mode-link" for="prd">match a whole plan (PRD)</label>
+        <button class="mode-link" id="prdLink" type="button">match a whole plan (PRD)</button>
         <input id="prd" type="file" accept=".md,.markdown,.txt,.text,text/plain,text/markdown" hidden>
       </div>
 
@@ -1378,6 +1378,7 @@ document.getElementById("pluginBtn").addEventListener("click",function(){ openMo
 // Filters chip and "Find similar repos" tile each open a popup window
 document.getElementById("optsBtn").addEventListener("click",function(){ openModal("filtersModal"); });
 document.getElementById("likeTile").addEventListener("click",function(){ openModal("likeModal"); });
+document.getElementById("prdLink").addEventListener("click",function(){ document.getElementById("prd").click(); });   // keyboard-reachable
 // RS24: the two search modes are also in Filters, so they stay reachable when the intro is folded away
 document.getElementById("fmLike").addEventListener("click",function(){ closeModals(); openModal("likeModal"); });
 document.getElementById("fmPrd").addEventListener("click",function(){ closeModals(); });   // the label opens the file picker
@@ -1653,25 +1654,33 @@ function buildTrendCarousel(){
         cards[i].style.transform="rotateY("+(-d*24*k).toFixed(2)+"deg) translateZ("+(-Math.pow(a,1.6)*70*k).toFixed(1)+"px) scale("+(1-a*0.06*k).toFixed(3)+")";
         cards[i].style.opacity=(1-Math.max(0,a-0.55)*0.55*k).toFixed(3); }
     }
-    track.addEventListener("scroll",function(){ requestAnimationFrame(curve); },{passive:true});
-    window.addEventListener("resize",curve); curve();
+    var curveQueued=false;   // at most one curve() per frame, however many scroll events arrive
+    function queueCurve(){ if(curveQueued) return; curveQueued=true; requestAnimationFrame(function(){ curveQueued=false; curve(); }); }
+    track.addEventListener("scroll",queueCurve,{passive:true});
+    window.addEventListener("resize",queueCurve); curve();
     if(matchMedia("(prefers-reduced-motion: reduce)").matches) return;   // curved but still
     var paused=false, idle=null, last=0, acc=0;
     function pause(){ paused=true; clearTimeout(idle); }
     function resume(){ clearTimeout(idle); idle=setTimeout(function(){ paused=false; },2500); }
     ["mouseenter","focusin","touchstart","pointerdown","wheel"].forEach(function(ev){ track.addEventListener(ev,pause,{passive:true}); });
     ["mouseleave","focusout","touchend","pointerup"].forEach(function(ev){ track.addEventListener(ev,resume,{passive:true}); });
-    cancelAnimationFrame(window.__tcarRaf);
-    (function glide(t){
+    var n=rows.length, onScreen=true, running=false;
+    function loopLen(){ return cards[n].offsetLeft-cards[0].offsetLeft; }   // exact repeat distance, no jump at the seam
+    function glide(t){
+      if(!onScreen || document.hidden || !track.offsetParent){ running=false; last=0; return; }   // stop scheduling frames
       window.__tcarRaf=requestAnimationFrame(glide);
       var dt=last?Math.min(48,t-last):16; last=t;
-      if(paused || document.hidden || !track.offsetParent) return;
+      if(paused) return;
       acc+=dt*0.035;                                   // ~35 px/s, continuous
       if(acc<1) return; var step=Math.floor(acc); acc-=step;
-      var loop=track.scrollWidth/2;
-      track.scrollLeft = track.scrollLeft+step>=loop ? track.scrollLeft+step-loop : track.scrollLeft+step;
-      curve();
-    })(0);
+      var loop=loopLen();
+      track.scrollLeft = track.scrollLeft+step>=loop ? track.scrollLeft+step-loop : track.scrollLeft+step;   // scroll event curves it
+    }
+    function start(){ if(running) return; running=true; last=0; cancelAnimationFrame(window.__tcarRaf); window.__tcarRaf=requestAnimationFrame(glide); }
+    window.__tcarStart=start;
+    if(window.IntersectionObserver) new IntersectionObserver(function(es){ onScreen=es[0].isIntersecting; if(onScreen) start(); }).observe(track);
+    document.addEventListener("visibilitychange",function(){ if(!document.hidden) start(); });
+    start();
   }).catch(function(){});   // GitHub unreachable or rate-limited: no carousel, nothing else changes
 }
 (function(){ var go=function(){ buildTrendCarousel(); };
@@ -1684,6 +1693,7 @@ function placeDemo(){
   if(!ex||!slot||!out) return;
   if(DEMO_MQ&&DEMO_MQ.matches){ if(ex.parentNode!==slot) slot.appendChild(ex); }
   else if(ex.parentNode!==out && !out.querySelector(".rcard, .group-h, .err")) out.appendChild(ex);
+  [].forEach.call(ex.querySelectorAll(".demo-dot"),function(d){ d.tabIndex=(DEMO_MQ&&DEMO_MQ.matches)?-1:0; });   // search comes first for keyboards
 }
 if(DEMO_MQ){ try{ DEMO_MQ.addEventListener("change",placeDemo); }catch(e){ DEMO_MQ.addListener&&DEMO_MQ.addListener(placeDemo); } }
 function showHome(){
@@ -1700,7 +1710,7 @@ function showHome(){
   if(window.__resetPicks) window.__resetPicks();
 }
 // remember the last results so a page refresh brings them back (cached locally, no new API call)
-var LAST="findrepo_last", CACHE_V="6";  // bump when saved markup changes, so stale caches are dropped
+var LAST="findrepo_last", CACHE_V="7";  // bump when saved markup changes, so stale caches are dropped
 // strip any inline opacity/transform the animation left on cards, so the cache never stores invisible cards
 function cleanCards(root){ var c=root.querySelectorAll(".rcard"); for(var i=0;i<c.length;i++){ c[i].style.opacity=""; c[i].style.transform=""; } }
 function saveResults(){ try{ var out=document.getElementById("out"); cleanCards(out);
