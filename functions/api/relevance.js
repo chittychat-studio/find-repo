@@ -26,9 +26,10 @@ const clean = (s, n) => String(s == null ? "" : s).replace(CTRL, " ").replace(/[
 
 export function validate(body) {
   if (!body || typeof body !== "object" || Array.isArray(body)) return "body must be an object";
+  if (body.mode != null && body.mode !== "semantic") return "mode must be semantic or absent";
   const { query, repos } = body;
   if (typeof query !== "string" || !query.trim() || query.length > MAX_QUERY) return `query must be 1-${MAX_QUERY} characters`;
-  if (!Array.isArray(repos) || repos.length < 1 || repos.length > MAX_REPOS) return `repos must be a list of 1-${MAX_REPOS}`;
+  if (!Array.isArray(repos) || repos.length > MAX_REPOS) return `repos must be a list of 0-${MAX_REPOS}`;   // 0: RS42 index-only lookup
   for (const r of repos) {
     if (!r || typeof r !== "object" || typeof r.name !== "string" || !r.name || r.name.length > 140) return "each repo needs a name";
     if (r.description != null && typeof r.description !== "string") return "description must be text";
@@ -203,22 +204,24 @@ export const EXAMPLE_QUERIES = [
 ];
 const EXAMPLE_SET = new Set(EXAMPLE_QUERIES);
 const CACHE_TTL = 86400;
+export const RECENT_TTL = 3600;   // RS43: every other search, 1 hour
 export async function cacheKey(query, repos, origin = "https://replore.pages.dev") {
   const data = new TextEncoder().encode(JSON.stringify([2, query, repos.map(r => [r.name, r.description || "", r.topics || []])]));
   const hex = [...new Uint8Array(await crypto.subtle.digest("SHA-256", data))].map(b => b.toString(16).padStart(2, "0")).join("");
   return new Request(`${origin}/__relevance-cache/v2/${hex}`);   // v2: Mistral + indices-only prompt   // own origin: the Cache API is scoped to the zone
 }
-export async function cachedJudge(query, repos, env, fetchImpl = fetch, cache = globalThis.caches && globalThis.caches.default, origin, waitUntil) {
-  const usable = cache && EXAMPLE_SET.has(query);
+export async function cachedJudge(query, repos, env, fetchImpl = fetch, cache = globalThis.caches && globalThis.caches.default, origin, waitUntil, budgetMs = TIMEOUT_MS) {
+  const usable = !!cache;   // RS43: every search (examples 1 day, everything else 1 hour); stores only which repos to hide
+  const ttl = EXAMPLE_SET.has(query) ? CACHE_TTL : RECENT_TTL;
   let key;
   if (usable) {
     try { key = await cacheKey(query, repos, origin); const hit = await cache.match(key); if (hit) return { status: 200, body: await hit.json(), cached: true }; }
     catch { key = null; }   // a cache problem never blocks the check
   }
-  const out = await judgeChain(query, repos, env, fetchImpl);
+  const out = await judgeChain(query, repos, env, fetchImpl, budgetMs);
   if (usable && key && out.status === 200 && out.first) {   // cache only the primary provider's answer
     const body = JSON.stringify(out.body);
-    const put = Promise.resolve().then(() => cache.put(key, new Response(body, { headers: { "Content-Type": "application/json", "Cache-Control": `max-age=${CACHE_TTL}` } }))).catch(() => {});
+    const put = Promise.resolve().then(() => cache.put(key, new Response(body, { headers: { "Content-Type": "application/json", "Cache-Control": `max-age=${ttl}` } }))).catch(() => {});
     if (waitUntil) waitUntil(put); else await put;   // RS41: write the cache after the answer is sent
   }
   return out;
@@ -271,7 +274,7 @@ export async function onRequestPost(context, fetchImpl = fetch) {
   const { request, env } = context, t0 = Date.now();
   const later = typeof context.waitUntil === "function" ? p => context.waitUntil(p) : undefined;   // bound call (Workers needs it)
   const res = await handlePost(request, env, fetchImpl, later);
-  if (res.status !== 200 && res.__code !== "not_configured")
+  if (res.status !== 200 && res.__code !== "not_configured" && res.__code !== "semantic_off")   // RS42: "off" is not a failure
     logFailure(env, { code: res.__code, status: res.status, trail: res.__trail, ms: Date.now() - t0, example: res.__example });
   return res;
 }
@@ -287,13 +290,97 @@ async function handlePost(request, env, fetchImpl, waitUntil) {
   let body; try { body = JSON.parse(raw); } catch { return json(400, { error: "invalid_json" }); }
   const bad = validate(body);
   if (bad) return json(400, { error: bad });
+  if (body.mode === "semantic") {   // RS42 plugin opt-in: meaning scores + indexed repos only, no AI judge, no bot check
+    const f = ragFlags(env);
+    if (!f.plugin || (!f.rerank && !f.index)) return json(404, { error: "semantic_off" });
+    const sem = await semanticScores(body.query, body.repos, env);
+    return sem ? json(200, { ...(sem.sim ? { sim: sem.sim } : {}), ...(sem.neighbors ? { neighbors: publicNeighbors(sem.neighbors) } : {}) })
+      : json(503, { error: "semantic_unavailable" });
+  }
   if (!(await verifyTurnstile(request, env, fetchImpl))) return json(403, { error: "bot_check_failed" });
-  const out = await cachedJudge(body.query, body.repos, env, fetchImpl, undefined, new URL(request.url).origin, waitUntil);
+  const t1 = Date.now(), f = ragFlags(env), origin = new URL(request.url).origin;
+  let out, sem = null;
+  if (f.index) {   // RS42: indexed repos first (≤ SEM_BUDGET_MS), then ONE AI check over keyword results + indexed repos
+    sem = await semanticScores(body.query, body.repos, env).catch(() => null);
+  }
+  const extra = (sem && sem.neighbors) || [];
+  const all = body.repos.concat(extra.map(n => ({ name: n.name, description: n.description, topics: n.topics })));
+  if (!all.length) return json(200, { drop: [] });   // nothing to judge (keyword search empty, no indexed repos)
+  if (f.index) out = await cachedJudge(body.query, all, env, fetchImpl, undefined, origin, waitUntil, TIMEOUT_MS - (Date.now() - t1));
+  else [out, sem] = await Promise.all([   // rerank only: meaning scores alongside the judge, never longer than it
+    cachedJudge(body.query, all, env, fetchImpl, undefined, origin, waitUntil),
+    f.rerank ? semanticScores(body.query, body.repos, env).catch(() => null) : null]);
+  if (out.status === 200) {
+    const n = body.repos.length, gone = new Set();
+    const drops = (out.body.drop || []).filter(d => { if (d.i >= n) { gone.add(d.i - n); return false; } return true; });
+    out.body = { ...out.body, drop: drops, checked: n,
+      ...(sem && sem.sim ? { sim: sem.sim } : {}),
+      ...(sem && sem.neighbors ? { neighbors: publicNeighbors(extra.filter((_, k) => !gone.has(k))) } : {}) };   // AI-dropped indexed repos never leave
+  }
   const meta = { trail: out.trail, example: EXAMPLE_SET.has(body.query) };
   const diag = request.headers.get("X-Replore-Diag") === "1" && out.diag ? { diag: out.diag } : {};   // codes + timings only
   return out.status === 200 ? json(200, { ...out.body, ...diag })   // internal flags (first, cached, trail) never leave
     : json(out.status, { ...(out.resetsInSec ? { error: out.error, resetsInSec: out.resetsInSec } : { error: out.error }), ...diag }, meta);
 }
+
+// ---- RS42 semantic half of the hybrid search (dark by default) ----
+// RAG_RERANK=1  -> meaning score (cosine) of each repo vs the description, from a Workers AI embedding model.
+// RAG_INDEX=1   -> nearest repos from the Vectorize index bound as REPOS_INDEX (Phase 2). On the page they go through the
+//                  same AI check as the keyword results (one judge call), and are shown only after a live GitHub search
+//                  confirms them. Only repo names and scores leave; nothing users type is stored.
+// RAG_PLUGIN=1  -> the plugin's opt-in mode:"semantic" path (no bot check, so it is a separate switch, default off).
+export const EMBED_MODEL = "@cf/baai/bge-m3";
+export const SEM_BUDGET_MS = 1500;          // the semantic half never adds more than this to a reply (peer review)
+export const CARD_DESC = 100, CARD_TOPICS = 5;   // same caps as the clients send and as ops/ingest.py stores: one scale
+const NAME_RE = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+const round3 = x => Math.round(x * 1000) / 1000;
+export function cosine(a, b) {
+  let num = 0, na = 0, nb = 0;
+  for (let i = 0; i < Math.min(a.length, b.length); i++) { num += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
+  return na && nb ? num / Math.sqrt(na * nb) : 0;
+}
+// clean() then never end on half of a surrogate pair (ops/ingest.py card_clean mirrors this exactly)
+export function cardClean(s, n) { const t = clean(s, n); return /[\ud800-\udbff]$/.test(t) ? t.slice(0, -1) : t; }
+export function cardText(r) {
+  const topics = (r.topics || []).slice(0, CARD_TOPICS).map(t => cardClean(t, 30)).filter(Boolean).join(", ");
+  return `${cardClean(r.name, 140)}. ${cardClean(r.description, CARD_DESC)}${topics ? " Topics: " + topics : ""}`;
+}
+export function ragFlags(env) {
+  const ai = !!(env.AI && typeof env.AI.run === "function");
+  return { rerank: ai && env.RAG_RERANK === "1", index: ai && env.RAG_INDEX === "1" && !!(env.REPOS_INDEX && typeof env.REPOS_INDEX.query === "function"),
+           plugin: env.RAG_PLUGIN === "1" };
+}
+const race = (p, ms) => { let t; return Promise.race([p, new Promise((_, rej) => { t = setTimeout(() => rej(new Error("timeout")), Math.max(0, ms)); })]).finally(() => clearTimeout(t)); };
+// One overall deadline for embedding + index lookup. Neighbours carry the index's stored description and topics so
+// the AI check can judge them; only {name, score} ever leaves the server.
+export async function semanticScores(query, repos, env, ms = SEM_BUDGET_MS) {
+  const f = ragFlags(env);
+  if (!f.rerank && !f.index) return null;
+  const end = Date.now() + ms;
+  const texts = [clean(query, MAX_QUERY), ...(f.rerank ? repos.map(cardText) : [])];   // query only when rerank is off
+  let vecs;
+  try {
+    const out = await race(env.AI.run(env.RAG_EMBED_MODEL || EMBED_MODEL, { text: texts }), end - Date.now());
+    vecs = out && (Array.isArray(out.data) ? out.data : Array.isArray(out.response) ? out.response : null);
+  } catch { return null; }
+  if (!Array.isArray(vecs) || vecs.length !== texts.length || !vecs.every(v => Array.isArray(v) && v.length)) return null;
+  const res = {};
+  if (f.rerank) res.sim = vecs.slice(1).map(v => round3(cosine(vecs[0], v)));
+  if (f.index && end - Date.now() > 50) {
+    try {
+      const min = Number(env.RAG_MIN_SCORE || 0.5), have = new Set(repos.map(r => r.name.toLowerCase()));
+      const hit = await race(env.REPOS_INDEX.query(vecs[0], { topK: 12, returnMetadata: "all" }), end - Date.now());
+      res.neighbors = ((hit && hit.matches) || [])
+        .filter(m => m && typeof m.score === "number" && m.score >= min && m.metadata && typeof m.metadata.name === "string"
+          && NAME_RE.test(m.metadata.name) && !have.has(m.metadata.name.toLowerCase()))
+        .slice(0, 8).map(m => ({ name: m.metadata.name, score: round3(m.score),
+          description: typeof m.metadata.description === "string" ? m.metadata.description : "",
+          topics: Array.isArray(m.metadata.topics) ? m.metadata.topics.filter(t => typeof t === "string").slice(0, CARD_TOPICS) : [] }));
+    } catch { /* index unavailable: the keyword results stand */ }
+  }
+  return res;
+}
+const publicNeighbors = nb => (nb || []).map(n => ({ name: n.name, score: n.score }));
 
 // RS34e: a fingerprint of the prompt + model list, so the live eval can wait for the build it means to score
 export function buildTag() {
@@ -303,7 +390,8 @@ export function buildTag() {
 }
 // RS34c: the page asks which bot check to load (the site key is public by design; the secret never leaves here)
 export async function onRequestGet({ env }) {
-  return new Response(JSON.stringify({ turnstile: env.TURNSTILE_SITE_KEY || null, v: 2, tag: buildTag() }), {
+  const f = ragFlags(env);   // RS42: the page shows its RAG wording only when this says a part is on
+  return new Response(JSON.stringify({ turnstile: env.TURNSTILE_SITE_KEY || null, v: 2, tag: buildTag(), rag: { rerank: f.rerank, index: f.index } }), {
     headers: { "Content-Type": "application/json", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" },
   });
 }
