@@ -14,7 +14,7 @@ global.window = global;
 const s = {};
 new Function("document", "localStorage",
   code + "; this.keywordQueries=keywordQueries; this.rankByFit=rankByFit; this.fitScore=fitScore; this.whyRelevant=whyRelevant; this.esc=esc; this.lu=lu; this.freeText=freeText;" +
-  " this.keep=keep; this.harmful=harmful; this.harmfulRepo=harmfulRepo; this.prdFeatures=prdFeatures; this.trendingQuery=trendingQuery; this.trendRows=trendRows;").call(s, document, global.localStorage || {getItem:()=>null,setItem(){},removeItem(){}});
+  " this.keep=keep; this.harmful=harmful; this.harmfulRepo=harmfulRepo; this.prdFeatures=prdFeatures; this.trendingQuery=trendingQuery; this.trendRows=trendRows; this.feedbackUrl=feedbackUrl;").call(s, document, global.localStorage || {getItem:()=>null,setItem(){},removeItem(){}});
 
 // RS16: iOS excludes macOS
 // RS16: expansions are specific on-topic phrases, never a bare category (live regression: "website" -> "frontend framework"
@@ -121,3 +121,15 @@ console.log("prd ok:", f.join(" | "));
   assert.strictEqual(st.excluded.license, 1); assert.strictEqual(st.excluded.fork, 1);
   assert.match(fk.rows[0].whyText, /5\.0k forks/);
   console.log("trending ok"); }
+
+// RS39 feedback: pre-filled GitHub issue link, user text only URL-encoded, empty title refused
+{ assert.strictEqual(s.feedbackUrl("  ", "Bug", "x"), null);
+  const u = s.feedbackUrl("Dark <mode> & more", "Feature request", "please\nthanks");
+  assert.ok(u.startsWith("https://github.com/chittychat-studio/replore/issues/new?title="));
+  const q = new URL(u).searchParams;
+  assert.strictEqual(q.get("title"), "[Feature request] Dark <mode> & more");
+  assert.match(q.get("body"), /^\*\*Type:\*\* Feature request\n\nplease\nthanks/);
+  assert.ok(!/[<>&\s]/.test(u.split("?")[1].replace(/&body=/, "")), "raw text leaked into the URL");
+  assert.strictEqual(new URL(s.feedbackUrl("t", "<script>", "")).searchParams.get("title"), "[Other] t");  // unknown type
+  assert.strictEqual(new URL(s.feedbackUrl("x".repeat(500), "Bug", "")).searchParams.get("title").length, 6 + 120);
+  console.log("feedback ok"); }
