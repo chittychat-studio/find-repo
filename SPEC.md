@@ -8,7 +8,9 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
 
 - **RS1** Input is any free-text project description. The `/replore:find` skill, running in the
   user's own Claude Code session, turns it into 1–4 GitHub search queries (keywords, optionally
-  `topic:` / `language:` qualifiers). The script never calls a model and holds no model API key.
+  `topic:` / `language:` qualifiers). The script never calls a model and holds no model API key. One opt-in exception:
+  `--semantic` (RS42) sends the description to Replore's own endpoint, which runs an embedding model server-side; the
+  script still holds no key and makes no model call itself.
 - **RS1a** When the skill starts without a description (bare `/replore:find`, or a request that does not say
   what is being built), it asks the user one plain question about the project or task, and runs no search until
   they answer. The question also offers two optional preferences: language or stack, and whether unlicensed repos are OK.
@@ -496,10 +498,89 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   failed call (RS7 unchanged; owner did not opt into partial results). The Cloudflare rate-limit rule (10 requests /
   10 s per IP on `replore.cardzo.co.in/api/relevance`, all methods, block 10 s) is the owner's dashboard setting.
 
+- **RS42** Hybrid RAG retrieval, built in gated phases (owner request 2026-10-14: "need RAG option also, this is my
+  first live RAG project, let's put it to best use"). Replore already has the RAG shape: GitHub search is the
+  retriever, and the plan hand-off (RS28) is the generation step, done by the user's own AI. RS42 adds meaning-based
+  retrieval next to GitHub's keyword search. Each phase ships only when its gate passes; a failed gate stops the work
+  and is reported, never quietly lowered.
+  - **Hybrid by design (owner 2026-10-14: "I want a mix of semantic and lexical search").** Lexical = GitHub's keyword
+    search plus a BM25 score of each repo against the user's *whole* description (stdlib, identical in the page and
+    the plugin, so both stay in sync). Semantic = embedding similarity. They are combined per query, by weighted
+    blend or reciprocal rank fusion, whichever the evals favour.
+  - **Phase 0 — measure (free).** `evals/embed_offline.py` scores open embedding models (BAAI bge, the family
+    Workers AI serves), BM25, and the semantic + lexical hybrids on the hand-labelled relevance set (RS34). Gate:
+    best semantic or hybrid pooled AUC ≥ 0.75 **and** ≥ BM25 + 0.15. Baseline measured 2026-10-14: BM25 pooled AUC 0.56 (15 of 48 off-topic repos
+    above the median fitting one). Runs on the owner's machine (the build session cannot download models).
+  - **Phase 1 — rerank (web).** Inside `functions/api/relevance.js`: embed the user's description and each candidate
+    (name + description + topics) with a Workers AI bge model, and order the kept repos by blending the existing fit
+    score with meaning similarity. The AI check (RS34) still decides what is hidden. Fail closed: if embedding fails,
+    the current order stands. Gate to merge: the live eval (owner-approved, credits) shows the blend keeps ≥ 95 % of
+    fitting repos and ranks them above off-topic ones better than today. Estimated cost (maintainer arithmetic from
+    Cloudflare's published rates, bge-m3 1,075 neurons per million tokens, 10,000 free neurons a day): about 5 neurons
+    per search.
+  - **Phase 2 — vector index (recall).** A Cloudflare Vectorize index of repo cards (name, description, topics, stars,
+    license, last push), filled by `ops/ingest.py` from the seed searches in `ops/rag_seeds.txt` (run by hand or the manual
+    `rag-ingest` workflow). Never from what users search: that would store data shaped by what people typed.
+    Only repo metadata is stored, never what users type (privacy promise unchanged). Retrieval is hybrid: the
+    index's nearest neighbours join GitHub's keyword results, fused by reciprocal rank. **Freshness:** a repo from
+    the index is shown only after a live GitHub search confirms it (one search with several `repo:` qualifiers) and
+    refreshes its stars, license and last push; anything not confirmed is dropped (fail closed, RS7). Gates: Phase 1
+    shipped; the owner approves the Vectorize setup and its cost; a recall test set (fitting repos whose words differ
+    from the query, e.g. "speech recognition" for "voice") shows the index finds repos keyword search misses.
+  - **Plugin parity.** The plugin keeps meaning-based judgement in the user's own AI (RS6), which is stronger than
+    embeddings. Index search is offered to the plugin only as an opt-in flag that calls Replore's public endpoint,
+    named in PRIVACY.md, off by default — the plugin's no-server default (RS11) is unchanged.
+  - **Built dark (owner 2026-10-14: "I want all 3 phases", "this structure in both plugin and web").** All three
+    phases are implemented and switched **off**; each is switched on by the owner only after its gate passes.
+    Same structure in both clients: keyword queries (RS16a) → GitHub search → BM25 against the whole description →
+    meaning scores and indexed repos (server) → live GitHub confirm of indexed repos → reciprocal rank fusion of the
+    fit order, the BM25 order and the meaning order (k = 60). RRF averages ranks, so BM25 alone moves a repo only part of
+    the way: it can swap near neighbours (even the first two) but cannot pull a low-ranked repo to the top; big moves need
+    the meaning score to agree.
+    | Piece | Web page | Plugin | Switch |
+    |---|---|---|---|
+    | BM25 + RRF | `bm25Scores`, `hybridOrder` in `web/index.html` | `scripts/hybrid.py` (stdlib) | runs whenever the server returns meaning scores; plugin `--rank hybrid --describe "<text>"` |
+    | Meaning scores | `sim` in the `/api/relevance` reply | `--semantic` (opt-in) → `mode:"semantic"` on the same endpoint | Pages variable `RAG_RERANK=1` (plugin path also needs `RAG_PLUGIN=1`) |
+    | Indexed repos | `neighbors` in the reply → one live `repo:` search | same, via `--semantic` | `RAG_INDEX=1` + `[[vectorize]]` binding `REPOS_INDEX` |
+    | Index filling | — | — | `ops/ingest.py` (dry run unless `--apply`), Actions `rag-ingest` (manual) |
+    Both clients produce identical BM25 numbers and fused orders (golden values asserted in `tests/test_hybrid.py` and
+    `tests/test_web_logic.js`), also from raw GitHub items (`tests/fixtures/raw_items.json`: topics in GitHub order,
+    long text cut at a word in UTF-16 units, exactly like the page); `evals/hybrid_cases.json` holds 14 goal and edge cases (agreement, damping, empty, filler-only
+    and non-English text, injection, keyword stuffing, malformed or flat or negative scores, plurals, dotted names, one row,
+    a 2,000-character description), run by `evals/run.py` in CI, and the page must reproduce the plugin's exact order on each; the server and the ingester embed identical card text (`cardText` / `card_text`).
+    **AI check covers indexed repos (peer review 2026-10-14).** With `RAG_INDEX=1` the server looks up indexed repos first
+    (their stored description and topics travel with them), then runs ONE AI check (RS34) over the keyword results plus the
+    indexed repos; an indexed repo the AI drops never leaves the server. Indexed repos are added after the kept keyword
+    results in score order, labelled "Found by meaning, confirmed on GitHub", and are not counted in the excluded totals.
+    **One deadline:** embedding + index lookup share `SEM_BUDGET_MS` = 1.5 s, and the judge gets what is left of its 4.5 s,
+    so the reply stays inside the page's 8 s wait. With rerank only, meaning scores run alongside the judge and never
+    extend it. With the index on and rerank off, only the description is embedded. **Empty keyword results** still ask
+    the index (the page sends 0 repos; the server answers `{drop:[]}` without an AI call when there is nothing to judge).
+    **Cards** are capped at 100 description characters and 5 topics everywhere (client payload, server, ingester), so all
+    vectors sit on one scale. **One confirm search** per run in both clients (rate limit, RS41); indexed repos past it
+    are dropped (fail closed).
+    `mode:"semantic"` returns meaning scores and indexed repos only — no AI judge, no Turnstile (it is cheap and the
+    `/api/relevance` path is under the RS41 rate limit). Because it has no bot check it has its own switch, `RAG_PLUGIN=1`,
+    off by default even when the web switches are on, and answers 404 `semantic_off` until it is set. Known risk when on: a
+    script can spend the shared Workers AI allowance (about 1 neuron per call at the card caps); turn it on only with a
+    budget alert, and turn it off if the allowance drains. Indexed repos returned to the plugin are not AI-checked by the
+    server; the skill's relevance gate (RS6, the user's own AI) judges them with the rest.
+    The skill keeps the default `fit` ranking until Phase 1's gate passes, then switches to `--rank hybrid` (one-line change).
+    Unverified until a preview runs with the switches on: the exact reply shapes of the Workers AI embedding call
+    (`data`) and Vectorize `query` (`matches[].metadata.name`) are coded from Cloudflare's documented formats and
+    covered by fakes only.
+  - **Wording (owner 2026-10-14: "mention our RAG-based search everywhere").** The page's RAG wording (hero pill,
+    Tour, About the results) is hidden unless `GET /api/relevance` reports `rag.rerank` or `rag.index` on, so the site
+    never claims a search it is not running (evidence only). The README describes it as built and being evaluated.
+  - **Not adopted:** LangChain, LlamaIndex, Haystack, RAGFlow and similar frameworks — they bring dependencies the
+    stdlib plugin (RS11) and the no-build page (RS22) cannot take, for orchestration Replore does not need.
+    BM25 *alone* as the reranker — measured at pooled AUC 0.56 on the relevance set, close to chance; it is kept
+    only as the lexical half of the hybrid.
+
 ## RX — Deliberately excluded (v0.1)
 
 - **RX1** Scraping github.com HTML, or any non-API source.
-- **RX2** Caching results on disk.
+- **RX2** Caching results on disk. (Scope: the plugin and its scripts. A server-side index of repo metadata is allowed only as RS42 Phase 2, after its gates.)
 - **RX3** Ranking by forks, trending or download counts. (Relevance, stars and license-freedom are the only
   ranking signals — see RS5.)
 - **RX4** Writing into the user's repo (cloning, adding dependencies). The output is a recommendation only.

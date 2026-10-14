@@ -1,0 +1,62 @@
+{
+ "about": "RS42 parity fixture: raw GitHub search items. tests/test_hybrid.py (plugin) and tests/test_web_logic.js (page) build rows from these with their own code and must produce the same BM25 scores.",
+ "description": "voice based ai app to track my diet and step counter",
+ "order": [
+  "a/many-topics",
+  "b/long.desc_repo",
+  "c/emoji"
+ ],
+ "items": [
+  {
+   "full_name": "a/many-topics",
+   "stargazers_count": 300,
+   "license": {
+    "spdx_id": "MIT"
+   },
+   "pushed_at": "2026-09-01T00:00:00Z",
+   "description": "A tracker",
+   "html_url": "https://github.com/a/many-topics",
+   "topics": [
+    "Flutter",
+    "dart",
+    "mobile",
+    "android",
+    "ios",
+    "app",
+    "ui",
+    "material",
+    "Diet",
+    "steps"
+   ]
+  },
+  {
+   "full_name": "b/long.desc_repo",
+   "stargazers_count": 200,
+   "license": {
+    "spdx_id": "MIT"
+   },
+   "pushed_at": "2026-09-01T00:00:00Z",
+   "description": "Offline-first calorie and nutrition tracker with barcode scanning, food search, macro tracking, and progress graphs. Built with Flutter. Ideal for developers and fitness enthusiasts looking to track steps too",
+   "html_url": "https://github.com/b/long.desc_repo",
+   "topics": []
+  },
+  {
+   "full_name": "c/emoji",
+   "stargazers_count": 100,
+   "license": {
+    "spdx_id": "MIT"
+   },
+   "pushed_at": "2026-09-01T00:00:00Z",
+   "description": "🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎 diet",
+   "html_url": "https://github.com/c/emoji",
+   "topics": [
+    "Nutrition"
+   ]
+  }
+ ],
+ "bm25": [
+  0.0,
+  0.71996,
+  0.0
+ ]
+}

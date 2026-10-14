@@ -205,8 +205,8 @@ def test_token_never_reaches_output(monkeypatch, capsys):  # RS8
 
 def test_imports_are_stdlib_only():  # RS11 (ast-based, not a string grep)
     import ast
-    for name in ("mcp_server.py", "scout.py"):
+    for name in ("mcp_server.py", "scout.py", "hybrid.py"):   # RS42: hybrid.py is a local, stdlib-only module
         tree = ast.parse((ROOT / "scripts" / name).read_text())
         mods = {a.name.split(".")[0] for n in ast.walk(tree) if isinstance(n, ast.Import) for a in n.names}
         mods |= {n.module.split(".")[0] for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) and n.module}
-        assert mods - set(sys.stdlib_module_names) <= {"scout"}, (name, mods - set(sys.stdlib_module_names))
+        assert mods - set(sys.stdlib_module_names) <= {"scout", "hybrid"}, (name, mods - set(sys.stdlib_module_names))

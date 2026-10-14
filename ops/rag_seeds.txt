@@ -1,0 +1,45 @@
+# SPEC RS42 Phase 2: what the index covers. One GitHub search per line (sorted by stars, 50+ stars, pushed in 24 months).
+# Start with what Replore users ask for; add lines as new needs show up. Keep phrases specific (RS16).
+landing page template
+portfolio website
+saas starter
+admin dashboard template
+blog starter
+ecommerce starter
+habit tracker
+calorie counter
+nutrition tracker
+step counter
+fitness tracker
+voice assistant
+speech to text
+text to speech
+rag chatbot
+chat with pdf
+ai image generator
+html5 game engine
+phaser game
+maplibre
+offline map tiles
+swiftui app template
+expo app template
+flutter app template
+react native starter
+chrome extension template
+discord bot
+telegram bot
+pptx generate
+presentation generator
+csv dashboard
+data visualization dashboard
+markdown notes app
+todo app
+budget tracker
+invoice generator
+url shortener
+authentication starter
+payment checkout stripe
+push notifications
+image upload
+vulnerable web application
+web security training
