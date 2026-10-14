@@ -665,7 +665,7 @@ def test_one_official_deploy_and_cardzo_credit():
     """RS22/RS40: Cloudflare Pages is the only deploy (the GitHub Pages copy had no relevance Function); footer credits Cardzo."""
     assert not (ROOT / ".github" / "workflows" / "pages.yml").exists()
     html = (ROOT / "web" / "index.html").read_text()
-    assert 'href="https://cardzo.co.in"' in html and "Cardzo</a> product" in html
+    assert 'href="https://cardzo.co.in" target="_blank" rel="noopener noreferrer"' in html and "Cardzo</a> product" in html
 
 
 def test_all_uncaps_and_groups_by_feature():
