@@ -638,9 +638,10 @@ def test_web_page_is_safe_static(monkeypatch):
     assert "function showTrending" in html and 'id="trendCar"' in html and 'id="trendBtn"' in html
     assert "&sort=" in html and "github.com/trending" not in html
     assert 'prefers-reduced-motion: reduce)").matches) return;' in html
-    # RS36 thinking orb: decorative canvas, still under reduced motion, stops when home is replaced, no API call
-    assert 'id="repoOrb"' in html and "function startOrb" in html and 'aria-hidden="true"' in html
-    assert "if(reduce) return;" in html and "canvas.isConnected" in html and 'localStorage.getItem("replore_trend_rising")' in html
+    # RS36 thinking orb pill: dotted sphere + label, under the home demo and as the search loading indicator
+    assert "function startDotOrb" in html and "function think(" in html and 'id="homeThink"' in html
+    assert 'class="think-orb" aria-hidden="true"' in html and "draw(); if(reduce) return;" in html and "canvas.isConnected" in html
+    assert 'think(st,"Checking which repos fit")' in html and "function startOrb" not in html
     # RS34 undo: dropped repos sit at the end behind one bottom line
     assert 'id="showLeft"' in html and "more we left out" in html and 'data-left="1"' in html
     # RS24 richness: cursor tilt + star count-up are native (no extra library)

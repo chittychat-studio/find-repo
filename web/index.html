@@ -324,10 +324,21 @@
   .trend-tab{background:var(--offbg);border:1px solid var(--line);border-radius:999px;padding:8px 14px;font:inherit;
     font-size:13.5px;font-weight:700;color:var(--ink);cursor:pointer}
   .trend-tab.on{background:var(--ink);color:var(--bg);border-color:transparent}
-  /* RS36 thinking orb */
-  .orb-wrap{display:flex;flex-direction:column;align-items:center;margin:18px auto 0;max-width:420px}
-  .orb{width:min(320px,80vw);aspect-ratio:1/1;display:block}
-  .orb-cap{font-size:13px;margin:0;min-height:1.4em;text-align:center;transition:opacity .35s}
+  /* RS36 thinking orb pill */
+  .think{display:inline-flex;align-items:center;gap:14px;padding:10px 24px 10px 12px;border-radius:999px;
+    background:var(--card);border:1px solid var(--line);box-shadow:0 10px 28px -16px rgba(0,0,0,.35);vertical-align:middle}
+  .think-orb{width:44px;height:44px;display:block;flex:0 0 auto}
+  .think-txt{font-size:16px;font-weight:600;color:var(--muted);transition:opacity .3s}
+  .tdots{display:inline-flex;margin-left:-14px;color:var(--muted);font-weight:700}
+  .tdots i{font-style:normal;opacity:.15;animation:tdot 1.4s infinite}
+  .tdots i:nth-child(2){animation-delay:.2s} .tdots i:nth-child(3){animation-delay:.4s} .tdots i:nth-child(4){animation-delay:.6s}
+  @keyframes tdot{0%,100%{opacity:.15}40%{opacity:1}}
+  .think-home{display:flex;justify-content:center;margin:20px 0 0}
+  .think-sm{gap:10px;padding:5px 16px 5px 6px;box-shadow:none}
+  .think-sm .think-orb{width:28px;height:28px}
+  .think-sm .think-txt{font-size:13.5px}
+  .think-sm .tdots{margin-left:-10px}
+  @media (prefers-reduced-motion:reduce){ .tdots i{animation:none;opacity:.6} }
   /* RS35 home carousel */
   .tcar{margin:16px 0 0;text-align:left}
   .tcar-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin:0 2px 8px;font-size:14px}
@@ -1160,7 +1171,7 @@ function renderGrouped(groups, excluded, note){
 async function runFeatures(features, minStars, platform, preferStarters, out, st, gen){
   var ex2=platform==="ios"?" -topic:macos":"", stack=(document.getElementById("stack").value||"").trim().slice(0,40);
   var excluded={license:0,stale:0,low:0,fork:0,harm:0}, seen={}, groups=[];
-  for(var i=0;i<features.length;i++){ st.textContent="Searching feature "+(i+1)+"/"+features.length+"…";
+  for(var i=0;i<features.length;i++){ think(st,"Searching feature "+(i+1)+"/"+features.length);
     var items=await search((features[i]+(stack?" "+stack:"")+ex2).trim());
     if(gen!==window.__runGen) return;   // reset or a newer search happened: drop these results
     var kept=keep(items,minStars,platform,excluded,seen);  // shared seen map (RS5 cross-query rel), not a Set
@@ -1225,7 +1236,7 @@ async function run(){
     if(like){
       var target=parseRepo(like);
       if(!target) throw new Error("Enter a repo as owner/repo or a GitHub link, e.g. vercel/next.js.");
-      st.textContent="Looking up "+target+"…";
+      think(st,"Looking up "+target);
       var meta=await repoMeta(target);
       if(gen!==window.__runGen) return;
       queries=altQueries(meta,platform);
@@ -1247,13 +1258,13 @@ async function run(){
     if(stack) queries=queries.map(function(q){return (q+" "+stack).trim();});  // narrow to the chosen language/tech
     if(!queries.length) throw new Error("Couldn't build a search. Try different words.");
     var excluded={license:0,stale:0,low:0,fork:0,harm:0}, lists=[];
-    for(var i=0;i<queries.length;i++){ st.textContent="Searching ("+(i+1)+"/"+queries.length+")…";
+    for(var i=0;i<queries.length;i++){ think(st,"Searching GitHub ("+(i+1)+"/"+queries.length+")");
       var items=await search(queries[i]);
       if(gen!==window.__runGen) return;
       lists.push(keep(items,minStars,platform,excluded,seen)); }
     var ranked=rankByFit(lists,preferStarters), top=ranked.slice(0,60);  // sane upper bound; we no longer cap at 20
     var gate=null;
-    if(top.length){ st.textContent="Checking which repos fit…";   // RS34 relevance check on the top 30
+    if(top.length){ think(st,"Checking which repos fit");   // RS34 relevance check on the top 30
       var drops=await relevanceGate(like?(text+" (similar to "+like+")"):text, top.slice(0,30));
       if(gen!==window.__runGen) return;
       if(drops==="off"){ gate=null; }
@@ -1536,7 +1547,7 @@ async function showTrending(kind){
   kind=TREND_TABS[kind]?kind:"rising";
   var gen=++window.__runGen; window.__busy=false; setGoBusy(false);
   var out=document.getElementById("out"), st=document.getElementById("status");
-  stopDemo("heroDemo"); st.textContent="Loading trending repos…";
+  stopDemo("heroDemo"); think(st,"Loading trending repos");
   try{
     var got=await fetchTrending(kind); if(gen!==window.__runGen) return;
     var t=trendRows(got.items, kind);
@@ -1550,55 +1561,51 @@ async function showTrending(kind){
     animateCards(out); initResultFilter(); st.textContent=""; saveResults(); syncClearQ();
   }catch(e){ if(gen!==window.__runGen) return; st.textContent=""; out.innerHTML='<div class="panel"><p class="err">'+esc(e.message)+'</p></div>'; }
 }
-// RS36 thinking orb: a rotating sphere of repo nodes, decorative, animates only while visible
-var ORB_CAPS=["Scanning open-source repos…","Checking licences…","Skipping abandoned projects…","Ranking by fit…","Reading descriptions…"];
-function startOrb(canvas, cap){
-  if(!canvas || !canvas.getContext) return;
-  var ctx=canvas.getContext("2d"), N=80, pts=[], links=[], golden=Math.PI*(3-Math.sqrt(5));
-  for(var i=0;i<N;i++){ var y=1-(i/(N-1))*2, r=Math.sqrt(1-y*y), th=golden*i;   // Fibonacci sphere
-    pts.push({x:Math.cos(th)*r, y:y, z:Math.sin(th)*r, s:i%9===0?2.6:(i%4===0?1.9:1.3), dark:i%11===0}); }
-  for(var a=0;a<N;a++){ var d=[];
-    for(var b=0;b<N;b++) if(a!==b){ var dx=pts[a].x-pts[b].x, dy=pts[a].y-pts[b].y, dz=pts[a].z-pts[b].z; d.push([dx*dx+dy*dy+dz*dz,b]); }
-    d.sort(function(p,q){return p[0]-q[0];}); for(var k=0;k<3;k++) if(d[k][1]>a) links.push([a,d[k][1]]); }
-  var names=[], labelAt=[], nameCheck=0;
-  function loadNames(){ try{ var hit=JSON.parse(localStorage.getItem("replore_trend_rising")||"null");   // RS35 cache only, no API call
-    if(hit&&Array.isArray(hit.items)) names=hit.items.slice(0,6).map(function(it){ return String(it.full_name||"").split("/").pop().slice(0,22); }).filter(Boolean); }catch(e){}
-    labelAt=[5,17,29,41,53,65].slice(0,names.length); }
-  loadNames();
-  var reduce=matchMedia("(prefers-reduced-motion: reduce)").matches, rot=0.6, tilt=0.35, last=0, visible=true, raf=0, ci=0, capT=0;
-  function colors(){ var cs=getComputedStyle(document.documentElement);
-    return {acc:(cs.getPropertyValue("--accent")||"#c0532c").trim(), ink:(cs.getPropertyValue("--ink")||"#222").trim(), muted:(cs.getPropertyValue("--muted")||"#888").trim()}; }
+// RS36 thinking orb: a small dotted sphere in a pill ("Solving…"-style), used under the home demo and while searching
+var ORB_CAPS=["Scanning open-source repos","Checking licences","Skipping abandoned projects","Ranking by fit","Reading descriptions"];
+var THINK_DOTS='<span class="tdots" aria-hidden="true"><i>.</i><i>.</i><i>.</i><i>.</i></span>';
+function thinkPill(text, extraClass){
+  return '<span class="think'+(extraClass?' '+extraClass:'')+'"><canvas class="think-orb" aria-hidden="true"></canvas>'+
+    '<span class="think-txt">'+esc(text)+'</span>'+THINK_DOTS+'</span>'; }
+function startDotOrb(canvas){
+  if(!canvas || !canvas.getContext || canvas.__orb) return; canvas.__orb=1;
+  var ctx=canvas.getContext("2d"), pts=[], rows=13;
+  for(var i=1;i<rows;i++){ var lat=Math.PI*i/rows, ring=Math.max(6,Math.round(26*Math.sin(lat)));   // latitude rings of dots
+    for(var j=0;j<ring;j++){ var lon=2*Math.PI*j/ring; pts.push([Math.sin(lat)*Math.cos(lon), Math.cos(lat), Math.sin(lat)*Math.sin(lon)]); } }
+  var reduce=matchMedia("(prefers-reduced-motion: reduce)").matches, rot=0, last=0, raf=0, visible=true;
   function draw(){
-    var dpr=Math.min(2,window.devicePixelRatio||1), w=canvas.clientWidth||300, h=canvas.clientHeight||w;
+    var dpr=Math.min(2,window.devicePixelRatio||1), w=canvas.clientWidth||40, h=canvas.clientHeight||w;
     if(canvas.width!==Math.round(w*dpr)){ canvas.width=Math.round(w*dpr); canvas.height=Math.round(h*dpr); }
     ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,w,h);
-    var c=colors(), R=Math.min(w,h)*0.40, cx=w/2, cy=h/2, cr=Math.cos(rot), sr=Math.sin(rot), ct=Math.cos(tilt), st=Math.sin(tilt), P=[];
-    for(var i=0;i<N;i++){ var p=pts[i], x=p.x*cr+p.z*sr, z=-p.x*sr+p.z*cr, y=p.y*ct-z*st, z2=p.y*st+z*ct;
-      var f=1/(1.9-z2*0.6); P.push({x:cx+x*R*f*1.7, y:cy+y*R*f*1.7, z:z2}); }
-    ctx.lineWidth=1;
-    for(var l=0;l<links.length;l++){ var A=P[links[l][0]], B=P[links[l][1]], depth=(A.z+B.z+2)/4;
-      ctx.globalAlpha=0.08+0.32*depth; ctx.strokeStyle=c.acc; ctx.beginPath(); ctx.moveTo(A.x,A.y); ctx.lineTo(B.x,B.y); ctx.stroke(); }
-    var order=P.map(function(p,i){return i;}).sort(function(a,b){return P[a].z-P[b].z;});
-    for(var o=0;o<order.length;o++){ var j=order[o], q=P[j], dep=(q.z+1)/2;
-      ctx.globalAlpha=0.25+0.75*dep; ctx.fillStyle=pts[j].dark?c.ink:c.acc;
-      ctx.beginPath(); ctx.arc(q.x,q.y,pts[j].s*(0.7+0.6*dep),0,Math.PI*2); ctx.fill(); }
-    ctx.font="600 11px Inter, system-ui, sans-serif"; ctx.fillStyle=c.muted;
-    for(var n=0;n<labelAt.length;n++){ var L=P[labelAt[n]]; if(L.z<0.15) continue;
-      ctx.globalAlpha=Math.min(1,(L.z-0.15)*2.2); ctx.fillText(names[n], L.x+6, L.y-5); }
+    var ink=(getComputedStyle(document.documentElement).getPropertyValue("--ink")||"#222").trim();
+    var R=Math.min(w,h)*0.46, cx=w/2, cy=h/2, cr=Math.cos(rot), sr=Math.sin(rot), t=0.38, ct=Math.cos(t), st=Math.sin(t);
+    ctx.fillStyle=ink;
+    for(var k=0;k<pts.length;k++){ var p=pts[k], x=p[0]*cr+p[2]*sr, z=-p[0]*sr+p[2]*cr, y=p[1]*ct-z*st, z2=p[1]*st+z*ct;
+      var d=(z2+1)/2; ctx.globalAlpha=0.12+0.78*d*d;
+      ctx.beginPath(); ctx.arc(cx+x*R, cy+y*R, (0.45+0.75*d)*Math.max(0.8,w/44), 0, 6.2832); ctx.fill(); }
     ctx.globalAlpha=1;
   }
-  function frame(t){
-    if(!canvas.isConnected){ cancelAnimationFrame(raf); clearInterval(capT); return; }   // home replaced by results
-    if(!names.length && t-nameCheck>2000){ nameCheck=t; loadNames(); }   // carousel may cache the list after we start
-    if(visible && !document.hidden){ var dt=last?Math.min(50,t-last):16; rot+=dt*0.00018; tilt=0.35+Math.sin(t*0.0002)*0.12; draw(); }
-    last=t; raf=requestAnimationFrame(frame);
+  function frame(tm){
+    if(!canvas.isConnected){ cancelAnimationFrame(raf); return; }   // pill removed: stop
+    if(visible && !document.hidden){ rot+=(last?Math.min(50,tm-last):16)*0.0011; draw(); }
+    last=tm; raf=requestAnimationFrame(frame);
   }
-  draw();
-  if(reduce) return;   // one still frame, caption stays put
+  draw(); if(reduce) return;   // one still frame
   if(window.IntersectionObserver) new IntersectionObserver(function(es){ visible=es[0].isIntersecting; }).observe(canvas);
   raf=requestAnimationFrame(frame);
-  if(cap) capT=setInterval(function(){ if(!cap.isConnected){ clearInterval(capT); return; }
-    cap.style.opacity="0"; setTimeout(function(){ ci=(ci+1)%ORB_CAPS.length; cap.textContent=ORB_CAPS[ci]; cap.style.opacity="1"; },350); },2600);
+}
+// show the thinking pill in a status line (reused across steps of one search so the orb keeps spinning)
+function think(st, text){
+  if(!st) return; var t=st.querySelector(".think .think-txt");
+  if(t){ t.textContent=text; return; }
+  st.innerHTML=thinkPill(text,"think-sm"); startDotOrb(st.querySelector(".think-orb"));
+}
+function startHomeThinking(wrap){
+  if(!wrap) return; startDotOrb(wrap.querySelector(".think-orb"));
+  if(matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  var txt=wrap.querySelector(".think-txt"), ci=0;
+  var tm=setInterval(function(){ if(!txt.isConnected){ clearInterval(tm); return; }
+    txt.style.opacity="0"; setTimeout(function(){ ci=(ci+1)%ORB_CAPS.length; txt.textContent=ORB_CAPS[ci]; txt.style.opacity="1"; },300); },2600);
 }
 
 // RS35 home carousel: top Rising repos, rotates itself, pauses on hover/focus/touch, still under reduced motion
@@ -1635,10 +1642,9 @@ function showHome(){
   stopDemo("heroDemo");   // clear any previous carousel before replacing it
   out.innerHTML='<div class="explain"><p class="lead">Describe what you’re building, or tap a quick pick. Here’s what happens:</p>'+
     '<div id="heroDemo" class="demo"></div>'+
-    '<div class="orb-wrap"><canvas id="repoOrb" class="orb" aria-hidden="true"></canvas>'+
-    '<p class="orb-cap mut" id="orbCap" aria-live="off">Scanning open-source repos…</p></div></div>';
+    '<div class="think-home" id="homeThink">'+thinkPill(ORB_CAPS[0])+'</div></div>';
   buildDemo(document.getElementById("heroDemo"));
-  startOrb(document.getElementById("repoOrb"), document.getElementById("orbCap"));
+  startHomeThinking(document.getElementById("homeThink"));
   if(window.__resetPicks) window.__resetPicks();
 }
 // remember the last results so a page refresh brings them back (cached locally, no new API call)

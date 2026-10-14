@@ -360,14 +360,15 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   it folds away with the intro once results show. No AI relevance check
   runs on it (there is no description to judge against). Web only; the plugin is a search tool and has no gallery.
 
-- **RS36** Thinking orb (web, decorative). On the home screen, under the how-it-works demo, a canvas "thinking orb":
-  a slowly rotating sphere of ~80 repo nodes joined to their nearest neighbours, in the page's accent colours (light
-  and dark theme), with up to six nodes labelled with real repo names from the cached Rising list (RS35 — no extra
-  API call; unlabelled if the list isn't cached) and a caption that cycles through what Replore does ("Scanning
-  open-source repos…", "Checking licences…", "Ranking by fit…"). It loops indefinitely but only animates while on
-  screen and the tab is visible; under prefers-reduced-motion it draws one still frame and the caption doesn't cycle.
-  It is decoration only: aria-hidden canvas, no data leaves the page, and it stops as soon as results replace the
-  home screen.
+- **RS36** Thinking orb (web). A pill with a small rotating dotted sphere (latitude rings of dots, depth-shaded in the
+  ink colour, light and dark theme) and a short label with animated dots, in the style of a "Solving…" indicator.
+  Used in two places: (1) on the home screen under the how-it-works demo, its label cycling through what Replore
+  does ("Scanning open-source repos", "Checking licences", "Skipping abandoned projects", "Ranking by fit"); (2) as the
+  loading indicator in the status line while a search, similar-repo lookup, PRD search or trending list loads ("Searching
+  GitHub (1/3)", "Checking which repos fit", "Loading trending repos"), one pill per search whose label updates per step
+  and disappears when results show. It animates only while on screen and the tab is visible, draws one still frame
+  (static dots, no label cycling) under prefers-reduced-motion, is aria-hidden decoration (the label text stays
+  readable), stops once removed, and makes no network call.
 
 ## RX — Deliberately excluded (v0.1)
 
