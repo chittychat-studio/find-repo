@@ -587,7 +587,10 @@ def test_web_page_is_safe_static(monkeypatch):
     assert "fork:false archived:false is:public" in html
     assert "sort=stars" not in html  # RS5: best-match seeds fit ranking; stars no longer forced on the fetch
     assert "rankByFit" in html and "fitScore" in html
-    assert "whyRelevant" in html and "Matches your words" in html  # RS24: each card says why it is relevant
+    assert "whyRelevant" in html and "'Matches: '" in html  # RS24/RS37: a card says why only on a real word match
+    for slop in ("Related to your search", "Top match for your search", "start shipping", "Like our work?",
+                 "Here’s what happens", "class=\"eyebrow\""):
+        assert slop not in html, slop  # RS37 copy discipline
     # license sets kept in sync with scout.py
     assert all(l in html for l in ("AGPL-3.0", "MPL-2.0", "MIT", "Unlicense"))
     assert "STARTER_MIN_SHARE" in html and "0.10" in html
@@ -637,6 +640,7 @@ def test_web_page_is_safe_static(monkeypatch):
     # RS35 trending: gallery tabs + home carousel; API-sorted, not scraped; no auto-rotate under reduced motion
     assert "function showTrending" in html and 'id="trendCar"' in html and 'id="trendBtn"' in html
     assert "&sort=" in html and "github.com/trending" not in html
+    assert "body.view-trending .tcar, body.has-results .tcar{display:none}" in html  # no Rising list twice; results focus
     assert 'prefers-reduced-motion: reduce)").matches) return;' in html
     # RS36 thinking orb pill: dotted sphere + label, under the home demo and as the search loading indicator
     assert "function startDotOrb" in html and "function think(" in html and 'id="homeThink"' in html

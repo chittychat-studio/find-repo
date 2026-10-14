@@ -6,7 +6,7 @@ const code = html.match(/<script>([\s\S]*)<\/script>/)[1].replace('"use strict";
 const el = () => ({value:"",checked:false,textContent:"",innerHTML:"",type:"",className:"",dataset:{},style:{},
                    addEventListener(){}, appendChild(){}, focus(){}, querySelector:()=>el(), querySelectorAll:()=>[],
                    classList:{add(){},remove(){},toggle(){}}, getAttribute:()=>null, setAttribute(){}, clientWidth:560});
-global.document = {getElementById: el, createElement: el, querySelectorAll:()=>[], addEventListener(){},
+global.document = {getElementById: el, createElement: el, querySelectorAll:()=>[], querySelector:()=>null, addEventListener(){},
                    documentElement: el()};
 global.matchMedia = () => ({matches:false});
 global.fetch = () => Promise.reject(new Error("no network in tests"));   // RS35 carousel must not reach GitHub from CI
@@ -68,13 +68,13 @@ assert.strictEqual(s.rankByFit([rel], false)[0].name, "tiny/exact", "relevance s
 const lic = [{name:"a/permissive",stars:1000,spdx:"MIT",starter:false,rel:0},
              {name:"a/copyleft",stars:1000,spdx:"AGPL-3.0",starter:false,rel:0}];
 assert.strictEqual(s.rankByFit([lic], false)[0].name, "a/permissive", "free-to-use should break the tie");
-// RS5/RS24: every card explains why the repo is relevant, honestly (keyword match, not AI)
+// RS5/RS24/RS37: a card says why only when the search words really match (honest keyword match, no filler line)
 const w1 = s.whyRelevant({name:"me/rag-chat", desc:"A RAG chatbot over your PDFs", rel:0}, ["rag","chatbot","pdfs"]);
-assert.ok(w1.startsWith("Matches your words") && w1.includes("rag"), w1);
-assert.strictEqual(s.whyRelevant({name:"x/y", desc:"unrelated", rel:1}, ["zzz"]), "Top match for your search");
-assert.strictEqual(s.whyRelevant({name:"x/y", desc:"unrelated", rel:9}, ["zzz"]), "Related to your search");
+assert.strictEqual(w1, "Matches: rag, chatbot, pdfs");
+assert.strictEqual(s.whyRelevant({name:"x/y", desc:"unrelated", rel:1}, ["zzz"]), "");
+assert.strictEqual(s.whyRelevant({name:"x/y", desc:"unrelated", rel:9}, ["zzz"]), "");
 // whole-word match: "ai" must NOT fire on "email"
-assert.strictEqual(s.whyRelevant({name:"me/mailer", desc:"a fast email client", rel:0}, ["ai","chat"]), "Top match for your search");
+assert.strictEqual(s.whyRelevant({name:"me/mailer", desc:"a fast email client", rel:0}, ["ai","chat"]), "");
 // esc escapes quotes so repo text can't break out of an HTML attribute
 assert.ok(s.esc('a"b').indexOf('"') < 0 && s.esc("a'b").indexOf("'") < 0, "esc should escape quotes");
 // RS5: a repo found in a later query at a better position takes the lower rel (cross-query dedup)

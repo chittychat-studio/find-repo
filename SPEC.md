@@ -153,7 +153,11 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   scrolls (results scroll inside their panel); single column with natural scroll on phones; on single-column screens, once results are shown the intro (tagline, mode tiles) folds away and the
    quick picks shrink to one swipeable row so the search bar and pills sit right above the matches (✕ or the logo brings the rest back; the Filters
    sheet also offers "Find similar repos" and "Match a whole plan", so both modes stay one tap away), and the
-   privacy line sits below the results, not in the search panel. Desktop stays one top-down column (owner's decision: no split screen) but
+   privacy line sits below the results, not in the search panel. On phones (below 1000px) the home screen reads top-down as
+   what it does (the demo card) → the search → trending; the nav is Trending · Plugin · ★ Star, with Tour, How ranking
+   works and Next steps in the footer line; the two search modes are one line of text links under the search; six
+   quick-pick pills; the trending carousel hides once results show; result cards show the licence inside the verdict
+   (tooltip) and the meta line, not as a separate pill; cards carry a faint orange wash in light mode. Desktop stays one top-down column (owner's decision: no split screen) but
    uses the width: from 1200px the page spans up to 1500px, the search area up to 1100px (wider bar, tiles and pill
    rows), and the trending carousel (4 cards, 5 from 1500px) and results (4 columns) span the full page width. On the home
    screen (no results yet) the opening section pairs the heading (centred over the search box), search, tiles and pills with the animated
@@ -355,16 +359,19 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   localStorage (public repo data only, never what the visitor typed) so tab switching doesn't spend the visitor's
   10 searches/minute. **Home carousel:** the home screen shows the top Rising repos as a self-rotating carousel
   ("🔥 Rising on GitHub this month") under the quick picks, with "See all trending" opening the gallery. It loads
-  after the page is idle (one GitHub call per visitor per 30 minutes, shared with the Rising tab cache), advances one
-  card every few seconds, pauses while hovered, focused or touched, does not auto-rotate under
-  prefers-reduced-motion, can be swiped, and disappears silently if GitHub can't be reached. On single-column screens
-  it folds away with the intro once results show. No AI relevance check
+  after the page is idle (one GitHub call per visitor per 30 minutes, shared with the Rising tab cache), glides
+  continuously (~35 px/s, seamless loop) along a curved gallery — the centre card faces the viewer, cards toward the
+  edges turn away and recede, edges fade out — pauses while hovered, focused or touched, stays still (but curved)
+  under prefers-reduced-motion, can be swiped, and disappears silently if GitHub can't be reached. On single-column screens
+  it folds away with the intro once results show. It is hidden while the Trending gallery is open (same list, no repetition). No AI relevance check
   runs on it (there is no description to judge against). Web only; the plugin is a search tool and has no gallery.
 
 - **RS36** Thinking orb (web). A pill with a small rotating dotted sphere (latitude rings of dots, depth-shaded in the
   ink colour, light and dark theme) and a short label with animated dots, in the style of a "Solving…" indicator.
-  Used in two places: (1) on the home screen under the how-it-works demo, its label cycling through what Replore
-  does ("Scanning open-source repos", "Checking licences", "Skipping abandoned projects", "Ranking by fit"); (2) as the
+  Used in two places: (1) on the home screen inside the how-it-works demo card, as its footer next to the step dots (one
+  component, one frame whose content cross-dissolves between steps), driven by the demo's own clock:
+  each time the card changes step, the label changes with it ("Reading your idea", "Searching GitHub", "Ranking by
+  fit", "Writing your plan") — one animation, not two timers; (2) as the
   loading indicator in the status line while a search, similar-repo lookup, PRD search or trending list loads ("Searching
   GitHub (1/3)", "Checking which repos fit", "Loading trending repos"), one pill per search whose label updates per step
   and disappears when results show. It animates only while on screen and the tab is visible, draws one still frame
@@ -388,6 +395,19 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   Cost (inferred, not measured): a 24B model uses more of the free daily Workers AI allocation per check than the 8B
   did, so fewer checks fit in a day; the example cache (RS34b, bumped to v2 for the new model) and max 120 output
   tokens offset part of it. When the allocation runs out the check is skipped silently (RS34).
+
+- **RS37** Copy discipline (web, owner request; audited against the open-source "taste-skill" redesign checklist).
+  Visible text earns its place: no eyebrow label repeating the heading, one plain tagline, plain nav labels, no
+  lead line explaining the demo, card "why" lines only when the search words actually match (no generic "Related to
+  your search"), search/exclusion details folded into a "How we searched" toggle, the plugin pitch as one line, no
+  marketing clichés ("seamless", "elevate", "start shipping"…). Facts that matter stay visible: licence verdict,
+  stars, last update, the "Show N more we left out" undo, and the privacy line (shortened, linking to the full notice).
+
+- **RS38** Motion (web, owner request "transitions … smooth look"). One motion language: views swapped into the
+  results area (home demo, results, trending, errors) fade and rise in; cards revealed by scrolling or filters ease in;
+  modals fade with the sheet rising; theme and hover changes transition colours over 0.3 s; the how-it-works demo
+  cross-dissolves inside one fixed frame (RS36). Same easing everywhere (cubic-bezier(.22,1,.36,1)), 0.25–0.6 s.
+  Everything is off under prefers-reduced-motion (the page's global reduced-motion rule).
 
 ## RX — Deliberately excluded (v0.1)
 
