@@ -233,6 +233,11 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   Copy is the guaranteed path and is always offered, and the link is dropped when the URL would exceed a safe
   length. The prompt instructs Claude to use only the listed repos and invent no libraries, versions, or
   statistics (evidence-only, mirrors RS9/RS14). Selection resets on a new search or Home.
+- **RS28b** Other AI assistants (owner request 2026-10-14). Below "Open in Claude" (still the main button) the plan
+  modal offers "Open in ChatGPT" (`https://chatgpt.com/?q=<encoded>`, best-effort and unofficial like the Claude link,
+  dropped under the same length rule) and "Copy & open Gemini" (copies the prompt, then opens
+  `https://gemini.google.com/app`; Gemini has no known pre-fill link, so the button says the visitor pastes). Nothing is
+  sent by the page itself; each opens the visitor's own account. The privacy notice names both.
 - **RS28a** Select all shown + triage. In the top-matches view a "Select all shown" control ticks every card
   currently visible — respecting the active result filter (RS29) and how far the user has scrolled — and becomes
   "Deselect shown" when all visible cards are ticked. It never ticks hidden or filtered-out cards. Because a bulk

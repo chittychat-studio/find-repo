@@ -363,6 +363,11 @@
   .primary-cta{display:block;text-align:center;margin-top:12px;color:#fff;text-decoration:none;border-radius:10px;
     padding:13px 18px;font-weight:700;background:linear-gradient(135deg,var(--accent),var(--accent-ink));
     box-shadow:0 10px 22px -10px rgba(192,83,44,.8);transition:transform .12s,box-shadow .18s}
+  .prd-alt{display:flex;gap:8px;margin-top:8px}
+  .ghost-cta{flex:1;display:block;text-align:center;padding:10px 12px;border-radius:10px;border:1.5px solid var(--accent);
+    background:transparent;color:var(--accent-ink);font:inherit;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none}
+  .ghost-cta:hover{background:color-mix(in srgb,var(--accent) 10%,transparent);text-decoration:none}
+  .ghost-cta[hidden]{display:none}
   .primary-cta:hover{transform:translateY(-1px);box-shadow:0 16px 30px -12px rgba(192,83,44,.9);text-decoration:none}
   @media (max-width:700px){ .prd-bar{left:12px;right:12px;transform:none;justify-content:space-between} }
   /* desktop = expanded format: wider cards that spell out the license meaning in full */
@@ -686,14 +691,19 @@
   <h2>Turn your picks into a build plan</h2>
   <p class="mut">A build plan (a PRD — product requirements doc) your AI can code straight from. Replore doesn't
     write it — your <b>own</b> AI does, free and private. Copy the prompt below into any AI agent (Claude Code,
-    Codex, Cursor…) or open it in Claude. It lists the repos you selected.</p>
+    Codex, Cursor…) or open it in Claude, ChatGPT or Gemini. It lists the repos you selected.</p>
   <div class="prd-prompt">
     <pre class="cmd" id="prdPrompt" data-copy-ready="1" style="margin:0;max-height:240px;overflow:auto;white-space:pre-wrap;padding-right:46px"></pre>
     <button id="prdCopy" class="copy" title="Copy prompt" aria-label="Copy prompt">⧉</button>
   </div>
   <a id="prdOpen" class="primary-cta" href="#" target="_blank" rel="noopener">Open in Claude ↗</a>
-  <p id="prdLong" class="mut" style="margin-top:10px" hidden><b>Too many repos for the Open in Claude link.</b> Tap the copy
-    icon above and paste into Claude or any AI — or untick a few repos.</p>
+  <div class="prd-alt">   <!-- RS28b: other assistants, secondary to Claude -->
+    <a id="prdGpt" class="ghost-cta" href="#" target="_blank" rel="noopener">Open in ChatGPT ↗</a>
+    <button type="button" id="prdGemini" class="ghost-cta">Copy &amp; open Gemini ↗</button>
+  </div>
+  <p id="prdGemNote" class="mut" style="margin-top:8px;text-align:center" hidden>Prompt copied — paste it into Gemini.</p>
+  <p id="prdLong" class="mut" style="margin-top:10px" hidden><b>Too many repos for the Claude and ChatGPT links.</b> Tap the copy
+    icon above and paste into any AI — or untick a few repos.</p>
   <p class="mut" style="margin-top:10px"><b>Open in Claude</b> opens a new chat on your own claude.ai account
     with the prompt ready to send. (If your browser doesn't pre-fill it, just tap the copy icon and paste.)
     New to the plugin? <button class="link-btn" onclick="openModal('pluginModal')">See setup</button>.</p>
@@ -857,7 +867,8 @@
     <li><b>On your device only:</b> your last search, results and filters, so a refresh brings them back. Tap <b>✕</b> in the
       search bar or the Replore logo to delete them.</li>
     <li><b>Uploaded plans</b> are read in your browser and never uploaded; only short feature phrases are searched on GitHub.</li>
-    <li><b>Open in Claude</b> sends the build-plan prompt to your own claude.ai account, only when you click it.</li>
+    <li><b>Open in Claude</b> or <b>Open in ChatGPT</b> sends the build-plan prompt to your own claude.ai or chatgpt.com
+      account, only when you click it. <b>Copy &amp; open Gemini</b> copies it and opens gemini.google.com; you paste it.</li>
     <li><b>Feedback</b> opens your own email app with a message to hello@cardzo.co.in, pre-filled with what you typed;
       it's sent only if you press send there, and Cardzo then has your email address to reply.</li>
     <li>No cookies, ads or tracking pixels from Replore.</li>
@@ -1631,8 +1642,16 @@ document.addEventListener("keydown",function(e){ if(e.key==="Escape") closeModal
       var tooLong=url.length>7500, note=document.getElementById("prdLong");
       if(tooLong) openLink.setAttribute("hidden","");       // too long for a URL — Copy only (RS28a: say so)
       else { openLink.removeAttribute("hidden"); openLink.href=url; }
+      var gpt=document.getElementById("prdGpt"), gurl="https://chatgpt.com/?q="+encodeURIComponent(text);   // RS28b
+      if(gpt){ if(gurl.length>7500) gpt.setAttribute("hidden",""); else { gpt.removeAttribute("hidden"); gpt.href=gurl; } }
+      var gn=document.getElementById("prdGemNote"); if(gn) gn.hidden=true;
       if(note) note.hidden=!tooLong; }
     openModal("prdModal"); });
+  var gemBtn=document.getElementById("prdGemini");   // RS28b: Gemini has no pre-fill link — copy, then open it
+  if(gemBtn) gemBtn.addEventListener("click",function(){ var text=pre?pre.textContent:"", gn=document.getElementById("prdGemNote");
+    window.open("https://gemini.google.com/app","_blank","noopener");
+    if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function(){ if(gn) gn.hidden=false; },function(){});
+    else if(gn){ gn.textContent="Tap the copy icon above, then paste into Gemini."; gn.hidden=false; } });
   if(copyBtn) copyBtn.addEventListener("click",function(){ var text=pre?pre.textContent:"";
     function ok(){ copyBtn.textContent="✓"; setTimeout(function(){ copyBtn.textContent="⧉"; },1400); }
     if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(ok,ok); }

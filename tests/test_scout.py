@@ -630,6 +630,7 @@ def test_web_page_is_safe_static(monkeypatch):
     # RS28 select-to-PRD hand-off: no model call/key; copy + deep-link to the user's own Claude
     assert 'class="pick-cb"' in html and 'id="prdModal"' in html and 'id="prdPrompt"' in html
     assert "claude.ai/new?q=" in html and "Copy prompt" in html
+    assert "chatgpt.com/?q=" in html and "gemini.google.com/app" in html   # RS28b
     # RS28a: 'Select all shown' acts on visible cards only; the prompt makes the AI triage USE / REFERENCE ONLY / REJECT
     assert 'id="resSelAll"' in html and "function shownPickBoxes" in html and 'style.display!=="none"' in html
     assert "USE, REFERENCE ONLY" in html and "build only on the ones you USE" in html and 'id="prdLong"' in html
@@ -719,10 +720,10 @@ def test_privacy_notice_matches_what_the_code_does():
         assert banned not in html, banned
     # only these hosts are contacted; PRIVACY.md names each of them
     hosts = set(re.findall(r"https://([a-z0-9.-]+)", html))
-    allowed = {"api.github.com", "github.com", "claude.ai", "claude.com", "replore.pages.dev", "cardzo.co.in", "groq.com", "www.cloudflare.com", "challenges.cloudflare.com"}  # RS34/RS34a provider terms, RS34c Turnstile
+    allowed = {"api.github.com", "github.com", "claude.ai", "claude.com", "replore.pages.dev", "cardzo.co.in", "chatgpt.com", "gemini.google.com", "groq.com", "www.cloudflare.com", "challenges.cloudflare.com"}  # RS34/RS34a provider terms, RS34c Turnstile
     assert hosts <= allowed, hosts - allowed
     for named in ("api.github.com", "Cloudflare", "claude.ai", "security.log", "200 characters", "off by default",
-                  "Groq", "Cloudflare Workers AI", "Turnstile", "relevance check", "stores nothing", "Feedback"):  # RS34 data flow must be disclosed
+                  "Groq", "Cloudflare Workers AI", "Turnstile", "relevance check", "stores nothing", "Feedback", "chatgpt.com", "gemini.google.com"):  # RS34 data flow must be disclosed
         assert named in priv, named
     # the hook really writes only on a match, at most 200 chars, locally
     hook = (ROOT / "hooks" / "security_log.py").read_text()
