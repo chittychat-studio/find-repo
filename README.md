@@ -190,7 +190,7 @@ python3 -m pytest
 
 No account, no database, no analytics, nothing stored: the makers of Replore never keep your ideas or searches.
 Search words go to GitHub to run the search; on the web page they also pass through a small relevance check to an AI
-provider (Cloudflare Workers AI, with Groq as fallback) that hides off-topic repos. Fonts and scripts are served from the site itself. The plugin never uses
+provider (Cloudflare Workers AI, with Groq as fallback) that moves off-topic repos to the end of the list. Fonts and scripts are served from the site itself. The plugin never uses
 the relevance check. Details — including what the web page keeps in your browser and the plugin's optional,
 off-by-default local safety log — are in [`PRIVACY.md`](PRIVACY.md).
 
@@ -198,7 +198,7 @@ off-by-default local safety log — are in [`PRIVACY.md`](PRIVACY.md).
 
 Repository data from the GitHub API. Replore is not affiliated with or endorsed by GitHub. GitHub® is a trademark of GitHub, Inc.
 
-Find Replore useful? The web page has a ☕ Tip link (Stripe). Tips help us keep Replore free and fund more open-source projects.
+Find Replore useful? The web page has a Tip button next to ★ Star, and a QR code in the plan window (both Stripe). Tips are optional, unlock nothing, and help us keep Replore free and fund more open-source projects.
 
 ## License
 
