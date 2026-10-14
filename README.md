@@ -194,6 +194,12 @@ provider (Cloudflare Workers AI, with Groq as fallback) that hides off-topic rep
 the relevance check. Details — including what the web page keeps in your browser and the plugin's optional,
 off-by-default local safety log — are in [`PRIVACY.md`](PRIVACY.md).
 
+## Credits
+
+Repository data from the GitHub API. Replore is not affiliated with or endorsed by GitHub. GitHub® is a trademark of GitHub, Inc.
+
+Find Replore useful? The web page has a ☕ Tip link (Stripe). Tips help us keep Replore free and fund more open-source projects.
+
 ## License
 
 MIT. See `LICENSE`.

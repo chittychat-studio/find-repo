@@ -14,7 +14,7 @@ global.window = global;
 const s = {};
 new Function("document", "localStorage",
   code + "; this.keywordQueries=keywordQueries; this.rankByFit=rankByFit; this.fitScore=fitScore; this.whyRelevant=whyRelevant; this.esc=esc; this.lu=lu; this.freeText=freeText;" +
-  " this.keep=keep; this.recentKey=recentKey; this.recentFind=recentFind; this.recentAdd=recentAdd; this.CACHE_V=CACHE_V; this.clean=clean; this.harmful=harmful; this.harmfulRepo=harmfulRepo; this.prdFeatures=prdFeatures; this.trendingQuery=trendingQuery; this.trendRows=trendRows; this.feedbackUrl=feedbackUrl; this.feedbackPayload=feedbackPayload; this.agoText=agoText; this.cardHtml=cardHtml; this.bm25Scores=bm25Scores; this.repoText=repoText; this.rrfOrder=rrfOrder; this.hybridOrder=hybridOrder; this.confirmQueries=confirmQueries;").call(s, document, global.localStorage || {getItem:()=>null,setItem(){},removeItem(){}});
+  " this.keep=keep; this.tipUrlOk=tipUrlOk; this.clean=clean; this.harmful=harmful; this.harmfulRepo=harmfulRepo; this.prdFeatures=prdFeatures; this.trendingQuery=trendingQuery; this.trendRows=trendRows; this.feedbackUrl=feedbackUrl; this.feedbackPayload=feedbackPayload; this.agoText=agoText; this.cardHtml=cardHtml; this.recentKey=recentKey; this.recentFind=recentFind; this.recentAdd=recentAdd; this.CACHE_V=CACHE_V; this.bm25Scores=bm25Scores; this.repoText=repoText; this.rrfOrder=rrfOrder; this.hybridOrder=hybridOrder; this.confirmQueries=confirmQueries;").call(s, document, global.localStorage || {getItem:()=>null,setItem(){},removeItem(){}});
 
 // RS16: iOS excludes macOS
 // RS16: expansions are specific on-topic phrases, never a bare category (live regression: "website" -> "frontend framework"
@@ -37,6 +37,10 @@ new Function("document", "localStorage",
   assert.ok(kq("a portfolio website with smooth scroll animations")[0].split(" ").length <= 3);            // core query <= 3 words
 }
 assert.ok(s.keywordQueries("a diet app for iphone", "ios").every(q => q.includes("-topic:macos")));
+// RS44: only a Stripe Payment Link is accepted
+assert.ok(s.tipUrlOk("https://buy.stripe.com/abc123XYZ"));
+["", "http://buy.stripe.com/abc", "https://evil.com/buy.stripe.com/x", "https://buy.stripe.com/a b", "javascript:alert(1)", "https://buy.stripe.com/x?y=1"]
+  .forEach(u => assert.ok(!s.tipUrlOk(u), u));
 // RS43 A: the visitor's own 1-hour cache (pure functions)
 { const f = { q: "  Diet  Tracker ", platform: "web", minstars: "50", starters: "yes", stack: "", like: "" };
   const k = s.recentKey(f);

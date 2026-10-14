@@ -80,6 +80,8 @@
   /* top-down page: big search hero on top, results below */
   .page{max-width:1160px;margin:0 auto;padding:20px 20px 56px;width:100%}
   .hero{max-width:760px;margin:0 auto 14px;text-align:center}
+  .gh-credit{font-size:11.5px;color:var(--muted);text-align:center;margin:4px 0 0;opacity:.85}   /* RS44 */
+  .brand-by,.privacy-note .tip-el{white-space:nowrap}   /* footer only: the plan-window tip line must wrap */
   .hero-pill{display:inline-flex;align-items:center;gap:6px;margin:0 0 12px;padding:5px 12px;border-radius:999px;
     font-size:13px;font-weight:600;letter-spacing:.01em;color:var(--accent-ink);background:rgba(192,83,44,.08);border:1px solid rgba(192,83,44,.22)}
   .hero-pill span{font-size:12px}
@@ -703,7 +705,9 @@
       <button type="button" class="link-btn" id="aboutBtn">How ranking works</button> ·
       <button type="button" class="link-btn" id="nextBtn">Next steps</button> ·
       <button type="button" class="link-btn" id="fbBtn">Feedback</button>
+      <span class="tip-el" hidden>· <a class="tip-link" href="#" target="_blank" rel="noopener noreferrer">☕ Tip</a></span>
       <span class="brand-by">· A <a href="https://cardzo.co.in" target="_blank" rel="noopener noreferrer">Cardzo</a> product</span></p>
+    <p class="gh-credit">Repository data from the GitHub API. Replore is not affiliated with or endorsed by GitHub. GitHub® is a trademark of GitHub, Inc.</p>
   </section>
 </main>
 
@@ -733,6 +737,8 @@
   <p id="prdGemNote" class="mut" style="margin-top:8px;text-align:center" hidden>Prompt copied — paste it into Gemini (it has no pre-fill link).</p>
   <p id="prdLong" class="mut" style="margin-top:10px" hidden><b>Too many repos for the Claude and ChatGPT links.</b> Tap the copy
     icon above and paste into any AI — or untick a few repos.</p>
+  <p class="mut tip-el" style="margin-top:10px;text-align:center" hidden>Got a useful plan? <a class="tip-link" href="#" target="_blank"
+    rel="noopener noreferrer">Leave a tip ☕</a> It helps us keep Replore free and fund more open-source projects.</p>
   <p id="prdMany" class="mut" style="margin-top:10px" hidden><b>Plans work best with 10 or fewer repos.</b> You picked
     <span id="prdManyN"></span> — untick the weakest few for a sharper plan.</p>
   <p class="mut" style="margin-top:10px"><b>Open in Claude</b> opens a new chat on your own claude.ai account
@@ -897,6 +903,8 @@
       (<a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Cloudflare</a>,
       <a href="https://groq.com/privacy-policy/" target="_blank" rel="noopener">Groq</a>). If the check is unavailable you simply
       get the unfiltered keyword results.</li>
+    <li><b>Where repo data comes from:</b> the GitHub API. Replore is not affiliated with or endorsed by GitHub.
+      GitHub® is a trademark of GitHub, Inc. Tips (if you leave one) go through Stripe; we never see your card details.</li>
     <li><b>Saved for an hour:</b> your browser keeps your last 10 searches and their results on this device for one hour,
       so repeating one is instant. They never leave your device; the next search after an hour runs fresh. For identical
       searches, our relevance check also reuses the AI's answer for an hour; it keeps only a fingerprint of the search and which
@@ -2108,6 +2116,12 @@ function showHome(){
   if(window.__resetPicks) window.__resetPicks();
 }
 // remember the last results so a page refresh brings them back (cached locally, no new API call)
+// RS44: the owner's Stripe Payment Link (public URL, no key). Empty = all tip elements stay hidden.
+var TIP_URL="";
+function tipUrlOk(u){ return /^https:\/\/buy\.stripe\.com\/[A-Za-z0-9_\-]+$/.test(String(u||"")); }
+(function(){ if(!tipUrlOk(TIP_URL)) return;
+  document.querySelectorAll(".tip-link").forEach(function(a){ a.href=TIP_URL; });
+  document.querySelectorAll(".tip-el").forEach(function(el){ el.hidden=false; }); })();
 var LAST="findrepo_last", CACHE_V="9";  // bump when saved markup changes, so stale caches are dropped
 // RS43 A: the visitor's own last 10 searches for 1 hour, in their browser only. Pure functions (tested) + thin wrappers.
 var RECENT="replore_recent", RECENT_TTL_MS=3600000, RECENT_MAX=10;

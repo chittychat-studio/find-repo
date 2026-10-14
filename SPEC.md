@@ -498,6 +498,15 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   failed call (RS7 unchanged; owner did not opt into partial results). The Cloudflare rate-limit rule (10 requests /
   10 s per IP on `replore.cardzo.co.in/api/relevance`, all methods, block 10 s) is the owner's dashboard setting.
 
+- **RS44** Tips and GitHub credit (owner request 2026-10-14). **Tip jar:** a Stripe Payment Link (a public
+  `https://buy.stripe.com/...` URL; no Stripe key of any kind is in the page or the repo), set in one constant `TIP_URL`
+  in `web/index.html`. Empty = every tip element stays hidden. Shown in two places only, never as a pop-up: a "☕ Tip"
+  link in the footer, and one polite line in the plan window after the user has their plan ("Got a useful plan? Leave a
+  tip ☕ It helps us keep Replore free and fund more open-source projects."). Tipping is optional and unlocks nothing.
+  The link only accepts Stripe's own `https://buy.stripe.com/` address (anything else keeps it hidden).
+  **GitHub credit:** the footer, README and privacy page say "Repository data from the GitHub API. Replore is not
+  affiliated with or endorsed by GitHub. GitHub® is a trademark of GitHub, Inc." The GitHub logo and Octocat are never
+  used (GitHub brand rules); every card links back to the repo on GitHub.
 - **RS43** Result caching, 1 hour (owner request 2026-10-14: "don't lose results and don't end up re-digging for
   similar"). Anthropic prompt caching (`cache_control: {"type": "ephemeral", "ttl": "1h"}`) does not apply: Replore makes
   no Claude API call (RS1, RS34a), and prompt caching only discounts re-reading a prompt — it never returns a saved
