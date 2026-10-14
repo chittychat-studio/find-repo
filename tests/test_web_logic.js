@@ -14,7 +14,7 @@ global.window = global;
 const s = {};
 new Function("document", "localStorage",
   code + "; this.keywordQueries=keywordQueries; this.rankByFit=rankByFit; this.fitScore=fitScore; this.whyRelevant=whyRelevant; this.esc=esc; this.lu=lu; this.freeText=freeText;" +
-  " this.keep=keep; this.tipUrlOk=tipUrlOk; this.clean=clean; this.harmful=harmful; this.harmfulRepo=harmfulRepo; this.prdFeatures=prdFeatures; this.trendingQuery=trendingQuery; this.trendRows=trendRows; this.feedbackUrl=feedbackUrl; this.feedbackPayload=feedbackPayload; this.agoText=agoText; this.cardHtml=cardHtml; this.recentKey=recentKey; this.recentFind=recentFind; this.recentAdd=recentAdd; this.CACHE_V=CACHE_V; this.bm25Scores=bm25Scores; this.repoText=repoText; this.rrfOrder=rrfOrder; this.hybridOrder=hybridOrder; this.confirmQueries=confirmQueries;").call(s, document, global.localStorage || {getItem:()=>null,setItem(){},removeItem(){}});
+  " this.keep=keep; this.ragRan=ragRan; this.hasDesc=hasDesc; this.descHtml=descHtml; this.tipUrlOk=tipUrlOk; this.clean=clean; this.harmful=harmful; this.harmfulRepo=harmfulRepo; this.prdFeatures=prdFeatures; this.trendingQuery=trendingQuery; this.trendRows=trendRows; this.feedbackUrl=feedbackUrl; this.feedbackPayload=feedbackPayload; this.agoText=agoText; this.cardHtml=cardHtml; this.recentKey=recentKey; this.recentFind=recentFind; this.recentAdd=recentAdd; this.CACHE_V=CACHE_V; this.bm25Scores=bm25Scores; this.repoText=repoText; this.rrfOrder=rrfOrder; this.hybridOrder=hybridOrder; this.confirmQueries=confirmQueries;").call(s, document, global.localStorage || {getItem:()=>null,setItem(){},removeItem(){}});
 
 // RS16: iOS excludes macOS
 // RS16: expansions are specific on-topic phrases, never a bare category (live regression: "website" -> "frontend framework"
@@ -37,6 +37,15 @@ new Function("document", "localStorage",
   assert.ok(kq("a portfolio website with smooth scroll animations")[0].split(" ").length <= 3);            // core query <= 3 words
 }
 assert.ok(s.keywordQueries("a diet app for iphone", "ios").every(q => q.includes("-topic:macos")));
+// RS42b: the "words and meaning" wording follows what actually ran for the search, not just the switch
+assert.ok(s.ragRan(Object.assign([], { rag: { meaning: true, index: false } })));
+assert.ok(s.ragRan(Object.assign([], { rag: { meaning: false, index: true } })));
+assert.ok(!s.ragRan(Object.assign([], { rag: { meaning: false, index: false } })));
+assert.ok(!s.ragRan([]) && !s.ragRan("off") && !s.ragRan({ fail: true, error: "x" }) && !s.ragRan(null));
+// RS45: an empty GitHub description is said plainly, and such repos never fill the trending showcase
+assert.ok(!s.hasDesc({ desc: "" }) && !s.hasDesc({ desc: "   " }) && !s.hasDesc({}) && s.hasDesc({ desc: "Maps" }));
+assert.ok(s.descHtml({ desc: "" }).includes("No description on GitHub") && !s.descHtml({ desc: "" }).includes("—"));
+assert.strictEqual(s.descHtml({ desc: "<b>x</b>" }), s.esc("<b>x</b>"));   // escaped like every other repo text
 // RS44: only a Stripe Payment Link is accepted
 assert.ok(s.tipUrlOk("https://buy.stripe.com/abc123XYZ"));
 ["", "http://buy.stripe.com/abc", "https://evil.com/buy.stripe.com/x", "https://buy.stripe.com/a b", "javascript:alert(1)", "https://buy.stripe.com/x?y=1"]

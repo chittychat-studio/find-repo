@@ -56,6 +56,21 @@ page (RS22). The pieces RS42 needs (one embedding call, one vector query, rank f
 
 **Plugin:** `--semantic` needs `RAG_PLUGIN` = `1` as well (it has no bot check; see SPEC RS42 for the risk). `--rank hybrid` works offline any time.
 
+## Testing it on a preview, and seeing failures (RS42b)
+
+RAG falls back to keyword results when it fails, so visitors always get results. That fallback is never silent:
+
+- **Logs:** every fallback writes one line, `{"evt":"rag_fail","code":...}`, in Cloudflare → replore → Functions → logs.
+  Codes: `sem_timeout` (embedding slower than 1.5 s), `sem_error` (model call failed), `sem_bad_shape` (unexpected reply),
+  `index_timeout`, `index_error`. Codes and timings only; never what anyone typed.
+- **Per search:** with a switch on, each reply says `rag: {meaning, index}` (what actually ran). The page shows
+  "Search by words and meaning" only when one of them ran for that search.
+- **Smoke check:** with `RAG_RERANK=1` (and `RAG_PLUGIN=1`) set for **Preview** only:
+  `python ops/rag_smoke.py https://<branch>.replore.pages.dev` reads the switches for free and stops;
+  add `--yes` to run 3 fixed searches (3 Workers AI embedding calls). Exit 0 = RAG ran cleanly.
+
+Turn a switch on for Production only after a clean smoke run and no `rag_fail` lines on the preview.
+
 ## The pipeline in code
 
 | Step | Web | Plugin | Server / ops |

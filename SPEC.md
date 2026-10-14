@@ -498,9 +498,18 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   failed call (RS7 unchanged; owner did not opt into partial results). The Cloudflare rate-limit rule (10 requests /
   10 s per IP on `replore.cardzo.co.in/api/relevance`, all methods, block 10 s) is the owner's dashboard setting.
 
+- **RS45** Empty descriptions (owner 2026-10-14: "why is this blank"). GitHub gives some repos no description. The
+  page and the plugin's text/markdown output say "No description on GitHub" (muted), never "—" and never an invented
+  description (evidence only). JSON and CSV keep the empty value. The home trending carousel skips such repos: a
+  showcase card must say what the repo does. Search results and the Trending gallery still list them.
+
+- **RS44a** One look for the top bar (owner 2026-10-14: "nav buttons in desktop inconsistent"). Every control in the
+  bar is 32px tall; buttons and links share one display style; icons are single-colour (★, a line cup icon for Tip,
+  ☾/☼ for the theme), never colour emoji next to plain glyphs.
+
 - **RS44** Tips and GitHub credit (owner request 2026-10-14). **Tip jar:** a Stripe Payment Link (a public
   `https://buy.stripe.com/...` URL; no Stripe key of any kind is in the page or the repo), set in one constant `TIP_URL`
-  in `web/index.html`. Empty = every tip element stays hidden. Shown in two places only, never as a pop-up: a "☕ Tip"
+  in `web/index.html`. Empty = every tip element stays hidden. Shown in two places only, never as a pop-up: a "Tip" (cup icon)
   button next to ★ Star in the top bar (owner 2026-10-14: "not footer, beside the star button"), and one polite line in the plan window after the user has their plan ("Got a useful plan? Leave a
   tip ☕ It helps us keep Replore free and fund more open-source projects."). Tipping is optional and unlocks nothing.
   The link only accepts Stripe's own `https://buy.stripe.com/` address (anything else keeps it hidden). A Stripe
@@ -608,6 +617,16 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
     stdlib plugin (RS11) and the no-build page (RS22) cannot take, for orchestration Replore does not need.
     BM25 *alone* as the reranker — measured at pooled AUC 0.56 on the relevance set, close to chance; it is kept
     only as the lexical half of the hybrid.
+- **RS42b** RAG is never silently broken (owner question 2026-10-14: "will it fail silently?"). Falling back to keyword
+  results stays the behaviour (RS7: a visitor still gets results), but: (1) every fallback in the semantic half writes one
+  codes-only `rag_fail` record through `logFailure` (`sem_timeout`, `sem_error`, `sem_bad_shape`, `index_timeout`,
+  `index_error`; never the query, repos, IP or provider text); (2) when a RAG switch is on, each reply carries
+  `rag: {meaning, index}` saying what actually ran for that search, and the page shows its "words and meaning" wording
+  after a search only when one of them ran (switch on is not enough); (3) `ops/rag_smoke.py <preview-url>` checks a
+  deployment for real: it reads the switches for free, then, only with `--yes` (E4-style cost gate: one Workers AI
+  embedding call per fixed search), sends fixed searches through the plugin route (needs `RAG_PLUGIN=1`, Preview only)
+  and exits 1 if meaning scores or indexed repos are missing or malformed. Production switches go on only after a clean
+  smoke run on a preview.
 
 ## RX — Deliberately excluded (v0.1)
 

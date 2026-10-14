@@ -499,3 +499,36 @@ console.log("rag review fixes ok");
   c = await (await fn.onRequestGet({ env: { AI: { run: async () => ({}) }, RAG_RERANK: "1", RAG_PLUGIN: "1" } })).json();
   assert.deepStrictEqual(c.rag, { rerank: true, index: false }); }
 console.log("rag wording switch ok");
+
+// RS42b: a broken semantic half is never silent (one codes-only log line) and every reply says what actually ran
+{ const two = [{ name: "a/x", description: "diet" }, { name: "b/y", description: "karaoke" }];
+  const logs = [], real = console.log; console.log = s => logs.push(String(s));
+  let res;
+  try {
+    const broken = { run: async (m, input) => { if (input.text) throw new Error("5007 model gone"); return { response: '{"drop":[]}' }; } };
+    res = await fn.semanticScores("my secret idea", two, { AI: broken, RAG_RERANK: "1" });
+    await fn.semanticScores("q", two, { AI: { run: async () => ({ data: [[1]] }) }, RAG_RERANK: "1" });
+    const slow = { run: () => new Promise(r => setTimeout(() => r({ data: [[1], [1], [1]] }), 200)) };
+    await fn.semanticScores("q", two, { AI: slow, RAG_RERANK: "1" }, 20);
+    const ok = { run: async (m, input) => ({ data: input.text.map(() => [1, 0]) }) };
+    await fn.semanticScores("q", two, { AI: ok, RAG_INDEX: "1", REPOS_INDEX: { query: async () => { throw new Error("down"); } } });
+  } finally { console.log = real; }
+  assert.strictEqual(res, null);
+  const recs = logs.map(s => JSON.parse(s));
+  assert.deepStrictEqual(recs.map(r => [r.evt, r.code]), [["rag_fail", "sem_error"], ["rag_fail", "sem_bad_shape"], ["rag_fail", "sem_timeout"], ["rag_fail", "index_error"]]);
+  assert.ok(!logs.join("").includes("secret") && !logs.join("").includes("5007"), "codes only: no query, no provider text");
+  // the reply reports what ran: meaning scores failed -> rag.meaning false; worked -> true; RAG off -> no rag field
+  const vecAI = ok => ({ run: async (m, input) => { if (input.text) { if (!ok) throw new Error("x"); return { data: input.text.map(() => [1, 0]) }; } return { response: '{"drop":[]}' }; } });
+  console.log = () => {};
+  let j;
+  try {
+    j = await (await post({ query: "diet", repos: two }, { AI: vecAI(false), RAG_RERANK: "1" })).json();
+    assert.deepStrictEqual(j.rag, { meaning: false, index: false });
+    j = await (await post({ query: "diet", repos: two }, { AI: vecAI(true), RAG_RERANK: "1" })).json();
+    assert.deepStrictEqual(j.rag, { meaning: true, index: false });
+    j = await (await post({ query: "diet", repos: two }, { AI: vecAI(true), RAG_INDEX: "1", REPOS_INDEX: { query: async () => ({ matches: [] }) } })).json();
+    assert.deepStrictEqual(j.rag, { meaning: false, index: true });
+    j = await (await post({ query: "diet", repos: two }, { AI: vecAI(true) })).json();
+    assert.ok(!("rag" in j));
+  } finally { console.log = real; } }
+console.log("rag observability ok");

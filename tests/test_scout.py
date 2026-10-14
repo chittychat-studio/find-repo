@@ -768,3 +768,15 @@ def test_privacy_notice_matches_what_the_code_does():
     hook = (ROOT / "hooks" / "security_log.py").read_text()
     assert "if not hits:" in hook and "text[:200]" in hook and "urllib" not in hook
     assert "if _log_path() is None:" in hook  # opt-in: off unless REPLORE_SECURITY_LOG is set (RS25)
+
+
+def test_empty_description_is_said_plainly():
+    """RS45: a repo with no GitHub description says so in text and markdown; JSON/CSV keep the empty value."""
+    res, _ = run([[repo("openai/math", 15000, description=None), repo("a/b", 10)]])
+    txt, md, csv_out = scout.render(res), scout.render_markdown(res), scout.render_csv(res)
+    assert "No description on GitHub" in txt and "No description on GitHub" in md
+    assert "No description on GitHub" not in csv_out
+    assert next(r for r in res["candidates"] if r["full_name"] == "openai/math")["description"] == ""
+    html = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
+    assert 'var NO_DESC="No description on GitHub";' in html and scout.NO_DESC == "No description on GitHub"
+    assert 'esc(r.desc||"—")' not in html
