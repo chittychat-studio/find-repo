@@ -715,7 +715,7 @@ def test_privacy_notice_matches_what_the_code_does():
     allowed = {"api.github.com", "github.com", "claude.ai", "claude.com", "replore.pages.dev", "groq.com", "www.cloudflare.com", "challenges.cloudflare.com"}  # RS34/RS34a provider terms, RS34c Turnstile
     assert hosts <= allowed, hosts - allowed
     for named in ("api.github.com", "Cloudflare", "claude.ai", "security.log", "200 characters", "off by default",
-                  "Groq", "Cloudflare Workers AI", "Turnstile", "relevance check", "stores nothing"):  # RS34 data flow must be disclosed
+                  "Groq", "Cloudflare Workers AI", "Turnstile", "relevance check", "stores nothing", "Feedback"):  # RS34 data flow must be disclosed
         assert named in priv, named
     # the hook really writes only on a match, at most 200 chars, locally
     hook = (ROOT / "hooks" / "security_log.py").read_text()
