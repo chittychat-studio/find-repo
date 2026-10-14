@@ -35,6 +35,7 @@ Then open a new terminal and try again. Do not search GitHub any other way.
    - Search per need, calling the script in batches of at most 4 queries (the unauthenticated rate limit),
      repeating until every need is covered, with `--all --group --markdown` so nothing is capped at 10.
      Example: `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/scout.py" "user authentication" "payment checkout" "push notifications" "image upload" --all --group --markdown`
+   - A need with no suitable repo gets the line "No good match found" under its heading (RS28c), never a stretched repo.
    - Present one section per need, each listing every suitable repo (the script already de-dupes a repo to the
      first need that found it). Apply the relevance gate (RS6) within each section and the safety drops (RS18).
    - Say clearly: "every suitable repo" = every open-source match that passed the filters, grouped by feature,
@@ -86,6 +87,10 @@ Then open a new terminal and try again. Do not search GitHub any other way.
      `swiftui app template -topic:macos`, `ios app starter`, `expo app template`.
    - Give each distinct need its own query (UI components, starter, animation), so the balanced ranking
      can show the best of each.
+   - Needs first, shell last (RS16a, the same rule the web page uses). Split the description into needs at
+     "and", "with", "plus" or "&". Search each specific need first; the generic shell ("website", "app", "page")
+     gets a query only if there is room left. Example: "a website with voice AI that shows offline maps" →
+     `voice ai`, `offline maps`, `maplibre`, `offline map tiles` — not `website template`.
 
 2. **Run the search.** Pass each query as a separate argument:
    `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/scout.py" "<query 1>" "<query 2>" --json`
@@ -102,6 +107,8 @@ Then open a new terminal and try again. Do not search GitHub any other way.
 3. **Relevance gate (RS6).** Go down `candidates` in the order given. Skip any repo that clearly does not fit
    the description and say why in one line. Never reorder, and never add a repo that is not in the output.
    Stop when you have 20 (or fewer, if the shortlist runs out, and say so).
+   Gaps (RS28c): if a need from the description has no fitting repo left, say so in one line ("No good match
+   for: voice AI") — never stretch an unrelated repo to cover it.
    Always skip, whatever the user asked (RS18), any repo whose description offers: account takeover of named
    services ("hack WhatsApp/Instagram/Facebook accounts"), spyware or stalkerware, credential stealers or
    phishing kits, remote-access trojans, DDoS tools, game cheats, cracks or keygens, or "free premium" or

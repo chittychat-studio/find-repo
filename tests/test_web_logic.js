@@ -37,6 +37,16 @@ new Function("document", "localStorage",
   assert.ok(kq("a portfolio website with smooth scroll animations")[0].split(" ").length <= 3);            // core query <= 3 words
 }
 assert.ok(s.keywordQueries("a diet app for iphone", "ios").every(q => q.includes("-topic:macos")));
+// RS16a needs first, shell last (owner test: generic website templates crowded out voice + offline maps)
+{ const kq = t => s.keywordQueries(t, "");
+  assert.deepStrictEqual(kq("website with voice ai and show offline maps"), ["voice ai", "offline maps", "maplibre", "offline map tiles"]);
+  assert.ok(!kq("website with voice ai and show offline maps").some(q => /template/.test(q)));
+  assert.deepStrictEqual(kq("a landing page with a waitlist").slice(0, 2), ["landing page", "waitlist"]);   // lone word keeps its shell
+  assert.ok(!kq("a diet and calorie tracking app").includes("diet"));                                       // bare word -> its expansions
+  assert.ok(kq("a diet and calorie tracking app").includes("calorie counter"));
+  assert.deepStrictEqual(kq("portfolio website builder"), ["portfolio website builder", "portfolio template", "portfolio website", "landing page template"]);   // single need unchanged
+  kq("e-commerce store with stripe payments and admin dashboard").forEach(q => assert.ok(q.split(" ").length <= 3, q));
+}
 // RS14/RS20 labels
 assert.strictEqual(s.freeText("MIT"), "Yes");
 assert.strictEqual(s.freeText("AGPL-3.0"), "Free to use, but you must share your code");
