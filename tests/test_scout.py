@@ -631,6 +631,11 @@ def test_web_page_is_safe_static(monkeypatch):
     assert 'class="pick-cb"' in html and 'id="prdModal"' in html and 'id="prdPrompt"' in html
     assert "claude.ai/new?q=" in html and "Copy prompt" in html
     assert "chatgpt.com/?q=" in html and "gemini.google.com/app" in html   # RS28b
+    assert "list it under GAPS instead of stretching" in html   # RS28c
+    assert "ask me 5 short questions that would most improve this plan" in html and "wait for my answers" in html   # RS28d
+    skill = (ROOT / "skills" / "find" / "SKILL.md").read_text(encoding="utf-8")
+    assert "Needs first, shell last (RS16a" in skill and "No good match" in skill and "RS28c" in skill   # web and plugin in sync
+    assert "var GENERIC=" in html and "RS16a" in html
     # RS28b: Gemini copies BEFORE opening its tab (a focused new tab makes the browser refuse the clipboard write)
     gem = html[html.index('getElementById("prdGemini")'):]
     gem = gem[:gem.index("gemini.google.com/app")]

@@ -588,6 +588,34 @@
    "text": "go micro. A framework for agents, tools and services",
    "rel": false,
    "src": "(fr"
+  },
+  {
+   "query": "website with voice ai and show offline maps",
+   "name": "JCodesMore/ai-website-cloner-template",
+   "text": "ai website cloner template. Clone any website with one command using AI coding agents",
+   "rel": false,
+   "src": "owner_voice_maps"
+  },
+  {
+   "query": "website with voice ai and show offline maps",
+   "name": "issaafalkattan/React-Landing-Page-Template",
+   "text": "React Landing Page Template. A simple react one page landing page templates for startups/companies",
+   "rel": false,
+   "src": "owner_voice_maps"
+  },
+  {
+   "query": "website with voice ai and show offline maps",
+   "name": "ixartz/Next-JS-Landing-Page-Starter-Template",
+   "text": "Next JS Landing Page Starter Template. 🚀 Free NextJS Landing Page Template written in Tailwind CSS 3 and TypeScript ⚡️",
+   "rel": false,
+   "src": "owner_voice_maps"
+  },
+  {
+   "query": "website with voice ai and show offline maps",
+   "name": "yenchiah/project-website-template",
+   "text": "project website template. A HTML/CSS Template for Building Projects or Personal Websites",
+   "rel": false,
+   "src": "owner_voice_maps"
   }
  ]
 }

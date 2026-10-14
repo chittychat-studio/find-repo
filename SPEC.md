@@ -92,6 +92,19 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   framework"). A bare category returns the most-starred general frameworks, which the fit ranking (RS5) then
   lifts above the relevant repos — seen live: "portfolio website builder" put Ionic, Expo, qiankun, Luigi, choo,
   san and argon in the top 13 via an expansion of "website" to "frontend framework".
+- **RS16a** Needs first, shell last — one query rule for the web page and the plugin (owner 2026-10-14: "both
+  must be in sync as much as possible"). A description is split into needs at "and", "with", "plus" or "&". Each
+  specific need is searched as its own short query first; then the `SYN` expansions of its words; the generic
+  shell ("website", "web", "site", "page", "app", "application", "tool", "platform") is searched only through
+  what room is left. A need that is one generic word plus one other keeps both ("landing page", not "landing");
+  a bare one-word need with an expansion ("diet") is searched through its expansions. The whole description
+  (first three kept words) is still added when there is room. Single-need descriptions behave exactly as before.
+  Seen live (owner test): "website with voice ai and show offline maps" spent two of four searches on generic
+  website templates and cut `offline map tiles`; the plan then listed four landing-page templates and no
+  voice or offline-map repo. With RS16a the searches are `voice ai`, `offline maps`, `maplibre`,
+  `offline map tiles`. The skill text states the same rule for the user's own AI (`skills/find/SKILL.md`, step 1).
+  Not yet checked against live GitHub results (the build session cannot reach GitHub search); the owner checks
+  the preview before merge.
 - **RS17** Beginner-friendly output. Every output ends with a short key: stars = how many people bookmarked
   it (popularity, not quality, and can be bought); last push = last time anyone updated it; the license label
   meaning. If no working Python is found, the skill stops and tells the user in plain words how to install it
@@ -233,6 +246,15 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   Copy is the guaranteed path and is always offered, and the link is dropped when the URL would exceed a safe
   length. The prompt instructs Claude to use only the listed repos and invent no libraries, versions, or
   statistics (evidence-only, mirrors RS9/RS14). Selection resets on a new search or Home.
+- **RS28c** Gaps, not stretches (owner 2026-10-14, same rule in web and plugin). The plan prompt tells the AI:
+  "If no repo above covers a feature, list it under GAPS instead of stretching a repo to fit." The plugin skill
+  says "No good match for: <need>" in the same case (single search and PRD mode). Fail closed (RS7): a missing
+  piece is named, never papered over.
+- **RS28d** Questions first (owner request 2026-10-14). The plan prompt ends with: "Before you write anything: ask
+  me 5 short questions that would most improve this plan, all in one numbered message, then wait for my answers."
+  A short interview gives the user's AI the facts the search can't (audience, must-haves, hosting, timeline), so the
+  plan fits better. Trade-off accepted: the plan arrives one reply later. Exactly one round of questions, so the
+  hand-off never turns into an open-ended chat before the plan.
 - **RS28b** Other AI assistants (owner request 2026-10-14: "all three buttons equal importance"). The plan modal
   offers three same-style buttons in one row (stacked on phones): "Open in Claude", "Open in ChatGPT"
   (`https://chatgpt.com/?q=<encoded>`, best-effort and unofficial like the Claude link, dropped under the same length
@@ -322,7 +344,7 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   otherwise "used up" with the soonest reset (capped at 24 h); when any provider failed for another reason, the plain "couldn't check" note is shown. A slow first provider gets at most 60% of the budget so the fallback still runs. Not configured = neither a key nor the binding. A provider whose free
   tier is restricted to experimentation or prototyping (e.g. GitHub Models free usage) is not added to the chain
   for the public site; every provider in the chain is named in `PRIVACY.md`. The live chain is scored with `evals/relevance_live.mjs` (the same
-  84-item set and pass bar, posted to the deployed endpoint), run by the manual GitHub workflow `relevance-eval-live`. **Example cache (RS34b):** for the built-in example
+  88-item set and pass bar, posted to the deployed endpoint), run by the manual GitHub workflow `relevance-eval-live`. **Example cache (RS34b):** for the built-in example
   searches only (the fixed texts of RS21, listed in the function and kept identical to the page by a test), a successful
   answer is kept in Cloudflare's edge cache for 24 h, keyed by a SHA-256 of the example text and the candidate repos,
   so repeat quick-pick taps spend no AI allowance. Text a visitor types is never cached or stored. Provider-side

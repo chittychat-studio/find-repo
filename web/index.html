@@ -977,12 +977,27 @@ var SYN={   // RS16: specific, live-checked phrases only — never a bare catego
  security:["vulnerable web application","web security training"], hacking:["vulnerable web application","web security training"],
  iphone:["swiftui app template"], habit:["habit tracker"], powerpoint:["pptx generate","presentation generator"]};
 
+var GENERIC=new Set("website websites web site page webpage app application tool platform".split(" "));   // RS16a: the "shell", least specific
+function kwWords(t){ return t.toLowerCase().replace(/[^a-z0-9 +#.]/g," ").split(/\s+/).filter(function(w){return w&&!STOP.has(w);}); }
+function synFor(w){ return SYN[w]||(w.length>3&&/s$/.test(w)?SYN[w.slice(0,-1)]:null); }   // "maps" -> map
 function keywordQueries(text, platform){
-  var words=text.toLowerCase().replace(/[^a-z0-9 +#.]/g," ").split(/\s+/).filter(function(w){return w&&!STOP.has(w);});
+  var words=kwWords(text);
   var core=words.slice(0,3).join(" ").trim();   // GitHub ANDs every word: >3 words usually matches nothing
-  var qs=[]; if(core) qs.push(core);
-  for(var i=0;i<words.length && qs.length<MAX_QUERIES;i++){ var w=words[i], ex=SYN[w]||(w.length>3&&/s$/.test(w)?SYN[w.slice(0,-1)]:null);   // "maps" -> map
-    if(ex) for(var j=0;j<ex.length && qs.length<MAX_QUERIES;j++) if(qs.indexOf(ex[j])<0) qs.push(ex[j]); }
+  // RS16a (same rule as the plugin skill): split the description into needs at "and" / "with" / "plus" / "&";
+  // each specific need gets its own query first, feature expansions next, the generic shell ("website", "app") last
+  var needs=text.toLowerCase().split(/\s+(?:and|with|plus|&)\s+/).map(kwWords).filter(function(n){ return n.length; });
+  var specific=needs.filter(function(n){ return n.some(function(w){ return !GENERIC.has(w); }); });
+  var qs=[], order=words;
+  function add(q){ if(q && qs.length<MAX_QUERIES && qs.indexOf(q)<0) qs.push(q); }
+  if(needs.length>1 && specific.length){
+    specific.forEach(function(n){ var own=n.filter(function(w){ return !GENERIC.has(w); });
+      if(n.length===1 && synFor(n[0])) return;   // a bare one-word need ("diet") is searched through its expansions instead
+      add((own.length>1?own:n).slice(0,3).join(" ")); });   // a lone word keeps its shell: "landing page", not "landing"
+    order=[].concat.apply([],specific).concat([].concat.apply([],needs.filter(function(n){ return specific.indexOf(n)<0; })));
+  } else add(core);
+  for(var i=0;i<order.length && qs.length<MAX_QUERIES;i++){ var ex=synFor(order[i]);
+    if(ex) for(var j=0;j<ex.length;j++) add(ex[j]); }
+  add(core);   // the whole description, as before, when there is room
   if(qs.length<2 && core) qs.push(core+" starter");
   var ex = platform==="ios"?" -topic:macos":""; // keep iOS off Mac apps
   return qs.slice(0,MAX_QUERIES).map(function(q){return (q+ex).trim();});
@@ -1704,7 +1719,10 @@ document.addEventListener("keydown",function(e){ if(e.key==="Escape") closeModal
       "Not every repo above will fit (they came from a keyword search). First triage each one as USE, REFERENCE ONLY "+
       "or REJECT, with a one-line reason, and build only on the ones you USE.\n\n"+
       "Include: overview and goals; key features; which repo above covers each part (with its GitHub URL); "+
-      "data model and APIs; non-goals; and open questions. Use only the repos listed — don't invent libraries, versions, or statistics.";
+      "data model and APIs; non-goals; and open questions. Use only the repos listed — don't invent libraries, versions, or statistics. "+
+      "If no repo above covers a feature, list it under GAPS instead of stretching a repo to fit.\n\n"+   // RS28c
+      "Before you write anything: ask me 5 short questions that would most improve this plan, all in one numbered "+
+      "message, then wait for my answers.";   // RS28d
   }
   if(clearBtn) clearBtn.addEventListener("click",function(){
     var cbs=out.querySelectorAll(".pick-cb"); for(var i=0;i<cbs.length;i++) cbs[i].checked=false;
