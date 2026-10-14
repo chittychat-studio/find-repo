@@ -370,7 +370,8 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
 - **RS36** Thinking orb (web). A pill with a small rotating dotted sphere (latitude rings of dots, depth-shaded in the
   ink colour, light and dark theme) and a short label with animated dots, in the style of a "Solving…" indicator.
   Used in two places: (1) on the home screen inside the how-it-works demo card, as its footer next to the step dots (one
-  component, one frame whose content cross-dissolves between steps), driven by the demo's own clock:
+  component, one frame whose content cross-dissolves between steps; the frame has no card background, border or shadow, so
+  the demo blends into the page — owner request 2026-10-14), driven by the demo's own clock:
   each time the card changes step, the label changes with it ("Reading your idea", "Searching GitHub", "Ranking by
   fit", "Writing your plan") — one animation, not two timers; (2) as the
   loading indicator in the status line while a search, similar-repo lookup, PRD search or trending list loads ("Searching
