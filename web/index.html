@@ -346,6 +346,17 @@
     .hero{max-width:1100px}
     .modes .mode-tile{max-width:none}
     .out-wrap{max-width:none}
+    /* home screen only: opening section = search (left) + live demo visual (right), then full-width bands below */
+    body:not(.has-results) .page{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);column-gap:56px;
+      grid-template-areas:"hero out" "car car" "foot foot";align-items:center}
+    body:not(.has-results) .out-wrap{display:contents}
+    body:not(.has-results) .hero{grid-area:hero;max-width:none;margin:0;text-align:left}
+    body:not(.has-results) .hero .sub{margin-left:0;margin-right:0}
+    body:not(.has-results) .modes, body:not(.has-results) .quickpicks{justify-content:flex-start}
+    body:not(.has-results) #out{grid-area:out;align-self:center}
+    body:not(.has-results) #out .explain .lead{text-align:center}
+    body:not(.has-results) #trendCar{grid-area:car;margin-top:28px}
+    body:not(.has-results) .out-wrap > .privacy-note{grid-area:foot}
   }
   @media (min-width:1500px){ .tcard{flex-basis:calc((100% - 40px)/5)} }
   @media (max-width:999px){ body.has-results .tcar{display:none} }
