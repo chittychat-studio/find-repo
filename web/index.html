@@ -733,6 +733,8 @@
   <p id="prdGemNote" class="mut" style="margin-top:8px;text-align:center" hidden>Prompt copied — paste it into Gemini (it has no pre-fill link).</p>
   <p id="prdLong" class="mut" style="margin-top:10px" hidden><b>Too many repos for the Claude and ChatGPT links.</b> Tap the copy
     icon above and paste into any AI — or untick a few repos.</p>
+  <p id="prdMany" class="mut" style="margin-top:10px" hidden><b>Plans work best with 10 or fewer repos.</b> You picked
+    <span id="prdManyN"></span> — untick the weakest few for a sharper plan.</p>
   <p class="mut" style="margin-top:10px"><b>Open in Claude</b> opens a new chat on your own claude.ai account
     with the prompt ready to send. (If your browser doesn't pre-fill it, just tap the copy icon and paste.)
     New to the plugin? <button class="link-btn" onclick="openModal('pluginModal')">See setup</button>.</p>
@@ -965,7 +967,10 @@ function freeText(spdx){ var u=lu(spdx);
  return"No: no license"; }
 function esc(s){var d=document.createElement("div");d.textContent=s==null?"":s;
   return d.innerHTML.replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
-function clean(s){return (s||"").replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁦-⁩]/g," ").trim().slice(0,200);}
+function clean(s){ s=(s||"").replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁦-⁩]/g," ").trim();
+  if(s.length<=200) return s;   // RS28f: long text ends at a word, with "…", never mid-word
+  var cut=s.slice(0,199), sp=cut.lastIndexOf(" ");
+  return (sp>140?cut.slice(0,sp):cut).replace(/[\s,.;:\-–—]+$/,"")+"…"; }
 function kstars(n){return n>=1000?(n/1000).toFixed(n>=10000?0:1)+"k":""+n;}
 
 var STOP=new Set("a an the my our your for to with and or of in on app apps application build building make making want really nice looking simple create please that helps people some something cool new project using use it by from first show as into about i ill i'll sell answers questions".split(" "));
@@ -1738,6 +1743,8 @@ document.addEventListener("keydown",function(e){ if(e.key==="Escape") closeModal
       if(gpt){ if(gurl.length>7500) gpt.setAttribute("hidden",""); else { gpt.removeAttribute("hidden"); gpt.href=gurl; } }
       var gn=document.getElementById("prdGemNote"); if(gn) gn.hidden=true;
       if(note) note.hidden=!tooLong; }
+    var many=document.getElementById("prdMany");   // RS28f: warn, never drop picks silently
+    if(many){ many.hidden=picks.length<=10; var mn=document.getElementById("prdManyN"); if(mn) mn.textContent=picks.length; }
     openModal("prdModal"); });
   var gemBtn=document.getElementById("prdGemini");   // RS28b: Gemini has no pre-fill link — copy, then open it
   // RS28b: copy BEFORE opening the tab: once Gemini's tab has focus the browser refuses clipboard writes from this page

@@ -634,6 +634,7 @@ def test_web_page_is_safe_static(monkeypatch):
     assert '"You are the principal architect for my vibe coding app, with 15+ years of experience building similar apps.' in html   # RS28e
     assert "million dollar" not in html
     assert "list it under GAPS instead of stretching" in html   # RS28c
+    assert 'id="prdMany"' in html and "picks.length<=10" in html and "Plans work best with 10 or fewer repos" in html   # RS28f
     assert "ask me 5 short questions that would most improve this plan" in html and "wait for my answers" in html   # RS28d
     skill = (ROOT / "skills" / "find" / "SKILL.md").read_text(encoding="utf-8")
     assert "Needs first, shell last (RS16a" in skill and "No good match" in skill and "RS28c" in skill   # web and plugin in sync
