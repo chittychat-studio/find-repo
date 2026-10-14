@@ -122,16 +122,17 @@ console.log("prd ok:", f.join(" | "));
   assert.match(fk.rows[0].whyText, /5\.0k forks/);
   console.log("trending ok"); }
 
-// RS39 feedback: pre-filled GitHub issue link, user text only URL-encoded, empty title refused
+// RS39 feedback: pre-filled email to Cardzo, user text only URL-encoded, empty title refused
 { assert.strictEqual(s.feedbackUrl("  ", "Bug", "x"), null);
   const u = s.feedbackUrl("Dark <mode> & more", "Feature request", "please\nthanks");
-  assert.ok(u.startsWith("https://github.com/chittychat-studio/replore/issues/new?title="));
-  const q = new URL(u).searchParams;
-  assert.strictEqual(q.get("title"), "[Feature request] Dark <mode> & more");
-  assert.match(q.get("body"), /^\*\*Type:\*\* Feature request\n\nplease\nthanks/);
+  assert.ok(u.startsWith("mailto:hello@cardzo.co.in?subject="));
+  const q = new URLSearchParams(u.split("?")[1]);
+  assert.strictEqual(q.get("subject"), "[Replore] [Feature request] Dark <mode> & more");
+  assert.match(q.get("body"), /^Type: Feature request\n\nplease\nthanks/);
   assert.ok(!/[<>&\s]/.test(u.split("?")[1].replace(/&body=/, "")), "raw text leaked into the URL");
-  assert.strictEqual(new URL(s.feedbackUrl("t", "<script>", "")).searchParams.get("title"), "[Other] t");  // unknown type
-  assert.strictEqual(new URL(s.feedbackUrl("x".repeat(500), "Bug", "")).searchParams.get("title").length, 6 + 120);
+  assert.strictEqual(new URLSearchParams(s.feedbackUrl("t", "<script>", "").split("?")[1]).get("subject"), "[Replore] [Other] t");  // unknown type
+  assert.strictEqual(new URLSearchParams(s.feedbackUrl("x".repeat(500), "Bug", "").split("?")[1]).get("subject").length, 16 + 120);
+  assert.ok(s.feedbackUrl("t", "Bug", "y".repeat(5000)).length < 2000, "mailto stays short enough for mail clients");
   console.log("feedback ok"); }
 
 // RS24 result card: relative date, escaped repo text, topics filtered

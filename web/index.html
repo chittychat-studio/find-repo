@@ -347,6 +347,7 @@
     color:var(--accent-ink);cursor:pointer;box-shadow:0 14px 30px -18px rgba(var(--shadow),.7)}
     .fb-fab:hover{border-color:var(--accent)} }
   .fb-err{color:var(--accent-ink);margin:-6px 0 8px}
+  .fb-alt{margin:10px 0 0;font-size:12.5px;text-align:center}
   /* floating PRD action bar */
   .prd-bar{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:38;display:flex;align-items:center;
     gap:12px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:8px 10px 8px 18px;
@@ -819,8 +820,8 @@
 <div class="modal" id="fbModal"><div class="sheet">
   <button class="x" data-close>&times;</button>
   <h2>Send feedback</h2>
-  <p class="mut">Report a bug or suggest an improvement. This opens a pre-filled issue on GitHub; it's public and
-    needs a GitHub account. Nothing is sent until you submit it there.</p>
+  <p class="mut">Report a bug or suggest an improvement. This opens your email app with the message filled in, addressed
+    to Cardzo. Nothing is sent until you press send there.</p>
   <div class="field"><label for="fbTitle">Title</label>
     <input id="fbTitle" type="text" maxlength="120" autocomplete="off" placeholder="Short summary"></div>
   <div class="field"><label for="fbType">Type</label>
@@ -828,7 +829,9 @@
   <div class="field"><label for="fbDesc">Description</label>
     <textarea id="fbDesc" maxlength="2000" rows="5" placeholder="What happened, or what would you like?"></textarea></div>
   <p class="mut fb-err" id="fbErr" hidden>Add a title first.</p>
-  <button type="button" id="fbGo" class="primary">Continue on GitHub →</button>
+  <button type="button" id="fbGo" class="primary">Open in my email app →</button>
+  <p class="mut fb-alt">No email app? Write to <b>hello@cardzo.co.in</b>
+    <button type="button" class="link-btn" id="fbCopy">Copy address</button></p>
 </div></div>
 
 <div class="modal" id="privacyModal"><div class="sheet">
@@ -855,8 +858,8 @@
       search bar or the Replore logo to delete them.</li>
     <li><b>Uploaded plans</b> are read in your browser and never uploaded; only short feature phrases are searched on GitHub.</li>
     <li><b>Open in Claude</b> sends the build-plan prompt to your own claude.ai account, only when you click it.</li>
-    <li><b>Feedback</b> opens a public GitHub issue in a new tab, pre-filled with what you typed; it's sent only if
-      you submit it on GitHub, under your GitHub account.</li>
+    <li><b>Feedback</b> opens your own email app with a message to hello@cardzo.co.in, pre-filled with what you typed;
+      it's sent only if you press send there, and Cardzo then has your email address to reply.</li>
     <li>No cookies, ads or tracking pixels from Replore.</li>
   </ul>
   <p class="mut" style="margin-top:10px">The plugin and MCP server run on your computer; your AI provider handles your
@@ -1557,14 +1560,13 @@ document.getElementById("aboutBtn").addEventListener("click",function(){ openMod
 document.getElementById("trendBtn").addEventListener("click",function(){ showTrending("rising"); });
 document.getElementById("trendHome").addEventListener("click",function(){ showTrending("rising"); });
 document.getElementById("nextBtn").addEventListener("click",function(){ openModal("nextModal"); });
-// RS39 feedback: build a pre-filled GitHub "New issue" link; user text only ever goes through encodeURIComponent
-var FB_TYPES=["Bug","Feature request","Content issue","Other"];
+// RS39 feedback: build a pre-filled email to Cardzo (mailto:); user text only ever goes through encodeURIComponent
+var FB_TYPES=["Bug","Feature request","Content issue","Other"], FB_TO="hello@cardzo.co.in";
 function feedbackUrl(title, type, desc){
   title=String(title||"").trim().slice(0,120); if(!title) return null;
   if(FB_TYPES.indexOf(type)<0) type="Other";
-  var body="**Type:** "+type+"\n\n"+(String(desc||"").trim().slice(0,2000)||"(no description)")+"\n\n_Sent from the Replore feedback form._";
-  return "https://github.com/chittychat-studio/replore/issues/new?title="+encodeURIComponent("["+type+"] "+title)+
-    "&body="+encodeURIComponent(body);
+  var body="Type: "+type+"\n\n"+(String(desc||"").trim().slice(0,1500)||"(no description)")+"\n\n-- Sent from the Replore feedback form";
+  return "mailto:"+FB_TO+"?subject="+encodeURIComponent("[Replore] ["+type+"] "+title)+"&body="+encodeURIComponent(body);
 }
 function openFeedback(){ document.getElementById("fbErr").hidden=true; openModal("fbModal"); }
 document.getElementById("fbBtn").addEventListener("click",openFeedback);
@@ -1573,8 +1575,10 @@ document.getElementById("fbTitle").addEventListener("input",function(){ document
 document.getElementById("fbGo").addEventListener("click",function(){
   var u=feedbackUrl(document.getElementById("fbTitle").value, document.getElementById("fbType").value, document.getElementById("fbDesc").value);
   if(!u){ document.getElementById("fbErr").hidden=false; document.getElementById("fbTitle").focus(); return; }
-  window.open(u,"_blank","noopener"); closeModals();
+  window.location.href=u; closeModals();   // mailto: hands off to the visitor's email app; the page stays put
 });
+document.getElementById("fbCopy").addEventListener("click",function(){ var b=this;
+  try{ navigator.clipboard.writeText(FB_TO).then(function(){ b.textContent="Copied"; setTimeout(function(){ b.textContent="Copy address"; },1500); }); }catch(_){} });
 document.querySelectorAll("[data-close]").forEach(function(b){ b.addEventListener("click",closeModals); });
 document.querySelectorAll(".modal").forEach(function(m){ m.addEventListener("click",function(e){ if(e.target===m) closeModals(); }); });
 document.addEventListener("keydown",function(e){ if(e.key==="Escape") closeModals(); });
