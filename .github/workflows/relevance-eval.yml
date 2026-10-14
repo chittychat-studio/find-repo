@@ -36,4 +36,4 @@ jobs:
           echo "preview not ready"; exit 1
       - name: Compare models on the preview build (PR runs)
         if: github.event_name == 'pull_request'
-        run: node evals/relevance_live.mjs "$PREVIEW" --models "@cf/meta/llama-3.1-8b-instruct-fp8,@cf/meta/llama-3.1-8b-instruct-fast,@cf/meta/llama-3.2-3b-instruct,@cf/meta/llama-4-scout-17b-16e-instruct,@cf/mistralai/mistral-small-3.1-24b-instruct,@cf/google/gemma-3-12b-it,@cf/zai-org/glm-4.7-flash,@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+        run: node evals/relevance_live.mjs "$PREVIEW" --models "@cf/mistralai/mistral-small-3.1-24b-instruct,@cf/meta/llama-3.3-70b-instruct-fp8-fast"

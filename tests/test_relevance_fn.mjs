@@ -108,7 +108,7 @@ console.log("limit classification ok");
   { let called = false; const groq = async () => { called = true; return fakeLLM(ok)(); };
     const out = await fn.judgeChain("portfolio site", repos, { ...env, AI: ai(() => ({ response: ok })) }, groq);
     assert.deepStrictEqual(out.body, { drop: [{ i: 1, why: "mobile" }], checked: 3 }); assert.strictEqual(called, false);
-    assert.strictEqual(ai.last.model, "@cf/meta/llama-3.1-8b-instruct-fp8");
+    assert.strictEqual(ai.last.model, "@cf/mistralai/mistral-small-3.1-24b-instruct");
     assert.match(ai.last.input.messages[0].content, /untrusted data/); }
   // Workers AI out of its daily allocation -> Groq answers
   { const AI = { run: async () => { throw new Error("4006: you have used up your daily free allocation of 10,000 neurons"); } };
@@ -268,7 +268,7 @@ console.log("diagnostic codes ok");
 // live regression: Workers AI retired the default model (5028) -> next model in the list answers
 { const seen = [];
   const AI = { run: async (model) => { seen.push(model);
-    if (model === "@cf/meta/llama-3.1-8b-instruct-fp8") throw new Error("AiError: 5028: model deprecated");
+    if (model === fn.WAI_MODELS[0]) throw new Error("AiError: 5028: model deprecated");
     return { response: '{"drop":[]}' }; } };
   const out = await fn.judgeWorkersAI("q", repos, { AI });
   assert.strictEqual(out.status, 200); assert.deepStrictEqual(seen, fn.WAI_MODELS);
@@ -319,7 +319,7 @@ console.log("failure log ok");
   assert.match(fn.SYSTEM_PROMPT, /\{"drop":\[2,5\]\}/); assert.match(fn.SYSTEM_PROMPT, /boilerplates/); assert.ok(!/at most 12 words/.test(fn.SYSTEM_PROMPT));
   const seen = [];
   const AI = { run: async (model, input) => { seen.push([model, input.max_tokens]);
-    if (model.endsWith("-fp8")) throw new Error("AiError: 5028: retired"); return { response: '{"drop":[1]}' }; } };
+    if (model === fn.WAI_MODELS[0]) throw new Error("AiError: 5028: retired"); return { response: '{"drop":[1]}' }; } };
   const out = await fn.judgeChain("q", repos, { AI });
   assert.strictEqual(out.status, 200); assert.strictEqual(seen[0][1], 120);
   assert.deepStrictEqual(out.diag.map(d => d.code), ["wai_error_5028", "ok"]); assert.ok(out.diag.every(d => typeof d.ms === "number" && d.model));

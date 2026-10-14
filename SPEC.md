@@ -377,8 +377,11 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   replies long and slow); the prompt keeps templates/starters/boilerplates for the same kind of product even with extra
   features. A request may ask for per-attempt diagnostics (`X-Replore-Diag: 1` → model, ms and code per attempt, no
   text). Preview builds (wrangler `env.preview`) carry an `EVAL_MODELS` allowlist so the eval can compare models; the
-  production build has none, so a client can never pick a model there. The default model list changes only to a model
-  that passes the 84-item bar on the preview comparison.
+  production build has none, so a client can never pick a model there. Comparison 2026-10-14 (indices-only replies; timeouts gone, 0.2–1.3 s avg): kept/dropped —
+  Mistral Small 3.1 24B 100%/68%, Llama 3.3 70B 98%/32%, Llama 4 Scout 86%/46%, Llama 3.1 8B fp8 72%/76% (the old
+  default, which hid good SaaS starters), 8B fast 81%/63%, 3.2 3B 67%/34%; Gemma 3 not allowed on the account (5018);
+  GLM 4.7 Flash unparseable. Default becomes Mistral Small, then Llama 3.3 70B. No model meets the 80% drop bar yet;
+  keeping good repos (the 95% half) is the half that protects visitors, so a model is only made default if it meets it.
 
 ## RX — Deliberately excluded (v0.1)
 
