@@ -205,7 +205,10 @@
   a.nav-btn:hover{text-decoration:none}
   .nav-star{background:linear-gradient(135deg,var(--accent),var(--accent-ink));border-color:transparent;color:#fff}
   .nav-star:hover{color:#fff;box-shadow:0 6px 16px -6px rgba(192,83,44,.7)}
-  .nav-btn[hidden]{display:none}   /* RS44: the tip button stays hidden until TIP_URL is set */
+  .nav-btn[hidden]{display:none}
+  .tip-qr{margin:8px auto 0;text-align:center} .tip-qr img{display:block;margin:0 auto 4px;border-radius:8px}
+  .tip-qr figcaption{font-size:12px}
+  @media (max-width:700px){ .tip-qr{display:none} }   /* RS44: a phone can't scan its own screen */   /* RS44: the tip button stays hidden until TIP_URL is set */
   .nav{margin-left:auto;display:flex;gap:8px;align-items:center}
   .brand{width:100%;flex-wrap:wrap;align-items:center}
   .sub{color:var(--muted);margin:2px 0 0;font-size:14.5px}
@@ -741,6 +744,8 @@
     icon above and paste into any AI — or untick a few repos.</p>
   <p class="mut tip-el" style="margin-top:10px;text-align:center" hidden>Got a useful plan? <a class="tip-link" href="#" target="_blank"
     rel="noopener noreferrer">Leave a tip ☕</a> It helps us keep Replore free and fund more open-source projects.</p>
+  <figure class="tip-el tip-qr" hidden><img src="tip-qr.png" width="96" height="114" loading="lazy"
+    alt="QR code for the Replore tip page on Stripe"><figcaption class="mut">Or scan to tip from your phone</figcaption></figure>
   <p id="prdMany" class="mut" style="margin-top:10px" hidden><b>Plans work best with 10 or fewer repos.</b> You picked
     <span id="prdManyN"></span> — untick the weakest few for a sharper plan.</p>
   <p class="mut" style="margin-top:10px"><b>Open in Claude</b> opens a new chat on your own claude.ai account

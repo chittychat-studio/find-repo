@@ -640,6 +640,7 @@ def test_web_page_is_safe_static(monkeypatch):
     assert 'var TIP_URL="";' in html or re.search(r'var TIP_URL="https://buy\.stripe\.com/[A-Za-z0-9_\-]+";', html)
     assert not re.search(r"(sk|pk|rk)_(live|test)_[A-Za-z0-9]", html), "no Stripe key may ever be in the page"
     assert html.count('class="mut tip-el"') == 1 and "fund more open-source projects" in html
+    assert 'class="tip-el tip-qr" hidden' in html and (ROOT / "web" / "tip-qr.png").exists()   # RS44 QR, hidden with the tip
     assert "Replore is not affiliated with or endorsed by GitHub" in html and "GitHub® is a trademark of GitHub, Inc." in html
     assert not re.search(r"octocat|mark-github", html, re.I)
     assert '"You are the principal architect for my vibe coding app, with 15+ years of experience building similar apps.' in html   # RS28e
