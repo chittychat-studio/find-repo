@@ -18,8 +18,8 @@ keep only the error type and time, to fix it.
 | Your last search, results and filters, your light/dark choice, and a 30-minute copy of the public trending lists | **Your browser only** (local storage on your device) | So a refresh brings your results back, and the trending carousel doesn't re-ask GitHub on every visit. Tap **✕** in the search bar or the Replore logo to delete it, or clear this site's data in your browser. |
 | A plan / PRD file you upload | **Stays on your device.** It is read in your browser and never uploaded. Only short feature phrases taken from it are sent to GitHub as searches. | To search per feature. |
 | The build-plan prompt, if you click **Open in Claude** or **Open in ChatGPT** | **claude.ai** or **chatgpt.com**, under your own account | You choose to send it. **Copy** keeps it on your clipboard instead. |
-| The build-plan prompt, if you click **Copy & open Gemini** | **Your clipboard**, then **gemini.google.com** opens; nothing is sent unless you paste it there | Gemini has no pre-fill link. |
-| What you type in the **Feedback** form | **Nowhere, from this page.** It opens your own email app with a message to **hello@cardzo.co.in**, pre-filled with your text. It is sent only if you press send there; Cardzo then receives it with your email address, to reply. | So you can report bugs and suggest improvements without us running a server or form service. |
+| The build-plan prompt, if you click **Open in Gemini** | **Your clipboard**, then **gemini.google.com** opens; nothing is sent unless you paste it there | Gemini has no pre-fill link. |
+| What you type in the **Feedback** form (title, type, message, and your email only if you add it), when you press **Send** | **Web3Forms** (`api.web3forms.com`, an email-forwarding service, with your IP address) → **hello@cardzo.co.in**. Web3Forms handles it under its own terms. If sending fails, the form offers your own email app instead. | So you can report bugs and suggest improvements, and so we can reply if you leave an address. |
 
 The page contains no analytics, tracking pixels, ads or cookies set by Replore.
 

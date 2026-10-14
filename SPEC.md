@@ -233,10 +233,11 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   Copy is the guaranteed path and is always offered, and the link is dropped when the URL would exceed a safe
   length. The prompt instructs Claude to use only the listed repos and invent no libraries, versions, or
   statistics (evidence-only, mirrors RS9/RS14). Selection resets on a new search or Home.
-- **RS28b** Other AI assistants (owner request 2026-10-14). Below "Open in Claude" (still the main button) the plan
-  modal offers "Open in ChatGPT" (`https://chatgpt.com/?q=<encoded>`, best-effort and unofficial like the Claude link,
-  dropped under the same length rule) and "Copy & open Gemini" (copies the prompt, then opens
-  `https://gemini.google.com/app`; Gemini has no known pre-fill link, so the button says the visitor pastes). Nothing is
+- **RS28b** Other AI assistants (owner request 2026-10-14: "all three buttons equal importance"). The plan modal
+  offers three same-style buttons in one row (stacked on phones): "Open in Claude", "Open in ChatGPT"
+  (`https://chatgpt.com/?q=<encoded>`, best-effort and unofficial like the Claude link, dropped under the same length
+  rule) and "Open in Gemini" (copies the prompt, then opens `https://gemini.google.com/app`; Gemini has no known
+  pre-fill link, so a note says to paste). Nothing is
   sent by the page itself; each opens the visitor's own account. The privacy notice names both.
 - **RS28a** Select all shown + triage. In the top-matches view a "Select all shown" control ticks every card
   currently visible — respecting the active result filter (RS29) and how far the user has scrolled — and becomes
@@ -426,11 +427,13 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
 - **RS39** Feedback form (web, owner request "feedback form … for enhancements"; owner chose no backend; 2026-10-14
   owner changed the destination from GitHub issues to email at hello@cardzo.co.in, RS40). A "Feedback" button sits in the footer row and, on screens 1000px and wider, also floats bottom-right
   (on phones it would cover the plan bar, RS23). It opens a modal: title (required, max 120), type (Bug / Feature request /
-  Content issue / Other), description (max 2000). Submitting opens a `mailto:hello@cardzo.co.in` link in the visitor's
-  own email app, subject `[Replore] [<type>] <title>`, body = type + description (max 1500, so the link stays short
-  enough for mail clients); nothing is sent until the visitor presses send. The modal shows the address with a Copy
-  button for visitors without an email app. Replore stores nothing and runs no server or form service for it; the
-  privacy notice says Cardzo receives the message and the sender's email address. No contact field on the page.
+  Content issue / Other), description (max 2000). **Send** posts it to Web3Forms (`api.web3forms.com/submit`,
+  owner's choice 2026-10-14: "submit should send email to us"), which emails hello@cardzo.co.in, subject
+  `[Replore] [<type>] <title>`. An optional "Your email" field (kept only if it looks like an address) becomes the
+  reply-to; no other contact data. The Web3Forms access key is public by design and lives in the page; with no key
+  configured, or when sending fails, the form says so and offers a `mailto:` link to the same address (max 1500
+  chars) — it never shows "sent" unless Web3Forms answers success. A hidden honeypot box catches simple bots (they
+  see "sent", nothing is posted). Replore stores nothing; the privacy notice names Web3Forms.
   Title and description are passed only through `encodeURIComponent` into the URL query, never into page HTML. If the title is empty the form does not submit and
   says so.
 

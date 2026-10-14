@@ -348,6 +348,7 @@
     .fb-fab:hover{border-color:var(--accent)} }
   .fb-err{color:var(--accent-ink);margin:-6px 0 8px}
   .fb-alt{margin:10px 0 0;font-size:12.5px;text-align:center}
+  .fb-ok{color:var(--good);font-weight:700;margin:-4px 0 8px}
   /* floating PRD action bar */
   .prd-bar{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:38;display:flex;align-items:center;
     gap:12px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:8px 10px 8px 18px;
@@ -363,8 +364,9 @@
   .primary-cta{display:block;text-align:center;margin-top:12px;color:#fff;text-decoration:none;border-radius:10px;
     padding:13px 18px;font-weight:700;background:linear-gradient(135deg,var(--accent),var(--accent-ink));
     box-shadow:0 10px 22px -10px rgba(192,83,44,.8);transition:transform .12s,box-shadow .18s}
-  .prd-alt{display:flex;gap:8px;margin-top:8px}
-  .ghost-cta{flex:1;display:block;text-align:center;padding:10px 12px;border-radius:10px;border:1.5px solid var(--accent);
+  .prd-alt{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+  @media (max-width:560px){ .prd-alt{grid-template-columns:1fr} }
+  .ghost-cta{display:block;text-align:center;padding:12px 10px;border-radius:10px;border:1.5px solid var(--accent);
     background:transparent;color:var(--accent-ink);font:inherit;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none}
   .ghost-cta:hover{background:color-mix(in srgb,var(--accent) 10%,transparent);text-decoration:none}
   .ghost-cta[hidden]{display:none}
@@ -696,12 +698,12 @@
     <pre class="cmd" id="prdPrompt" data-copy-ready="1" style="margin:0;max-height:240px;overflow:auto;white-space:pre-wrap;padding-right:46px"></pre>
     <button id="prdCopy" class="copy" title="Copy prompt" aria-label="Copy prompt">⧉</button>
   </div>
-  <a id="prdOpen" class="primary-cta" href="#" target="_blank" rel="noopener">Open in Claude ↗</a>
-  <div class="prd-alt">   <!-- RS28b: other assistants, secondary to Claude -->
+  <div class="prd-alt">   <!-- RS28b: three assistants, equal weight -->
+    <a id="prdOpen" class="ghost-cta" href="#" target="_blank" rel="noopener">Open in Claude ↗</a>
     <a id="prdGpt" class="ghost-cta" href="#" target="_blank" rel="noopener">Open in ChatGPT ↗</a>
-    <button type="button" id="prdGemini" class="ghost-cta">Copy &amp; open Gemini ↗</button>
+    <button type="button" id="prdGemini" class="ghost-cta" title="Copies the prompt, then opens Gemini — paste it there">Open in Gemini ↗</button>
   </div>
-  <p id="prdGemNote" class="mut" style="margin-top:8px;text-align:center" hidden>Prompt copied — paste it into Gemini.</p>
+  <p id="prdGemNote" class="mut" style="margin-top:8px;text-align:center" hidden>Prompt copied — paste it into Gemini (it has no pre-fill link).</p>
   <p id="prdLong" class="mut" style="margin-top:10px" hidden><b>Too many repos for the Claude and ChatGPT links.</b> Tap the copy
     icon above and paste into any AI — or untick a few repos.</p>
   <p class="mut" style="margin-top:10px"><b>Open in Claude</b> opens a new chat on your own claude.ai account
@@ -830,17 +832,20 @@
 <div class="modal" id="fbModal"><div class="sheet">
   <button class="x" data-close>&times;</button>
   <h2>Send feedback</h2>
-  <p class="mut">Report a bug or suggest an improvement. This opens your email app with the message filled in, addressed
-    to Cardzo. Nothing is sent until you press send there.</p>
+  <p class="mut">Report a bug or suggest an improvement. It's sent to the Cardzo team (hello@cardzo.co.in).</p>
   <div class="field"><label for="fbTitle">Title</label>
     <input id="fbTitle" type="text" maxlength="120" autocomplete="off" placeholder="Short summary"></div>
   <div class="field"><label for="fbType">Type</label>
     <select id="fbType"><option>Bug</option><option selected>Feature request</option><option>Content issue</option><option>Other</option></select></div>
   <div class="field"><label for="fbDesc">Description</label>
     <textarea id="fbDesc" maxlength="2000" rows="5" placeholder="What happened, or what would you like?"></textarea></div>
+  <div class="field"><label for="fbEmail">Your email <span class="mut">(optional, so we can reply)</span></label>
+    <input id="fbEmail" type="email" maxlength="120" autocomplete="email" placeholder="you@example.com"></div>
+  <input id="fbBot" type="checkbox" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px">
   <p class="mut fb-err" id="fbErr" hidden>Add a title first.</p>
-  <button type="button" id="fbGo" class="primary">Open in my email app →</button>
-  <p class="mut fb-alt">No email app? Write to <b>hello@cardzo.co.in</b>
+  <p class="fb-ok" id="fbOk" role="status" hidden>Thanks — your feedback was sent to Cardzo.</p>
+  <button type="button" id="fbGo" class="primary">Send feedback</button>
+  <p class="mut fb-alt">Or write to <b>hello@cardzo.co.in</b>
     <button type="button" class="link-btn" id="fbCopy">Copy address</button></p>
 </div></div>
 
@@ -868,9 +873,10 @@
       search bar or the Replore logo to delete them.</li>
     <li><b>Uploaded plans</b> are read in your browser and never uploaded; only short feature phrases are searched on GitHub.</li>
     <li><b>Open in Claude</b> or <b>Open in ChatGPT</b> sends the build-plan prompt to your own claude.ai or chatgpt.com
-      account, only when you click it. <b>Copy &amp; open Gemini</b> copies it and opens gemini.google.com; you paste it.</li>
-    <li><b>Feedback</b> opens your own email app with a message to hello@cardzo.co.in, pre-filled with what you typed;
-      it's sent only if you press send there, and Cardzo then has your email address to reply.</li>
+      account, only when you click it. <b>Open in Gemini</b> copies it and opens gemini.google.com; you paste it.</li>
+    <li><b>Feedback</b> you send (title, type, message, and your email only if you add it) goes through
+      <b>Web3Forms</b> (<code>api.web3forms.com</code>), an email-forwarding service, to hello@cardzo.co.in. Nothing is
+      sent until you press Send.</li>
     <li>No cookies, ads or tracking pixels from Replore.</li>
   </ul>
   <p class="mut" style="margin-top:10px">The plugin and MCP server run on your computer; your AI provider handles your
@@ -1571,8 +1577,19 @@ document.getElementById("aboutBtn").addEventListener("click",function(){ openMod
 document.getElementById("trendBtn").addEventListener("click",function(){ showTrending("rising"); });
 document.getElementById("trendHome").addEventListener("click",function(){ showTrending("rising"); });
 document.getElementById("nextBtn").addEventListener("click",function(){ openModal("nextModal"); });
-// RS39 feedback: build a pre-filled email to Cardzo (mailto:); user text only ever goes through encodeURIComponent
+// RS39 feedback: sent to Cardzo through Web3Forms (public access key, emails hello@cardzo.co.in). Without a key,
+// or if sending fails, the visitor is told plainly and offered the email-app link — never a fake "sent".
+var WEB3FORMS_KEY="";   // owner's public Web3Forms access key (safe to publish; it only lets this form email Cardzo)
 var FB_TYPES=["Bug","Feature request","Content issue","Other"], FB_TO="hello@cardzo.co.in";
+function feedbackPayload(title, type, desc, email){
+  title=String(title||"").trim().slice(0,120); if(!title) return null;
+  if(FB_TYPES.indexOf(type)<0) type="Other";
+  email=String(email||"").trim().slice(0,120); if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) email="";
+  var p={access_key:WEB3FORMS_KEY, subject:"[Replore] ["+type+"] "+title, from_name:"Replore feedback", type:type,
+    message:String(desc||"").trim().slice(0,2000)||"(no description)", botcheck:false};
+  if(email) p.email=email;   // Web3Forms sets reply-to from it
+  return p;
+}
 function feedbackUrl(title, type, desc){
   title=String(title||"").trim().slice(0,120); if(!title) return null;
   if(FB_TYPES.indexOf(type)<0) type="Other";
@@ -1584,9 +1601,20 @@ document.getElementById("fbBtn").addEventListener("click",openFeedback);
 document.getElementById("fbFab").addEventListener("click",openFeedback);
 document.getElementById("fbTitle").addEventListener("input",function(){ document.getElementById("fbErr").hidden=true; });
 document.getElementById("fbGo").addEventListener("click",function(){
-  var u=feedbackUrl(document.getElementById("fbTitle").value, document.getElementById("fbType").value, document.getElementById("fbDesc").value);
-  if(!u){ document.getElementById("fbErr").hidden=false; document.getElementById("fbTitle").focus(); return; }
-  window.location.href=u; closeModals();   // mailto: hands off to the visitor's email app; the page stays put
+  var $=function(id){ return document.getElementById(id); }, go=$("fbGo"), err=$("fbErr"), ok=$("fbOk");
+  var t=$("fbTitle").value, ty=$("fbType").value, d=$("fbDesc").value, em=$("fbEmail").value;
+  var p=feedbackPayload(t,ty,d,em); ok.hidden=true;
+  if(!p){ err.textContent="Add a title first."; err.hidden=false; $("fbTitle").focus(); return; }
+  if($("fbBot").checked){ ok.hidden=false; return; }   // honeypot ticked: a bot — pretend, send nothing
+  function fallback(msg){ err.innerHTML=msg+' <a href="'+esc(feedbackUrl(t,ty,d))+'">Email it instead</a> (opens your email app).'; err.hidden=false; }
+  if(!WEB3FORMS_KEY){ fallback("Sending from the page isn't set up yet."); return; }
+  go.disabled=true; go.textContent="Sending…";
+  fetch("https://api.web3forms.com/submit",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify(p)})
+    .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(j){ return r.ok && j && j.success; }); })
+    .then(function(sent){ if(sent){ ok.hidden=false; err.hidden=true; $("fbTitle").value=""; $("fbDesc").value=""; }
+      else fallback("Couldn't send just now."); },
+      function(){ fallback("Couldn't send just now."); })
+    .then(function(){ go.disabled=false; go.textContent="Send feedback"; });
 });
 document.getElementById("fbCopy").addEventListener("click",function(){ var b=this;
   try{ navigator.clipboard.writeText(FB_TO).then(function(){ b.textContent="Copied"; setTimeout(function(){ b.textContent="Copy address"; },1500); }); }catch(_){} });

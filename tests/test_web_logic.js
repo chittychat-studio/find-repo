@@ -14,7 +14,7 @@ global.window = global;
 const s = {};
 new Function("document", "localStorage",
   code + "; this.keywordQueries=keywordQueries; this.rankByFit=rankByFit; this.fitScore=fitScore; this.whyRelevant=whyRelevant; this.esc=esc; this.lu=lu; this.freeText=freeText;" +
-  " this.keep=keep; this.harmful=harmful; this.harmfulRepo=harmfulRepo; this.prdFeatures=prdFeatures; this.trendingQuery=trendingQuery; this.trendRows=trendRows; this.feedbackUrl=feedbackUrl; this.agoText=agoText; this.cardHtml=cardHtml;").call(s, document, global.localStorage || {getItem:()=>null,setItem(){},removeItem(){}});
+  " this.keep=keep; this.harmful=harmful; this.harmfulRepo=harmfulRepo; this.prdFeatures=prdFeatures; this.trendingQuery=trendingQuery; this.trendRows=trendRows; this.feedbackUrl=feedbackUrl; this.feedbackPayload=feedbackPayload; this.agoText=agoText; this.cardHtml=cardHtml;").call(s, document, global.localStorage || {getItem:()=>null,setItem(){},removeItem(){}});
 
 // RS16: iOS excludes macOS
 // RS16: expansions are specific on-topic phrases, never a bare category (live regression: "website" -> "frontend framework"
@@ -133,6 +133,12 @@ console.log("prd ok:", f.join(" | "));
   assert.strictEqual(new URLSearchParams(s.feedbackUrl("t", "<script>", "").split("?")[1]).get("subject"), "[Replore] [Other] t");  // unknown type
   assert.strictEqual(new URLSearchParams(s.feedbackUrl("x".repeat(500), "Bug", "").split("?")[1]).get("subject").length, 16 + 120);
   assert.ok(s.feedbackUrl("t", "Bug", "y".repeat(5000)).length < 2000, "mailto stays short enough for mail clients");
+  // Web3Forms payload: title required, type allowlisted, email kept only if address-shaped, honeypot false
+  assert.strictEqual(s.feedbackPayload(" ", "Bug", "x", ""), null);
+  const pl = s.feedbackPayload("Dark mode", "<x>", "d".repeat(3000), "not-an-email");
+  assert.strictEqual(pl.subject, "[Replore] [Other] Dark mode"); assert.strictEqual(pl.message.length, 2000);
+  assert.ok(!("email" in pl) && pl.botcheck === false && "access_key" in pl);
+  assert.strictEqual(s.feedbackPayload("t", "Bug", "", "me@site.io").email, "me@site.io");
   console.log("feedback ok"); }
 
 // RS24 result card: relative date, escaped repo text, topics filtered
