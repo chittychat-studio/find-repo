@@ -339,6 +339,22 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   candidate list now pass through our function to the LLM providers named in RS34a and PRIVACY.md. The plugin (RS1, RS6) is unchanged; its
   script still never calls a model.
 
+- **RS35** Trending gallery (web). A "🔥 Trending" view lists popular open-source repos without a search, in three
+  tabs, each one GitHub search API call (sorted by the API, `fork:false archived:false is:public`):
+  **Rising** — created in the last 30 days, `stars:>50`, most stars first; **Most stars** — `stars:>10000`, most stars;
+  **Most forks** — `forks:>2000`, most forks. Results pass the same filters as search (open-source licence, pushed in
+  the last 12 months, RS18 harm filter) and render as the usual cards (license verdict, Add to plan) with the star and
+  fork counts. It is labelled honestly: "Rising" is our definition (new + most-starred), not GitHub's Trending page,
+  which has no API and is not scraped (RX1). Each tab is fetched only when opened and kept for 30 minutes in
+  localStorage (public repo data only, never what the visitor typed) so tab switching doesn't spend the visitor's
+  10 searches/minute. **Home carousel:** the home screen shows the top Rising repos as a self-rotating carousel
+  ("🔥 Rising on GitHub this month") under the quick picks, with "See all trending" opening the gallery. It loads
+  after the page is idle (one GitHub call per visitor per 30 minutes, shared with the Rising tab cache), advances one
+  card every few seconds, pauses while hovered, focused or touched, does not auto-rotate under
+  prefers-reduced-motion, can be swiped, and disappears silently if GitHub can't be reached. On single-column screens
+  it folds away with the intro once results show. No AI relevance check
+  runs on it (there is no description to judge against). Web only; the plugin is a search tool and has no gallery.
+
 ## RX — Deliberately excluded (v0.1)
 
 - **RX1** Scraping github.com HTML, or any non-API source.

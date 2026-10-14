@@ -9,11 +9,12 @@ const el = () => ({value:"",checked:false,textContent:"",innerHTML:"",type:"",cl
 global.document = {getElementById: el, createElement: el, querySelectorAll:()=>[], addEventListener(){},
                    documentElement: el()};
 global.matchMedia = () => ({matches:false});
+global.fetch = () => Promise.reject(new Error("no network in tests"));   // RS35 carousel must not reach GitHub from CI
 global.window = global;
 const s = {};
 new Function("document", "localStorage",
   code + "; this.keywordQueries=keywordQueries; this.rankByFit=rankByFit; this.fitScore=fitScore; this.whyRelevant=whyRelevant; this.esc=esc; this.lu=lu; this.freeText=freeText;" +
-  " this.keep=keep; this.harmful=harmful; this.harmfulRepo=harmfulRepo; this.prdFeatures=prdFeatures;").call(s, document, global.localStorage || {getItem:()=>null,setItem(){},removeItem(){}});
+  " this.keep=keep; this.harmful=harmful; this.harmfulRepo=harmfulRepo; this.prdFeatures=prdFeatures; this.trendingQuery=trendingQuery; this.trendRows=trendRows;").call(s, document, global.localStorage || {getItem:()=>null,setItem(){},removeItem(){}});
 
 // RS16: iOS excludes macOS
 // RS16: expansions are specific on-topic phrases, never a bare category (live regression: "website" -> "frontend framework"
@@ -102,3 +103,21 @@ console.log("prd ok:", f.join(" | "));
   const pageList = [...html.match(/var EXAMPLES=\[([\s\S]*?)\];/)[1].matchAll(/text:"((?:[^"\\]|\\.)*)"/g)].map(m => m[1]);
   assert.deepStrictEqual(fnList, pageList);
   console.log("example list in sync"); }
+
+// RS35 trending gallery: API-sorted queries, same filters as search, stars/forks order
+{ const now = Date.UTC(2026, 9, 14);
+  assert.deepStrictEqual(s.trendingQuery("rising", now), { q: "created:>=2026-09-14 stars:>50", sort: "stars" });
+  assert.deepStrictEqual(s.trendingQuery("stars", now), { q: "stars:>10000", sort: "stars" });
+  assert.deepStrictEqual(s.trendingQuery("forks", now), { q: "forks:>2000", sort: "forks" });
+  assert.strictEqual(s.trendingQuery("nonsense", now).q.startsWith("created:>="), true);
+  const fresh = new Date(Date.now() - 864e5).toISOString();
+  const it = (n, st, fk, lic, extra) => Object.assign({ full_name: "o/" + n, stargazers_count: st, forks_count: fk, license: lic ? { spdx_id: lic } : null,
+    pushed_at: fresh, description: n + " tool", html_url: "https://github.com/o/" + n, topics: [] }, extra || {});
+  const items = [it("a", 100, 900, "MIT"), it("b", 5000, 10, "Apache-2.0"), it("c", 9000, 50, null), it("d", 300, 300, "MIT", { fork: true }),
+                 it("e", 700, 5000, "GPL-3.0")];
+  const st = s.trendRows(items, "stars"), fk = s.trendRows(items, "forks");
+  assert.deepStrictEqual(st.rows.map(r => r.name), ["o/b", "o/e", "o/a"]);      // no licence and forks are filtered out
+  assert.deepStrictEqual(fk.rows.map(r => r.name), ["o/e", "o/a", "o/b"]);
+  assert.strictEqual(st.excluded.license, 1); assert.strictEqual(st.excluded.fork, 1);
+  assert.match(fk.rows[0].whyText, /5\.0k forks/);
+  console.log("trending ok"); }

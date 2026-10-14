@@ -320,6 +320,26 @@
   .ts-box:empty{display:none} .ts-box{margin:6px 0}
   .rsel.on{border-color:var(--accent);color:var(--accent-ink)}
   .rfilter.on{background:linear-gradient(135deg,var(--accent),var(--accent-ink));border-color:transparent;color:#fff}
+  .trend-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:0 4px 8px}
+  .trend-tab{background:var(--offbg);border:1px solid var(--line);border-radius:999px;padding:8px 14px;font:inherit;
+    font-size:13.5px;font-weight:700;color:var(--ink);cursor:pointer}
+  .trend-tab.on{background:var(--ink);color:var(--bg);border-color:transparent}
+  /* RS35 home carousel */
+  .tcar{margin:16px 0 0;text-align:left}
+  .tcar-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin:0 2px 8px;font-size:14px}
+  .tcar-track{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;padding:2px 2px 8px;
+    scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .tcar-track::-webkit-scrollbar{display:none}
+  .tcard{flex:0 0 78%;max-width:300px;scroll-snap-align:start;background:var(--card);border:1px solid var(--line);
+    border-radius:14px;padding:12px 14px;text-decoration:none;color:var(--ink);display:flex;flex-direction:column;gap:6px}
+  .tcard:hover{border-color:var(--accent);text-decoration:none}
+  .tcard .tc-top{display:flex;justify-content:space-between;gap:8px;font-weight:700;font-size:14px}
+  .tcard .tc-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--accent-ink)}
+  .tcard .tc-stars{white-space:nowrap;color:var(--accent-ink)}
+  .tcard .tc-desc{font-size:12.5px;color:var(--muted);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .tcard .tc-meta{font-size:11.5px;color:var(--muted)}
+  @media (min-width:700px){ .tcard{flex-basis:46%} }
+  @media (max-width:999px){ body.has-results .tcar{display:none} }
   .res-more-hint{text-align:center;color:var(--muted);font-size:12.5px;margin:10px 4px 2px;min-height:18px}
   .res-empty{text-align:center;color:var(--muted);font-size:14px;margin:18px 4px}
 
@@ -432,6 +452,7 @@
       <circle cx="16" cy="16" r="1.8" fill="var(--card)" stroke="url(#lg)" stroke-width="1.4"/>
     </svg><h1>Replore</h1></div>
   <nav class="nav" id="nav">
+    <button id="trendBtn" class="nav-btn" title="Popular open-source repos right now">🔥 Trending</button>
     <button id="tourBtn" class="nav-btn" title="Watch how it works">▶ Tour</button>
     <button id="pluginBtn" class="nav-btn" title="Use the plugin in Claude Code, Codex, Cursor or any AI agent">⌘ Use the plugin</button>
     <button id="aboutBtn" class="nav-btn" title="How results are ranked">ⓘ How ranking works</button>
@@ -471,6 +492,11 @@
       </div>
 
       <div id="quickpicks" class="quickpicks" aria-label="Quick examples to try"></div>
+      <section id="trendCar" class="tcar" aria-label="Rising on GitHub this month" hidden>
+        <div class="tcar-head"><b>🔥 Rising on GitHub this month</b>
+          <button type="button" class="link-btn" id="trendHome">See all trending →</button></div>
+        <div class="tcar-track" id="tcarTrack" tabindex="0"></div>
+      </section>
 
       <div id="status" class="status"></div>
       <div id="tsBox" class="ts-box"></div>
@@ -767,7 +793,7 @@ function keep(items, minStars, platform, excluded, seen){
     var topics=(it.topics||[]).map(function(t){return String(t).toLowerCase();});
     var starter=!!it.is_template||topics.some(function(t){return STARTER_TOPICS.has(t);});
     var row={name:cname,stars:it.stargazers_count||0,spdx:spdx,pushed:(it.pushed_at||"").slice(0,10),
-      url:it.html_url||("https://github.com/"+name),desc:desc,starter:starter,rel:i,topics:topics.slice(0,8)};
+      url:it.html_url||("https://github.com/"+name),desc:desc,starter:starter,rel:i,topics:topics.slice(0,8),forks:it.forks_count||0};
     out.push(row); seen[cname]=row;
   }
   return out;
@@ -801,6 +827,7 @@ function sigTokens(text){ var out=[], seen={};
 }
 // one honest line on why a repo is in the list (whole-word keyword match, not AI understanding)
 function whyRelevant(r, qtokens){
+  if(r.whyText) return r.whyText;   // RS35: gallery cards say why they're listed (stars / forks), not a word match
   var words={}; ((r.name||"")+" "+(r.desc||"")).toLowerCase().replace(/[^a-z0-9 +#.]/g," ").split(/\s+/)
     .forEach(function(w){ if(w) words[w]=1; });  // match whole words, so "ai" never fires on "email"
   var hit=[];
@@ -1323,6 +1350,8 @@ document.getElementById("fmPrd").addEventListener("click",function(){ closeModal
   });
 })();
 document.getElementById("aboutBtn").addEventListener("click",function(){ openModal("aboutModal"); });
+document.getElementById("trendBtn").addEventListener("click",function(){ showTrending("rising"); });
+document.getElementById("trendHome").addEventListener("click",function(){ showTrending("rising"); });
 document.getElementById("nextBtn").addEventListener("click",function(){ openModal("nextModal"); });
 document.querySelectorAll("[data-close]").forEach(function(b){ b.addEventListener("click",closeModals); });
 document.querySelectorAll(".modal").forEach(function(m){ m.addEventListener("click",function(e){ if(e.target===m) closeModals(); }); });
@@ -1352,6 +1381,7 @@ document.addEventListener("keydown",function(e){ if(e.key==="Escape") closeModal
   out.addEventListener("click",function(e){ var t=e.target;
     var fb=t.closest&&t.closest(".rfilter");
     if(fb){ window.__resFilter=fb.getAttribute("data-f"); window.__resLimit=10; applyResultFilter(); checkMore(); return; }
+    if(t.closest&&t.closest(".trend-tab")){ showTrending(t.closest(".trend-tab").getAttribute("data-trend")); return; }
     if(t.closest&&t.closest("#showLeft")){ var o=document.getElementById("out"), ls=o.querySelectorAll('.rcard[data-left="1"]');
       for(var k=0;k<ls.length;k++) ls[k].removeAttribute("data-left");   // they become ordinary cards (also after a refresh)
       window.__resLimit=(window.__resLimit||10)+ls.length; var w=document.getElementById("leftWrap"); if(w) w.remove();
@@ -1443,6 +1473,90 @@ function buildDemo(host){
 // stop a carousel's interval (used before its host is replaced, or when the Tour modal closes)
 function stopDemo(id){ var h=document.getElementById(id); if(h&&h.__stopDemo) h.__stopDemo(); }
 // empty-state in the results panel: the animated demo carousel (home view)
+// ---- RS35: trending gallery — three API-sorted lists, fetched only when opened, cached 30 min per tab ----
+var TREND_TABS={rising:"🔥 Rising", stars:"⭐ Most stars", forks:"🍴 Most forks"};
+var TREND_NOTE={
+  rising:"Rising = open-source repos created in the last 30 days, most stars first. Our own definition, live from GitHub \u2014 not GitHub\u2019s Trending page.",
+  stars:"The most-starred open-source repos on GitHub that are still maintained.",
+  forks:"The most-forked open-source repos on GitHub that are still maintained."};
+function trendingQuery(kind, now){
+  if(kind==="stars") return {q:"stars:>10000", sort:"stars"};
+  if(kind==="forks") return {q:"forks:>2000", sort:"forks"};
+  var since=new Date((now||Date.now())-30*864e5).toISOString().slice(0,10);
+  return {q:"created:>="+since+" stars:>50", sort:"stars"};
+}
+function slimItem(it){ return {full_name:it.full_name, fork:it.fork, archived:it.archived, disabled:it.disabled,
+  license:it.license?{spdx_id:it.license.spdx_id}:null, pushed_at:it.pushed_at, stargazers_count:it.stargazers_count,
+  forks_count:it.forks_count, description:it.description, topics:it.topics, is_template:it.is_template, html_url:it.html_url}; }
+async function fetchTrending(kind){
+  var key="replore_trend_"+kind, hit=null;
+  try{ hit=JSON.parse(localStorage.getItem(key)||"null"); }catch(e){}   // public repo data only
+  if(hit && hit.t>Date.now()-30*60e3 && Array.isArray(hit.items)) return {items:hit.items, q:hit.q};
+  var tq=trendingQuery(kind);
+  var url="https://api.github.com/search/repositories?q="+encodeURIComponent(tq.q+" fork:false archived:false is:public")
+    +"&sort="+tq.sort+"&order=desc&per_page=50";
+  var r=await fetch(url,{headers:{"Accept":"application/vnd.github+json"}});
+  if(r.status===403||r.status===429) throw new Error("GitHub rate limit reached (10 searches/minute without a token). Wait a minute and try again.");
+  if(!r.ok) throw new Error("GitHub search failed (HTTP "+r.status+").");
+  var items=((await r.json()).items||[]).map(slimItem);
+  try{ localStorage.setItem(key, JSON.stringify({t:Date.now(), q:tq.q, items:items})); }catch(e){}
+  return {items:items, q:tq.q};
+}
+function trendRows(items, kind){
+  var excluded={license:0,stale:0,low:0,fork:0,harm:0};
+  var rows=keep(items,0,"",excluded,{});
+  rows.sort(function(a,b){ return kind==="forks" ? (b.forks-a.forks || b.stars-a.stars) : (b.stars-a.stars || b.forks-a.forks); });
+  rows.forEach(function(r){ r.whyText = kind==="forks" ? "🍴 "+kstars(r.forks)+" forks"
+    : kind==="rising" ? "🔥 New this month"+(r.forks?" · 🍴 "+kstars(r.forks)+" forks":"") : "🍴 "+kstars(r.forks)+" forks"; });
+  return {rows:rows, excluded:excluded};
+}
+async function showTrending(kind){
+  kind=TREND_TABS[kind]?kind:"rising";
+  var gen=++window.__runGen; window.__busy=false; setGoBusy(false);
+  var out=document.getElementById("out"), st=document.getElementById("status");
+  stopDemo("heroDemo"); st.textContent="Loading trending repos…";
+  try{
+    var got=await fetchTrending(kind); if(gen!==window.__runGen) return;
+    var t=trendRows(got.items, kind);
+    out.innerHTML=render(t.rows,[got.q],t.excluded,t.rows.length,[],"Trending on GitHub","",null);
+    var head=out.querySelector(".res-head");
+    if(head) head.insertAdjacentHTML("afterend",'<div class="trend-tabs" role="tablist" aria-label="Trending lists">'+
+      Object.keys(TREND_TABS).map(function(k){ return '<button type="button" class="trend-tab'+(k===kind?' on':'')+'" data-trend="'+k+
+        '" role="tab" aria-selected="'+(k===kind)+'">'+TREND_TABS[k]+'</button>'; }).join("")+'</div>'+
+      '<p class="res-note mut">'+esc(TREND_NOTE[kind])+'</p>');
+    out.setAttribute("data-gate","trending");
+    animateCards(out); initResultFilter(); st.textContent=""; saveResults(); syncClearQ();
+  }catch(e){ if(gen!==window.__runGen) return; st.textContent=""; out.innerHTML='<div class="panel"><p class="err">'+esc(e.message)+'</p></div>'; }
+}
+// RS35 home carousel: top Rising repos, rotates itself, pauses on hover/focus/touch, still under reduced motion
+function buildTrendCarousel(){
+  var box=document.getElementById("trendCar"), track=document.getElementById("tcarTrack"); if(!box||!track) return;
+  fetchTrending("rising").then(function(got){
+    var rows=trendRows(got.items,"rising").rows.slice(0,12); if(rows.length<3) return;
+    track.innerHTML=rows.map(function(r){ var v=licenseVerdict(r.spdx);
+      return '<a class="tcard" href="'+esc(r.url)+'" target="_blank" rel="noopener">'+
+        '<span class="tc-top"><span class="tc-name">'+esc(r.name)+'</span><span class="tc-stars">★ '+kstars(r.stars)+'</span></span>'+
+        '<span class="tc-desc">'+esc(r.desc||"—")+'</span>'+
+        '<span class="tc-meta">'+esc(v.t||"")+(r.forks?' · 🍴 '+kstars(r.forks):'')+'</span></a>'; }).join("");
+    box.hidden=false;
+    if(matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    var paused=false, idle=null;
+    function pause(){ paused=true; clearTimeout(idle); }
+    function resume(){ clearTimeout(idle); idle=setTimeout(function(){ paused=false; },4000); }
+    ["mouseenter","focusin","touchstart","pointerdown"].forEach(function(ev){ track.addEventListener(ev,pause,{passive:true}); });
+    ["mouseleave","focusout","touchend","pointerup"].forEach(function(ev){ track.addEventListener(ev,resume,{passive:true}); });
+    clearInterval(window.__tcarTimer);
+    window.__tcarTimer=setInterval(function(){
+      if(paused || document.hidden || !track.offsetParent) return;
+      var card=track.querySelector(".tcard"); if(!card) return;
+      var step=card.getBoundingClientRect().width+10;
+      if(track.scrollLeft+track.clientWidth>=track.scrollWidth-4) track.scrollTo({left:0});
+      else track.scrollBy({left:step});
+    },3500);
+  }).catch(function(){});   // GitHub unreachable or rate-limited: no carousel, nothing else changes
+}
+(function(){ var go=function(){ buildTrendCarousel(); };
+  if(window.requestIdleCallback) requestIdleCallback(go,{timeout:2500}); else setTimeout(go,800); })();
 function showHome(){
   var out=document.getElementById("out");
   stopDemo("heroDemo");   // clear any previous carousel before replacing it
