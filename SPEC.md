@@ -496,10 +496,46 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   failed call (RS7 unchanged; owner did not opt into partial results). The Cloudflare rate-limit rule (10 requests /
   10 s per IP on `replore.cardzo.co.in/api/relevance`, all methods, block 10 s) is the owner's dashboard setting.
 
+- **RS42** Hybrid RAG retrieval, built in gated phases (owner request 2026-10-14: "need RAG option also, this is my
+  first live RAG project, let's put it to best use"). Replore already has the RAG shape: GitHub search is the
+  retriever, and the plan hand-off (RS28) is the generation step, done by the user's own AI. RS42 adds meaning-based
+  retrieval next to GitHub's keyword search. Each phase ships only when its gate passes; a failed gate stops the work
+  and is reported, never quietly lowered.
+  - **Hybrid by design (owner 2026-10-14: "I want a mix of semantic and lexical search").** Lexical = GitHub's keyword
+    search plus a BM25 score of each repo against the user's *whole* description (stdlib, identical in the page and
+    the plugin, so both stay in sync). Semantic = embedding similarity. They are combined per query, by weighted
+    blend or reciprocal rank fusion, whichever the evals favour.
+  - **Phase 0 — measure (free).** `evals/embed_offline.py` scores open embedding models (BAAI bge, the family
+    Workers AI serves), BM25, and the semantic + lexical hybrids on the hand-labelled relevance set (RS34). Gate:
+    best semantic or hybrid pooled AUC ≥ 0.75 **and** ≥ BM25 + 0.15. Baseline measured 2026-10-14: BM25 pooled AUC 0.56 (15 of 48 off-topic repos
+    above the median fitting one). Runs on the owner's machine (the build session cannot download models).
+  - **Phase 1 — rerank (web).** Inside `functions/api/relevance.js`: embed the user's description and each candidate
+    (name + description + topics) with a Workers AI bge model, and order the kept repos by blending the existing fit
+    score with meaning similarity. The AI check (RS34) still decides what is hidden. Fail closed: if embedding fails,
+    the current order stands. Gate to merge: the live eval (owner-approved, credits) shows the blend keeps ≥ 95 % of
+    fitting repos and ranks them above off-topic ones better than today. Estimated cost (maintainer arithmetic from
+    Cloudflare's published rates, bge-m3 1,075 neurons per million tokens, 10,000 free neurons a day): about 5 neurons
+    per search.
+  - **Phase 2 — vector index (recall).** A Cloudflare Vectorize index of repo cards (name, description, topics, stars,
+    license, last push), filled by a scheduled ingestion job from the GitHub API, plus repos that searches return.
+    Only repo metadata is stored, never what users type (privacy promise unchanged). Retrieval is hybrid: the
+    index's nearest neighbours join GitHub's keyword results, fused by reciprocal rank. **Freshness:** a repo from
+    the index is shown only after a live GitHub search confirms it (one search with several `repo:` qualifiers) and
+    refreshes its stars, license and last push; anything not confirmed is dropped (fail closed, RS7). Gates: Phase 1
+    shipped; the owner approves the Vectorize setup and its cost; a recall test set (fitting repos whose words differ
+    from the query, e.g. "speech recognition" for "voice") shows the index finds repos keyword search misses.
+  - **Plugin parity.** The plugin keeps meaning-based judgement in the user's own AI (RS6), which is stronger than
+    embeddings. Index search is offered to the plugin only as an opt-in flag that calls Replore's public endpoint,
+    named in PRIVACY.md, off by default — the plugin's no-server default (RS11) is unchanged.
+  - **Not adopted:** LangChain, LlamaIndex, Haystack, RAGFlow and similar frameworks — they bring dependencies the
+    stdlib plugin (RS11) and the no-build page (RS22) cannot take, for orchestration Replore does not need.
+    BM25 *alone* as the reranker — measured at pooled AUC 0.56 on the relevance set, close to chance; it is kept
+    only as the lexical half of the hybrid.
+
 ## RX — Deliberately excluded (v0.1)
 
 - **RX1** Scraping github.com HTML, or any non-API source.
-- **RX2** Caching results on disk.
+- **RX2** Caching results on disk. (Scope: the plugin and its scripts. A server-side index of repo metadata is allowed only as RS42 Phase 2, after its gates.)
 - **RX3** Ranking by forks, trending or download counts. (Relevance, stars and license-freedom are the only
   ranking signals — see RS5.)
 - **RX4** Writing into the user's repo (cloning, adding dependencies). The output is a recommendation only.
