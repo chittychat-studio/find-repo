@@ -437,10 +437,10 @@
     .modes .mode-tile{max-width:none}
     .out-wrap{max-width:none}
     /* home screen only (not while a search runs, RS24: no squeeze-then-jump): opening section = search (left) + live demo visual (right), then full-width bands below */
-    body:not(.has-results):not(.searching) .page{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);column-gap:56px;
+    body:not(.has-results):not(.searching) .page{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);column-gap:24px;
       grid-template-areas:"hero out" "car car" "foot foot";align-items:center}
     body:not(.has-results):not(.searching) .out-wrap{display:contents}
-    body:not(.has-results):not(.searching) .hero{grid-area:hero;max-width:none;margin:0;text-align:center}   /* heading centred over the search */
+    body:not(.has-results):not(.searching) .hero{grid-area:hero;max-width:none;margin:0;text-align:center;padding-left:clamp(16px,4vw,72px)}   /* RS24: off the page edge */   /* heading centred over the search */
     body:not(.has-results):not(.searching) #out{grid-area:out;align-self:center}
     body:not(.has-results):not(.searching) #trendCar{grid-area:car;margin-top:28px}
     body:not(.has-results):not(.searching) .out-wrap > .privacy-note{grid-area:foot}

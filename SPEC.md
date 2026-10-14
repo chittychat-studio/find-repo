@@ -161,7 +161,7 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
    uses the width: from 1200px the page spans up to 1500px, the search area up to 1100px (wider bar, tiles and pill
    rows), and the trending carousel (4 cards, 5 from 1500px) and results (4 columns) span the full page width. On the home
    screen (no results yet) the opening section pairs the heading (centred over the search box), search, tiles and pills with the animated
-   how-it-works demo on the right, then the carousel runs full width below — a top-down page, not a split app; once
+   how-it-works demo on the right (search side indented off the page edge, columns about 55/45 with a small gap), then the carousel runs full width below — a top-down page, not a split app; once
    results show everything stacks full width. The hero blends into the page (owner request 2026-10-14): the search bar is see-through with a soft shadow,
    prompt pills are outlines, and a few faint decorative shapes drift slowly behind the top of the page — circles,
    hexagons and vibe-coding motifs (`</>`, `{ }`, a `>_` terminal, a git branch, a sparkle), placed clear of the text,
