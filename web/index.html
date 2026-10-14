@@ -374,14 +374,14 @@
     .hero{max-width:1100px}
     .modes .mode-tile{max-width:none}
     .out-wrap{max-width:none}
-    /* home screen only: opening section = search (left) + live demo visual (right), then full-width bands below */
-    body:not(.has-results) .page{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);column-gap:56px;
+    /* home screen only (not while a search runs, RS24: no squeeze-then-jump): opening section = search (left) + live demo visual (right), then full-width bands below */
+    body:not(.has-results):not(.searching) .page{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);column-gap:56px;
       grid-template-areas:"hero out" "car car" "foot foot";align-items:center}
-    body:not(.has-results) .out-wrap{display:contents}
-    body:not(.has-results) .hero{grid-area:hero;max-width:none;margin:0;text-align:center}   /* heading centred over the search */
-    body:not(.has-results) #out{grid-area:out;align-self:center}
-    body:not(.has-results) #trendCar{grid-area:car;margin-top:28px}
-    body:not(.has-results) .out-wrap > .privacy-note{grid-area:foot}
+    body:not(.has-results):not(.searching) .out-wrap{display:contents}
+    body:not(.has-results):not(.searching) .hero{grid-area:hero;max-width:none;margin:0;text-align:center}   /* heading centred over the search */
+    body:not(.has-results):not(.searching) #out{grid-area:out;align-self:center}
+    body:not(.has-results):not(.searching) #trendCar{grid-area:car;margin-top:28px}
+    body:not(.has-results):not(.searching) .out-wrap > .privacy-note{grid-area:foot}
   }
   @media (min-width:1500px){ .tcard{flex-basis:calc((100% - 40px)/5)} }
   @media (max-width:999px){ body.has-results .tcar{display:none} }
@@ -1256,6 +1256,7 @@ function altQueries(meta, platform){
 
 // show the searching state right on the Find button (spinner + "Searching…"), restore when done
 function setGoBusy(on){ var go=document.getElementById("go"); if(!go) return;
+  document.body.classList.toggle("searching", !!on);   // RS24: search layout from the first moment, not after results
   if(on){ if(!go.dataset.label) go.dataset.label=go.innerHTML;
     go.innerHTML='<span class="spin" aria-hidden="true"></span><span class="go-lbl">Searching…</span>'; go.disabled=true; }
   else { if(go.dataset.label){ go.innerHTML=go.dataset.label; go.removeAttribute("data-label"); } go.disabled=false; }
