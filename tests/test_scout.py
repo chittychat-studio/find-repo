@@ -661,10 +661,11 @@ def test_web_page_is_safe_static(monkeypatch):
         assert t in html
 
 
-def test_pages_workflow_present():
-    """RS22."""
-    wf = (ROOT / ".github" / "workflows" / "pages.yml").read_text()
-    assert "upload-pages-artifact" in wf and "path: web" in wf and "deploy-pages" in wf
+def test_one_official_deploy_and_cardzo_credit():
+    """RS22/RS40: Cloudflare Pages is the only deploy (the GitHub Pages copy had no relevance Function); footer credits Cardzo."""
+    assert not (ROOT / ".github" / "workflows" / "pages.yml").exists()
+    html = (ROOT / "web" / "index.html").read_text()
+    assert 'href="https://cardzo.co.in"' in html and "Cardzo</a> product" in html
 
 
 def test_all_uncaps_and_groups_by_feature():
@@ -718,7 +719,7 @@ def test_privacy_notice_matches_what_the_code_does():
         assert banned not in html, banned
     # only these hosts are contacted; PRIVACY.md names each of them
     hosts = set(re.findall(r"https://([a-z0-9.-]+)", html))
-    allowed = {"api.github.com", "github.com", "claude.ai", "claude.com", "replore.pages.dev", "groq.com", "www.cloudflare.com", "challenges.cloudflare.com"}  # RS34/RS34a provider terms, RS34c Turnstile
+    allowed = {"api.github.com", "github.com", "claude.ai", "claude.com", "replore.pages.dev", "cardzo.co.in", "groq.com", "www.cloudflare.com", "challenges.cloudflare.com"}  # RS34/RS34a provider terms, RS34c Turnstile
     assert hosts <= allowed, hosts - allowed
     for named in ("api.github.com", "Cloudflare", "claude.ai", "security.log", "200 characters", "off by default",
                   "Groq", "Cloudflare Workers AI", "Turnstile", "relevance check", "stores nothing", "Feedback"):  # RS34 data flow must be disclosed

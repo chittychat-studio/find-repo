@@ -129,7 +129,7 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   learning) and a fill-in prompt template (What I'm building / Platform / Stack / Selling it? / Starting from
   scratch?). The skill reads the same five fields from whatever the user wrote, and asks only for the ones it
   needs per RS1a/RS1b.
-- **RS22** Web page (`web/index.html`, deployed to GitHub Pages by `.github/workflows/pages.yml`). Static,
+- **RS22** Web page (`web/index.html`, deployed by Cloudflare Pages from `main`, RS40). Static,
   single file, no external scripts (except Cloudflare Turnstile when the RS34c bot check is on), no build step, no embedded secret (the RS34 fallback key lives only in the
   server-side function). It runs the keyword-to-query, filter,
   fit-rank (RS5), license-label (RS14), completely-free (RS20) and starter (RS15) logic in JavaScript,
@@ -428,6 +428,15 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   lists it. No email or other contact field. Title and description are passed only through
   `encodeURIComponent` into the URL query, never into page HTML. If the title is empty the form does not submit and
   says so.
+
+- **RS40** Brand and official address (owner decision 2026-10-14). Replore is a **Cardzo** product: the page footer
+  says "A Cardzo product" and links to `https://cardzo.co.in` (a plain link, no script or tracking). The official address
+  is the subdomain `replore.cardzo.co.in` (a Cloudflare Pages custom domain on the same project; a subdomain, not a
+  `cardzo.co.in/replore` path, so the company site's routing is untouched). README, privacy notice and the live-eval
+  default point there; `replore.pages.dev` keeps serving the same deploy. The GitHub Pages copy (`chittychat-studio.github.io/replore`)
+  is retired: it served `web/` without the relevance Function, so its AI check could never run. The relevance Function
+  needs no change for a new domain (it checks the request's own origin). The manual live eval accepts the official
+  domain as well as `*.pages.dev`.
 
 ## RX — Deliberately excluded (v0.1)
 

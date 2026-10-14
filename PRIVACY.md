@@ -7,7 +7,7 @@ make Replore never keep your ideas, searches or plans. Your search words go to G
 web page only — to an AI provider that checks which results fit. Nothing you type is kept by us; if the AI check fails, we
 keep only the error type and time, to fix it.
 
-## Web page (replore.pages.dev)
+## Web page (replore.cardzo.co.in, also replore.pages.dev)
 
 | What | Where it goes | Why |
 |---|---|---|
