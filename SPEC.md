@@ -303,7 +303,8 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   both. It reports a limit only when every configured provider failed: "busy" if any was a short per-minute limit,
   otherwise "used up" with the soonest reset (capped at 24 h); when any provider failed for another reason, the plain "couldn't check" note is shown. A slow first provider gets at most 60% of the budget so the fallback still runs. Not configured = neither a key nor the binding. A provider whose free
   tier is restricted to experimentation or prototyping (e.g. GitHub Models free usage) is not added to the chain
-  for the public site; every provider in the chain is named in `PRIVACY.md`. **Example cache (RS34b):** for the built-in example
+  for the public site; every provider in the chain is named in `PRIVACY.md`. The live chain is scored with `evals/relevance_live.mjs` (the same
+  84-item set and pass bar, posted to the deployed endpoint), run by the manual GitHub workflow `relevance-eval-live`. **Example cache (RS34b):** for the built-in example
   searches only (the fixed texts of RS21, listed in the function and kept identical to the page by a test), a successful
   answer is kept in Cloudflare's edge cache for 24 h, keyed by a SHA-256 of the example text and the candidate repos,
   so repeat quick-pick taps spend no AI allowance. Text a visitor types is never cached or stored. Provider-side
@@ -369,6 +370,24 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   and disappears when results show. It animates only while on screen and the tab is visible, draws one still frame
   (static dots, no label cycling) under prefers-reduced-motion, is aria-hidden decoration (the label text stays
   readable), stops once removed, and makes no network call.
+
+- **RS34e** Relevance-check diagnosis and model choice. Live eval (2026-10-14, production chain): 6/9 queries timed
+  out at 7 s, 2/9 returned unparseable output, and the one that ran dropped 4/6 relevant SaaS starters. Fixes: the
+  model replies with indices only (`{"drop":[2,5]}`, max 120 tokens — the per-repo reasons were never shown and made
+  replies long and slow); the prompt keeps templates/starters/boilerplates for the same kind of product even with extra
+  features. A request may ask for per-attempt diagnostics (`X-Replore-Diag: 1` → model, ms and code per attempt, no
+  text). For the 2026-10-14 comparison, preview builds briefly accepted a model choice from an allowlist; that
+  override was removed before release (peer review: previews share the account's AI allowance), so no build lets a
+  client pick a model. The live eval is a manual workflow (`relevance-eval-live`) that scores an endpoint's own chain. Comparison 2026-10-14 (indices-only replies; timeouts gone, 0.2–1.3 s avg): kept/dropped —
+  Mistral Small 3.1 24B 100%/68%, Llama 3.3 70B 98%/32%, Llama 4 Scout 86%/46%, Llama 3.1 8B fp8 72%/76% (the old
+  default, which hid good SaaS starters), 8B fast 81%/63%, 3.2 3B 67%/34%; Gemma 3 not allowed on the account (5018);
+  GLM 4.7 Flash unparseable. Default becomes Mistral Small, then Llama 3.3 70B. No model meets the 80% drop bar yet;
+  keeping good repos (the 95% half) is the half that protects visitors, so a model is only made default if it meets it.
+  After adding the general-purpose-framework drop rule (build tag 26bf4ee9), both PASS the RS34 bar on the live preview:
+  Mistral Small 3.1 24B kept 98% / dropped 85% (avg 0.7 s); Llama 3.3 70B kept 95% / dropped 90% (avg 0.6 s).
+  Cost (inferred, not measured): a 24B model uses more of the free daily Workers AI allocation per check than the 8B
+  did, so fewer checks fit in a day; the example cache (RS34b, bumped to v2 for the new model) and max 120 output
+  tokens offset part of it. When the allocation runs out the check is skipped silently (RS34).
 
 ## RX — Deliberately excluded (v0.1)
 
