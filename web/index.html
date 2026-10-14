@@ -81,7 +81,7 @@
   .page{max-width:1160px;margin:0 auto;padding:20px 20px 56px;width:100%}
   .hero{max-width:760px;margin:0 auto 14px;text-align:center}
   .gh-credit{font-size:11.5px;color:var(--muted);text-align:center;margin:4px 0 0;opacity:.85}   /* RS44 */
-  .brand-by,.privacy-note .tip-el{white-space:nowrap}   /* footer only: the plan-window tip line must wrap */
+  .brand-by{white-space:nowrap}
   .hero-pill{display:inline-flex;align-items:center;gap:6px;margin:0 0 12px;padding:5px 12px;border-radius:999px;
     font-size:13px;font-weight:600;letter-spacing:.01em;color:var(--accent-ink);background:rgba(192,83,44,.08);border:1px solid rgba(192,83,44,.22)}
   .hero-pill span{font-size:12px}
@@ -205,6 +205,7 @@
   a.nav-btn:hover{text-decoration:none}
   .nav-star{background:linear-gradient(135deg,var(--accent),var(--accent-ink));border-color:transparent;color:#fff}
   .nav-star:hover{color:#fff;box-shadow:0 6px 16px -6px rgba(192,83,44,.7)}
+  .nav-btn[hidden]{display:none}   /* RS44: the tip button stays hidden until TIP_URL is set */
   .nav{margin-left:auto;display:flex;gap:8px;align-items:center}
   .brand{width:100%;flex-wrap:wrap;align-items:center}
   .sub{color:var(--muted);margin:2px 0 0;font-size:14.5px}
@@ -660,6 +661,8 @@
     <button id="trendBtn" class="nav-btn" title="Popular open-source repos right now">Trending</button>
     <button id="pluginBtn" class="nav-btn" title="Use the plugin in Claude Code, Codex, Cursor or any AI agent">Plugin</button>
     <a id="starBtn" class="nav-btn nav-star" href="https://github.com/chittychat-studio/replore" target="_blank" rel="noopener" title="If Replore helped, a star on GitHub means a lot — thank you!">★ Star</a>
+    <a class="nav-btn nav-tip tip-el tip-link" href="#" target="_blank" rel="noopener noreferrer" hidden
+      title="Optional tip. It helps us keep Replore free and fund more open-source projects.">☕ Tip</a>
   </nav>
   <div class="topbar-right">
     <button id="navToggle" class="nav-toggle" aria-label="Menu" aria-controls="nav" aria-expanded="false">☰</button>
@@ -705,7 +708,6 @@
       <button type="button" class="link-btn" id="aboutBtn">How ranking works</button> ·
       <button type="button" class="link-btn" id="nextBtn">Next steps</button> ·
       <button type="button" class="link-btn" id="fbBtn">Feedback</button>
-      <span class="tip-el" hidden>· <a class="tip-link" href="#" target="_blank" rel="noopener noreferrer">☕ Tip</a></span>
       <span class="brand-by">· A <a href="https://cardzo.co.in" target="_blank" rel="noopener noreferrer">Cardzo</a> product</span></p>
     <p class="gh-credit">Repository data from the GitHub API. Replore is not affiliated with or endorsed by GitHub. GitHub® is a trademark of GitHub, Inc.</p>
   </section>
