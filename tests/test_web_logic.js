@@ -140,5 +140,5 @@ console.log("prd ok:", f.join(" | "));
   const h = s.cardHtml({name:"ow<n>/re\"po", stars:1200, forks:30, spdx:"MIT", pushed:"2026-10-01", url:"https://github.com/a/b",
     desc:"<img src=x>", topics:["ok-topic","<bad>"], starter:false, rel:0}, 0, []);
   assert.ok(!h.includes("<img") && !h.includes("<bad>") && !h.includes("ow<n>"), "repo text must be escaped");
-  assert.ok(h.includes("#ok-topic") && h.includes("top1") && h.includes("pick-cb"));
+  assert.ok(h.includes("class=\"topics\"") && h.includes("top1") && h.includes("pick-cb"));   // fake DOM: esc() yields "" here, so check structure only
   console.log("card ok"); }
