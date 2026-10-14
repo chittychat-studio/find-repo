@@ -277,6 +277,13 @@
   .rcard .pick{display:inline-flex;align-items:center;gap:7px;margin-top:10px;font-size:12.5px;font-weight:600;
     color:var(--accent-ink);cursor:pointer;user-select:none}
   .rcard .pick input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;margin:0}
+  /* RS39 feedback: floating on wide screens only (on phones it would cover the plan bar); footer link everywhere */
+  .fb-fab{display:none}
+  @media (min-width:1000px){ .fb-fab{display:block;position:fixed;right:20px;bottom:20px;z-index:37;background:var(--card);
+    border:1px solid var(--line);border-radius:999px;padding:9px 16px;font:inherit;font-size:13px;font-weight:700;
+    color:var(--accent-ink);cursor:pointer;box-shadow:0 14px 30px -18px rgba(var(--shadow),.7)}
+    .fb-fab:hover{border-color:var(--accent)} }
+  .fb-err{color:var(--accent-ink);margin:-6px 0 8px}
   /* floating PRD action bar */
   .prd-bar{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:38;display:flex;align-items:center;
     gap:12px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:8px 10px 8px 18px;
@@ -563,7 +570,8 @@
       <button type="button" class="link-btn" onclick="openModal('privacyModal')">Privacy</button> ·
       <button type="button" class="link-btn" id="tourBtn">Tour</button> ·
       <button type="button" class="link-btn" id="aboutBtn">How ranking works</button> ·
-      <button type="button" class="link-btn" id="nextBtn">Next steps</button></p>
+      <button type="button" class="link-btn" id="nextBtn">Next steps</button> ·
+      <button type="button" class="link-btn" id="fbBtn">Feedback</button></p>
   </section>
 </main>
 
@@ -709,6 +717,23 @@
   <p class="mut" style="margin-top:12px">Remember: stars are popularity, not quality, and a license is a plain summary, not legal advice.</p>
 </div></div>
 
+<!-- RS39 feedback: opens a pre-filled GitHub issue; nothing is sent from this page -->
+<button type="button" class="fb-fab" id="fbFab">Feedback</button>
+<div class="modal" id="fbModal"><div class="sheet">
+  <button class="x" data-close>&times;</button>
+  <h2>Send feedback</h2>
+  <p class="mut">Report a bug or suggest an improvement. This opens a pre-filled issue on GitHub; it's public and
+    needs a GitHub account. Nothing is sent until you submit it there.</p>
+  <div class="field"><label for="fbTitle">Title</label>
+    <input id="fbTitle" type="text" maxlength="120" autocomplete="off" placeholder="Short summary"></div>
+  <div class="field"><label for="fbType">Type</label>
+    <select id="fbType"><option>Bug</option><option selected>Feature request</option><option>Content issue</option><option>Other</option></select></div>
+  <div class="field"><label for="fbDesc">Description</label>
+    <textarea id="fbDesc" maxlength="2000" rows="5" placeholder="What happened, or what would you like?"></textarea></div>
+  <p class="mut fb-err" id="fbErr" hidden>Add a title first.</p>
+  <button type="button" id="fbGo" class="primary">Continue on GitHub →</button>
+</div></div>
+
 <div class="modal" id="privacyModal"><div class="sheet">
   <button class="x" data-close>&times;</button>
   <h2>Privacy</h2>
@@ -733,6 +758,8 @@
       search bar or the Replore logo to delete them.</li>
     <li><b>Uploaded plans</b> are read in your browser and never uploaded; only short feature phrases are searched on GitHub.</li>
     <li><b>Open in Claude</b> sends the build-plan prompt to your own claude.ai account, only when you click it.</li>
+    <li><b>Feedback</b> opens a public GitHub issue in a new tab, pre-filled with what you typed; it's sent only if
+      you submit it on GitHub, under your GitHub account.</li>
     <li>No cookies, ads or tracking pixels from Replore.</li>
   </ul>
   <p class="mut" style="margin-top:10px">The plugin and MCP server run on your computer; your AI provider handles your
@@ -1338,7 +1365,7 @@ function openModal(id){ var m=document.getElementById(id); if(!m) return;
   else if(!already){ __lastFocus=document.activeElement; }   // remember opener (keep the original when switching modals)
   m.classList.add("open");
   if(id==="howModal"){ var hd=document.getElementById("howDemo"); buildDemo(hd); if(hd&&hd.__playDemo) hd.__playDemo(); }
-  var focusId = id==="filtersModal" ? "stackInput" : (id==="likeModal" ? "like" : null), sheet=m.querySelector(".sheet");
+  var focusId = id==="filtersModal" ? "stackInput" : (id==="likeModal" ? "like" : (id==="fbModal" ? "fbTitle" : null)), sheet=m.querySelector(".sheet");
   setTimeout(function(){ var f=focusId&&document.getElementById(focusId);
     if(!f){ var fs=focusables(sheet); f=fs[0]||sheet; } if(f&&f.focus) f.focus(); },30);
 }
@@ -1411,6 +1438,24 @@ document.getElementById("aboutBtn").addEventListener("click",function(){ openMod
 document.getElementById("trendBtn").addEventListener("click",function(){ showTrending("rising"); });
 document.getElementById("trendHome").addEventListener("click",function(){ showTrending("rising"); });
 document.getElementById("nextBtn").addEventListener("click",function(){ openModal("nextModal"); });
+// RS39 feedback: build a pre-filled GitHub "New issue" link; user text only ever goes through encodeURIComponent
+var FB_TYPES=["Bug","Feature request","Content issue","Other"];
+function feedbackUrl(title, type, desc){
+  title=String(title||"").trim().slice(0,120); if(!title) return null;
+  if(FB_TYPES.indexOf(type)<0) type="Other";
+  var body="**Type:** "+type+"\n\n"+(String(desc||"").trim().slice(0,2000)||"(no description)")+"\n\n_Sent from the Replore feedback form._";
+  return "https://github.com/chittychat-studio/replore/issues/new?title="+encodeURIComponent("["+type+"] "+title)+
+    "&body="+encodeURIComponent(body);
+}
+function openFeedback(){ document.getElementById("fbErr").hidden=true; openModal("fbModal"); }
+document.getElementById("fbBtn").addEventListener("click",openFeedback);
+document.getElementById("fbFab").addEventListener("click",openFeedback);
+document.getElementById("fbTitle").addEventListener("input",function(){ document.getElementById("fbErr").hidden=true; });
+document.getElementById("fbGo").addEventListener("click",function(){
+  var u=feedbackUrl(document.getElementById("fbTitle").value, document.getElementById("fbType").value, document.getElementById("fbDesc").value);
+  if(!u){ document.getElementById("fbErr").hidden=false; document.getElementById("fbTitle").focus(); return; }
+  window.open(u,"_blank","noopener"); closeModals();
+});
 document.querySelectorAll("[data-close]").forEach(function(b){ b.addEventListener("click",closeModals); });
 document.querySelectorAll(".modal").forEach(function(m){ m.addEventListener("click",function(e){ if(e.target===m) closeModals(); }); });
 document.addEventListener("keydown",function(e){ if(e.key==="Escape") closeModals(); });

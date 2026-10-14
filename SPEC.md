@@ -410,6 +410,17 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   cross-dissolves inside one fixed frame (RS36). Same easing everywhere (cubic-bezier(.22,1,.36,1)), 0.25–0.6 s.
   Everything is off under prefers-reduced-motion (the page's global reduced-motion rule).
 
+- **RS39** Feedback form (web, owner request "feedback form … for enhancements"; owner chose "GitHub issue, no
+  backend"). A "Feedback" button sits in the footer row and, on screens 1000px and wider, also floats bottom-right
+  (on phones it would cover the plan bar, RS23). It opens a modal: title (required, max 120), type (Bug / Feature request /
+  Content issue / Other), description (max 2000). Submitting opens github.com's "New issue" page for
+  chittychat-studio/replore in a new tab, pre-filled with `[<type>] <title>` and the description; nothing is sent until
+  the visitor presses GitHub's own submit, under their own GitHub account. Replore stores nothing and runs no server
+  code for it. The modal says plainly that GitHub issues are public and need a GitHub account, and the privacy notice
+  lists it. No email or other contact field. Title and description are passed only through
+  `encodeURIComponent` into the URL query, never into page HTML. If the title is empty the form does not submit and
+  says so.
+
 ## RX — Deliberately excluded (v0.1)
 
 - **RX1** Scraping github.com HTML, or any non-API source.
