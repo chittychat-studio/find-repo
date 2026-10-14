@@ -259,6 +259,11 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   my vibe coding app, with 15+ years of experience building similar apps." The owner first proposed "my million
   dollar startup"; replaced because most users build small projects, and inflated stakes push the AI to plan for
   scale a portfolio site or hobby game doesn't need.
+- **RS28f** Plan size and clean text (owner test 2026-10-14: a 21-repo plan whose descriptions stopped mid-word).
+  When more than 10 repos are picked, the plan modal says "Plans work best with 10 or fewer repos. You picked N —
+  untick the weakest few for a sharper plan." It never drops picks itself. Repo text longer than 200 characters
+  ends at a word with "…" (cards and prompt alike), never mid-word. The same test's clearly off-topic voice repos
+  (song covers, video dubbing, karaoke) join the relevance set for the next approved live eval.
 - **RS28b** Other AI assistants (owner request 2026-10-14: "all three buttons equal importance"). The plan modal
   offers three same-style buttons in one row (stacked on phones): "Open in Claude", "Open in ChatGPT"
   (`https://chatgpt.com/?q=<encoded>`, best-effort and unofficial like the Claude link, dropped under the same length
@@ -348,7 +353,7 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   otherwise "used up" with the soonest reset (capped at 24 h); when any provider failed for another reason, the plain "couldn't check" note is shown. A slow first provider gets at most 60% of the budget so the fallback still runs. Not configured = neither a key nor the binding. A provider whose free
   tier is restricted to experimentation or prototyping (e.g. GitHub Models free usage) is not added to the chain
   for the public site; every provider in the chain is named in `PRIVACY.md`. The live chain is scored with `evals/relevance_live.mjs` (the same
-  88-item set and pass bar, posted to the deployed endpoint), run by the manual GitHub workflow `relevance-eval-live`. **Example cache (RS34b):** for the built-in example
+  91-item set and pass bar, posted to the deployed endpoint), run by the manual GitHub workflow `relevance-eval-live`. **Example cache (RS34b):** for the built-in example
   searches only (the fixed texts of RS21, listed in the function and kept identical to the page by a test), a successful
   answer is kept in Cloudflare's edge cache for 24 h, keyed by a SHA-256 of the example text and the candidate repos,
   so repeat quick-pick taps spend no AI allowance. Text a visitor types is never cached or stored. Provider-side

@@ -1,4 +1,4 @@
-// SPEC RS34: score the live relevance check against evals/relevance_set.json (88 hand-labelled repos).
+// SPEC RS34: score the live relevance check against evals/relevance_set.json (91 hand-labelled repos).
 // Spends a few LLM calls on YOUR key — run by the maintainer, never in CI:
 //   LLM_API_KEY=... [LLM_BASE_URL=...] [LLM_MODEL=...] node evals/relevance_llm.mjs
 // Pass bar (same as the browser-model test): keep >= 95% of relevant repos AND drop >= 80% of off-topic ones.

@@ -616,6 +616,27 @@
    "text": "project website template. A HTML/CSS Template for Building Projects or Personal Websites",
    "rel": false,
    "src": "owner_voice_maps"
+  },
+  {
+   "query": "voice based ai app to track my diet and step counter",
+   "name": "JackismyShephard/ultimate-rvc",
+   "text": "ultimate rvc. An app for creating audio-based content such as song covers and speech using Retrieval-based Voice Conversion.",
+   "rel": false,
+   "src": "owner_voice_diet"
+  },
+  {
+   "query": "voice based ai app to track my diet and step counter",
+   "name": "ThioJoe/Auto-Synced-Translated-Dubs",
+   "text": "Auto Synced Translated Dubs. Automatically translates the text of a video based on a subtitle file, and then uses AI voice services to create a new dubbed & translated audio track",
+   "rel": false,
+   "src": "owner_voice_diet"
+  },
+  {
+   "query": "voice based ai app to track my diet and step counter",
+   "name": "rakuri255/UltraSinger",
+   "text": "UltraSinger. AI based tool to convert vocals lyrics and pitch from music to autogenerate Ultrastar Deluxe, Midi and notes. It automatic tapping, adding text, pitch vocals and creates karaoke files.",
+   "rel": false,
+   "src": "owner_voice_diet"
   }
  ]
 }

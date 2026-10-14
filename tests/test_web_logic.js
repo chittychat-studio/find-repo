@@ -14,7 +14,7 @@ global.window = global;
 const s = {};
 new Function("document", "localStorage",
   code + "; this.keywordQueries=keywordQueries; this.rankByFit=rankByFit; this.fitScore=fitScore; this.whyRelevant=whyRelevant; this.esc=esc; this.lu=lu; this.freeText=freeText;" +
-  " this.keep=keep; this.harmful=harmful; this.harmfulRepo=harmfulRepo; this.prdFeatures=prdFeatures; this.trendingQuery=trendingQuery; this.trendRows=trendRows; this.feedbackUrl=feedbackUrl; this.feedbackPayload=feedbackPayload; this.agoText=agoText; this.cardHtml=cardHtml;").call(s, document, global.localStorage || {getItem:()=>null,setItem(){},removeItem(){}});
+  " this.keep=keep; this.clean=clean; this.harmful=harmful; this.harmfulRepo=harmfulRepo; this.prdFeatures=prdFeatures; this.trendingQuery=trendingQuery; this.trendRows=trendRows; this.feedbackUrl=feedbackUrl; this.feedbackPayload=feedbackPayload; this.agoText=agoText; this.cardHtml=cardHtml;").call(s, document, global.localStorage || {getItem:()=>null,setItem(){},removeItem(){}});
 
 // RS16: iOS excludes macOS
 // RS16: expansions are specific on-topic phrases, never a bare category (live regression: "website" -> "frontend framework"
@@ -37,6 +37,12 @@ new Function("document", "localStorage",
   assert.ok(kq("a portfolio website with smooth scroll animations")[0].split(" ").length <= 3);            // core query <= 3 words
 }
 assert.ok(s.keywordQueries("a diet app for iphone", "ios").every(q => q.includes("-topic:macos")));
+// RS28f: long text ends at a word with "…", short text untouched
+{ const long = "Open-source Python-based fitness tracker web app using Flask. Features include workout logging, nutrition tracking, and progress visualization. Ideal for developers and fitness enthusiasts looking to build their own";
+  const c = s.clean(long);
+  assert.ok(c.length <= 200 && c.endsWith("…"), c);
+  assert.ok(long.startsWith(c.slice(0, -1)) && long[c.length - 1] === " ", "cut at a word: " + c);
+  assert.strictEqual(s.clean("  short text  "), "short text"); }
 // RS16a needs first, shell last (owner test: generic website templates crowded out voice + offline maps)
 { const kq = t => s.keywordQueries(t, "");
   assert.deepStrictEqual(kq("website with voice ai and show offline maps"), ["voice ai", "offline maps", "maplibre", "offline map tiles"]);

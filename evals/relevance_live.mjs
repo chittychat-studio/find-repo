@@ -1,5 +1,5 @@
 // SPEC RS34/RS34a: score the LIVE relevance check (the deployed /api/relevance — Workers AI first, then any fallback)
-// against evals/relevance_set.json (88 hand-labelled repos, 10 queries). No key needed: it calls the public endpoint
+// against evals/relevance_set.json (91 hand-labelled repos, 11 queries). No key needed: it calls the public endpoint
 // exactly like the web page does. Spends one AI check per query (9) from the site's free daily allowance.
 //   node evals/relevance_live.mjs [https://replore.cardzo.co.in/api/relevance]
 // Same pass bar as relevance_llm.mjs: keep >= 95% of relevant repos AND drop >= 80% of off-topic ones.
