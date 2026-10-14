@@ -354,7 +354,8 @@
   .tcard .tc-meta{font-size:11.5px;color:var(--muted)}
   @media (min-width:700px){ .tcard{flex-basis:46%} }
   /* RS24 wide desktops: one top-down column that uses the full width (no split screen) */
-  @media (min-width:1000px){ .tcard{flex:0 0 calc((100% - 30px)/4);max-width:none} }
+  @media (min-width:1000px){ .tcard{flex:0 0 calc((100% - 30px)/4);max-width:none;min-height:172px;padding:18px 18px 16px;gap:8px}
+    .tcard .tc-top{font-size:15px} .tcard .tc-desc{font-size:13.5px;-webkit-line-clamp:3} .tcard .tc-meta{margin-top:auto} }
   @media (min-width:1200px){
     .page{max-width:1500px}
     .hero{max-width:1100px}
