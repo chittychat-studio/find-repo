@@ -651,6 +651,8 @@ def test_web_page_is_safe_static(monkeypatch):
     assert 'id="showLeft"' not in html and "more we left out" not in html
     # RS24/RS28 result card: owner tile without image fetch, prominent add-to-plan toggle, topics from the API
     assert "function ownerHue" in html and 'class="pk-add"' in html and "✓ In plan" in html and "avatars.githubusercontent" not in html
+    # RS38: below-the-fold cards reveal on entering the viewport; restored markup never stays invisible
+    assert "function queueReveal" in html and "IntersectionObserver" in html and 'c.classList.remove("rv-wait"); });' in html
     # RS36: demo steps use inline SVG art (theme colours), not emoji
     assert "var ART={" in html and "ico:ART.describe" in html and 'ico:"🔍"' not in html
     # RS24 richness: cursor tilt + star count-up are native (no extra library)

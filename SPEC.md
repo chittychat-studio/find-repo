@@ -161,11 +161,11 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
    uses the width: from 1200px the page spans up to 1500px, the search area up to 1100px (wider bar, tiles and pill
    rows), and the trending carousel (4 cards, 5 from 1500px) and results (4 columns) span the full page width. On the home
    screen (no results yet) the opening section pairs the heading (centred over the search box), search, tiles and pills with the animated
-   how-it-works demo on the right, then the carousel runs full width below — a top-down page, not a split app; once
+   how-it-works demo on the right (search side indented off the page edge, columns about 55/45 with a small gap), then the carousel runs full width below — a top-down page, not a split app; once
    results show everything stacks full width. The hero blends into the page (owner request 2026-10-14): the search bar is see-through with a soft shadow,
    prompt pills are outlines, and a few faint decorative shapes drift slowly behind the top of the page — circles,
-   hexagons and vibe-coding motifs (`</>`, `{ }`, a `>_` terminal, a git branch, a sparkle), placed clear of the text,
-   kept barely visible (whole layer at 60%, fading out downwards), fewer on phones, `aria-hidden`, still under reduced motion. That full-width layout starts the moment a search starts, so
+   hexagons and vibe-coding motifs (`</>`, `{ }`, a `>_` terminal, a git branch, a sparkle), plus a small soft half hexagon peeking from the left edge beside the heading (away from the search bar), placed clear of the text,
+   kept barely visible (whole layer at 60%, fading out downwards), fewer on phones (one shape per edge: the half hexagon left, `</>` right), `aria-hidden`, still under reduced motion. That full-width layout starts the moment a search starts, so
    the search bar never shrinks to the left column while the demo is gone and results haven't arrived. Results render as
   cards instead of a wide table (owner request 2026-10-14 "just boring cards"): a head with a coloured owner-initial
   tile (hue from the owner name, no image fetched), owner / repo name and rank (top 3 highlighted); stars and forks
@@ -413,7 +413,7 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   stars, last update, the "Less likely to fit" divider, and the privacy line (shortened, linking to the full notice).
 
 - **RS38** Motion (web, owner request "transitions … smooth look"). One motion language: views swapped into the
-  results area (home demo, results, trending, errors) fade and rise in; cards revealed by scrolling or filters ease in;
+  results area (home demo, results, trending, errors) fade and rise in; cards revealed by scrolling or filters ease in when they enter the viewport (cards below the fold wait until scrolled to, so the motion isn't spent off-screen; a restored page never leaves a card invisible);
   modals fade with the sheet rising; theme and hover changes transition colours over 0.3 s; the how-it-works demo
   cross-dissolves inside one fixed frame (RS36). Same easing everywhere (cubic-bezier(.22,1,.36,1)), 0.25–0.6 s.
   Everything is off under prefers-reduced-motion (the page's global reduced-motion rule).
