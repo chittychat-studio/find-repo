@@ -14,7 +14,7 @@ global.window = global;
 const s = {};
 new Function("document", "localStorage",
   code + "; this.keywordQueries=keywordQueries; this.rankByFit=rankByFit; this.fitScore=fitScore; this.whyRelevant=whyRelevant; this.esc=esc; this.lu=lu; this.freeText=freeText;" +
-  " this.keep=keep; this.clean=clean; this.bm25Scores=bm25Scores; this.repoText=repoText; this.rrfOrder=rrfOrder; this.hybridOrder=hybridOrder; this.confirmQueries=confirmQueries; this.harmful=harmful; this.harmfulRepo=harmfulRepo; this.prdFeatures=prdFeatures; this.trendingQuery=trendingQuery; this.trendRows=trendRows; this.feedbackUrl=feedbackUrl; this.feedbackPayload=feedbackPayload; this.agoText=agoText; this.cardHtml=cardHtml;").call(s, document, global.localStorage || {getItem:()=>null,setItem(){},removeItem(){}});
+  " this.keep=keep; this.recentKey=recentKey; this.recentFind=recentFind; this.recentAdd=recentAdd; this.CACHE_V=CACHE_V; this.clean=clean; this.harmful=harmful; this.harmfulRepo=harmfulRepo; this.prdFeatures=prdFeatures; this.trendingQuery=trendingQuery; this.trendRows=trendRows; this.feedbackUrl=feedbackUrl; this.feedbackPayload=feedbackPayload; this.agoText=agoText; this.cardHtml=cardHtml; this.bm25Scores=bm25Scores; this.repoText=repoText; this.rrfOrder=rrfOrder; this.hybridOrder=hybridOrder; this.confirmQueries=confirmQueries;").call(s, document, global.localStorage || {getItem:()=>null,setItem(){},removeItem(){}});
 
 // RS16: iOS excludes macOS
 // RS16: expansions are specific on-topic phrases, never a bare category (live regression: "website" -> "frontend framework"
@@ -37,6 +37,22 @@ new Function("document", "localStorage",
   assert.ok(kq("a portfolio website with smooth scroll animations")[0].split(" ").length <= 3);            // core query <= 3 words
 }
 assert.ok(s.keywordQueries("a diet app for iphone", "ios").every(q => q.includes("-topic:macos")));
+// RS43 A: the visitor's own 1-hour cache (pure functions)
+{ const f = { q: "  Diet  Tracker ", platform: "web", minstars: "50", starters: "yes", stack: "", like: "" };
+  const k = s.recentKey(f);
+  assert.strictEqual(k, s.recentKey({ ...f, q: "diet tracker" }), "case and spacing don't matter");
+  assert.notStrictEqual(k, s.recentKey({ ...f, platform: "ios" }), "filters are part of the key");
+  const html = '<div class="rcard">x</div>', t0 = 1e12;
+  let list = s.recentAdd([], { k, v: s.CACHE_V, t: t0, html }, t0);
+  assert.ok(s.recentFind(list, k, t0 + 59 * 60000), "hit within the hour");
+  assert.strictEqual(s.recentFind(list, k, t0 + 61 * 60000), null, "expired after an hour");
+  assert.strictEqual(s.recentFind([{ k, v: "old", t: t0, html }], k, t0), null, "old markup version ignored");
+  assert.strictEqual(s.recentFind([{ k, v: s.CACHE_V, t: t0, html: "<p>error</p>" }], k, t0), null, "only real results");
+  for (let i = 0; i < 15; i++) list = s.recentAdd(list, { k: "k" + i, v: s.CACHE_V, t: t0 + i, html }, t0 + i);
+  assert.strictEqual(list.length, 10, "at most 10 kept");
+  assert.strictEqual(list[0].k, "k14", "newest first");
+  list = s.recentAdd(list, { k: "late", v: s.CACHE_V, t: t0 + 2 * 3600000, html }, t0 + 2 * 3600000);
+  assert.deepStrictEqual(list.map(e => e.k), ["late"], "expired entries dropped on write"); }
 // RS42 hybrid: same BM25 numbers as scripts/hybrid.py (tests/test_hybrid.py GOLDEN), same RRF, same damping
 { const DESC = "voice based ai app to track my diet and step counter";
   const docs = [s.repoText("a/calorie-counter", "Track calories and diet", ["nutrition"]), s.repoText("b/karaoke", "Make karaoke from songs", []),

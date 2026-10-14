@@ -897,6 +897,10 @@
       (<a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Cloudflare</a>,
       <a href="https://groq.com/privacy-policy/" target="_blank" rel="noopener">Groq</a>). If the check is unavailable you simply
       get the unfiltered keyword results.</li>
+    <li><b>Saved for an hour:</b> your browser keeps your last 10 searches and their results on this device for one hour,
+      so repeating one is instant. They never leave your device; the next search after an hour runs fresh. For identical
+      searches, our relevance check also reuses the AI's answer for an hour; it keeps only a fingerprint of the search and which
+      repos to hide, never your words.</li>
     <li><b>Bot check:</b> Cloudflare Turnstile is on: your browser loads it from Cloudflare when you search, and
       it checks that you're a person before the AI check runs. It usually needs no click. Cloudflare handles it under the
       same <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">privacy policy</a>.</li>
@@ -1523,6 +1527,13 @@ async function run(){
   if(text && harmful(text)){ out.innerHTML='<div class="panel"><p class="err">I can’t help find tools for that.</p>'+
     '<p class="mut">For learning security on systems you own, try: "learn web security by hacking a practice app".</p></div>'; return; }
 
+  var fresh=window.__fresh; window.__fresh=false;
+  var hit=fresh?null:recentFind(recentLoad(), recentKey(recentFields()), Date.now());   // RS43 A: same search within the hour
+  if(hit){ ++window.__runGen; out.innerHTML=hit.html; cleanCards(out);
+    var mins=Math.max(1,Math.round((Date.now()-hit.t)/60000));
+    st.innerHTML='Same search as '+mins+' min ago, so these are your saved results. '+
+      '<button type="button" class="link-btn" onclick="window.__fresh=true;run()">Search again</button>';
+    animateCards(out); initResultFilter(); saveResults(); syncClearQ(); return; }
   window.__busy=true; setGoBusy(true); st.textContent=""; window.__likeNote="";
   var gen=++window.__runGen;   // a reset or newer search bumps this; stale results are dropped
   try{
@@ -1592,6 +1603,7 @@ async function run(){
     // RS34: no on-screen note about the AI check; its outcome is kept as an attribute for diagnosis only
     out.setAttribute("data-gate", !gate?"off":gate.ok?"ok:"+gate.hidden:String(gate.error||"fail").replace(/[^a-z0-9_]/gi,"").slice(0,40));
     animateCards(out); initResultFilter(); st.textContent=""; saveResults(); syncClearQ();
+    try{ cleanCards(out); var now=Date.now(); recentSave(recentAdd(recentLoad(), { k:recentKey(recentFields()), v:CACHE_V, t:now, html:out.innerHTML }, now)); }catch(_){}   // RS43 A
   }catch(e){ if(gen!==window.__runGen) return; st.textContent=""; out.innerHTML='<div class="panel"><p class="err">'+esc(e.message)+'</p></div>'; }
   finally{ if(gen===window.__runGen){ setGoBusy(false); window.__busy=false; } }
 }
@@ -2097,6 +2109,20 @@ function showHome(){
 }
 // remember the last results so a page refresh brings them back (cached locally, no new API call)
 var LAST="findrepo_last", CACHE_V="9";  // bump when saved markup changes, so stale caches are dropped
+// RS43 A: the visitor's own last 10 searches for 1 hour, in their browser only. Pure functions (tested) + thin wrappers.
+var RECENT="replore_recent", RECENT_TTL_MS=3600000, RECENT_MAX=10;
+function recentKey(f){ return JSON.stringify([String(f.q||"").trim().toLowerCase().replace(/\s+/g," "), f.platform||"", String(f.minstars||""),
+  f.starters||"", String(f.stack||"").trim().toLowerCase(), String(f.like||"").trim().toLowerCase()]); }
+function recentFind(list, key, now){ for(var i=0;i<(list||[]).length;i++){ var e=list[i];
+  if(e && e.k===key && e.v===CACHE_V && now-e.t<RECENT_TTL_MS && e.html && e.html.indexOf("rcard")>=0) return e; } return null; }
+function recentAdd(list, entry, now){ return [entry].concat((list||[]).filter(function(e){
+  return e && e.k!==entry.k && e.v===CACHE_V && now-e.t<RECENT_TTL_MS; })).slice(0,RECENT_MAX); }
+function recentLoad(){ try{ var d=JSON.parse(localStorage.getItem(RECENT)||"[]"); return Array.isArray(d)?d:[]; }catch(e){ return []; } }
+function recentSave(list){ try{ localStorage.setItem(RECENT, JSON.stringify(list)); }catch(e){   // full: keep the newest half
+  try{ localStorage.setItem(RECENT, JSON.stringify(list.slice(0,Math.ceil(list.length/2)))); }catch(_){} } }
+function recentFields(){ return { q:document.getElementById("q").value, platform:document.getElementById("platform").value,
+  minstars:document.getElementById("minstars").value, starters:document.getElementById("starters").value,
+  stack:document.getElementById("stack").value, like:(document.getElementById("like")||{}).value||"" }; }
 // strip any inline opacity/transform the animation left on cards, so the cache never stores invisible cards
 function cleanCards(root){ var c=root.querySelectorAll(".rcard"); for(var i=0;i<c.length;i++){ c[i].style.opacity=""; c[i].style.transform=""; } }
 function saveResults(){ try{ var out=document.getElementById("out"); cleanCards(out);
