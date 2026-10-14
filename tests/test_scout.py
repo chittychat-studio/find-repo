@@ -646,8 +646,9 @@ def test_web_page_is_safe_static(monkeypatch):
     assert "function startDotOrb" in html and "function think(" in html and 'id="homeThink"' in html
     assert 'class="think-orb" aria-hidden="true"' in html and "draw(); if(reduce) return;" in html and "canvas.isConnected" in html
     assert 'think(st,"Checking which repos fit")' in html and "function startOrb" not in html
-    # RS34 undo: dropped repos sit at the end behind one bottom line
-    assert 'id="showLeft"' in html and "more we left out" in html and 'data-left="1"' in html
+    # RS34: dropped repos sit at the end under a divider and show without a click (no hidden undo button)
+    assert 'class="left-div"' in html and "Less likely to fit" in html and 'data-left="1"' in html
+    assert 'id="showLeft"' not in html and "more we left out" not in html
     # RS24 richness: cursor tilt + star count-up are native (no extra library)
     assert "attachTilt" in html and 'class="cnt"' in html
     for t in ("portfolio website", "iPhone app", "trip planner", "practice app"):
