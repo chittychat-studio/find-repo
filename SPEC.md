@@ -382,6 +382,8 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   default, which hid good SaaS starters), 8B fast 81%/63%, 3.2 3B 67%/34%; Gemma 3 not allowed on the account (5018);
   GLM 4.7 Flash unparseable. Default becomes Mistral Small, then Llama 3.3 70B. No model meets the 80% drop bar yet;
   keeping good repos (the 95% half) is the half that protects visitors, so a model is only made default if it meets it.
+  After adding the general-purpose-framework drop rule (build tag 26bf4ee9), both PASS the RS34 bar on the live preview:
+  Mistral Small 3.1 24B kept 98% / dropped 85% (avg 0.7 s); Llama 3.3 70B kept 95% / dropped 90% (avg 0.6 s).
 
 ## RX — Deliberately excluded (v0.1)
 
