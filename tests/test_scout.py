@@ -656,6 +656,10 @@ def test_web_page_is_safe_static(monkeypatch):
     assert "function queueReveal" in html and "IntersectionObserver" in html and 'c.classList.remove("rv-wait"); });' in html
     # RS39: the owner's public Web3Forms access key is configured (UUID shape), so Send really emails Cardzo
     assert re.search(r'var WEB3FORMS_KEY="[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";', html)
+    # RS41 traffic hardening on the page: GitHub budget read, shorter check payload, bot-check deadline, allowance memory, one search at a time
+    for s in ('x-ratelimit-remaining', 'window.__ghLeft<=1', '.slice(0,100)', 'topics||[]).slice(0,5)', 'function tokenWithin', 'replore_ai_off_until',
+              'if(window.__busy) return;   // RS41', 'window.__gateCtl.abort()'):
+        assert s in html, s
     # RS36: demo steps use inline SVG art (theme colours), not emoji
     assert "var ART={" in html and "ico:ART.describe" in html and 'ico:"🔍"' not in html
     # RS24 richness: cursor tilt + star count-up are native (no extra library)

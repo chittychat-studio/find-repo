@@ -317,7 +317,7 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   Cloudflare Workers AI first, through the Pages `AI` binding (no key; model list `WORKERS_AI_MODEL`, default
   `@cf/meta/llama-3.1-8b-instruct-fp8` then `@cf/meta/llama-3.3-70b-instruct-fp8-fast`; a retired or missing model,
   Workers AI errors 5028/5007, falls through to the next), then the OpenAI-compatible provider (when `LLM_API_KEY` is set, e.g. Groq) when
-  Workers AI is missing, over its daily allocation, slow or erroring — one same-shape prompt, the same parse rules, a 7 s total budget across
+  Workers AI is missing, over its daily allocation, slow or erroring — one same-shape prompt, the same parse rules, a 4.5 s total budget (RS41) across
   both. It reports a limit only when every configured provider failed: "busy" if any was a short per-minute limit,
   otherwise "used up" with the soonest reset (capped at 24 h); when any provider failed for another reason, the plain "couldn't check" note is shown. A slow first provider gets at most 60% of the budget so the fallback still runs. Not configured = neither a key nor the binding. A provider whose free
   tier is restricted to experimentation or prototyping (e.g. GitHub Models free usage) is not added to the chain
@@ -447,6 +447,21 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   is retired: it served `web/` without the relevance Function, so its AI check could never run. The relevance Function
   needs no change for a new domain (it checks the request's own origin). The manual live eval accepts the official
   domain as well as `*.pages.dev`.
+
+- **RS41** Traffic hardening (owner request 2026-10-14 "we need to handle traffic"; from a code peer review + local
+  performance test). Server: the AI chain's budget is 4.5 s so bot-check verify (≤3 s) + AI stays inside the page's
+  8 s wait, and slow checks don't spend allowance on answers nobody sees; a Workers AI per-minute "busy" error moves
+  to the next Workers AI model while budget remains (a daily-allowance error does not — it is account-wide); the
+  example-cache write happens after the response (`waitUntil`); a request whose `Content-Length` exceeds 16 KB is
+  refused before its body is read. Page: each repo sent to the check carries a description of at most 100 characters
+  and at most 5 topics (cuts tokens per check; the 30-repo window is unchanged); the whole check (bot check + call)
+  has one 9 s deadline unless an interactive "confirm you're human" challenge is on screen; when the check reports
+  the daily allowance used up, the page stores only that reset time (local storage) and skips the check until then;
+  overlapping searches are blocked (plan/PRD search, quick picks) and a superseded search's check is aborted.
+  GitHub: the page reads GitHub's `x-ratelimit-remaining` and stops adding further queries for a search when one call
+  is left, so a search uses fewer expansions instead of failing outright; it still never shows partial results of a
+  failed call (RS7 unchanged; owner did not opt into partial results). The Cloudflare rate-limit rule (10 requests /
+  10 s per IP on `replore.cardzo.co.in/api/relevance`, all methods, block 10 s) is the owner's dashboard setting.
 
 ## RX — Deliberately excluded (v0.1)
 

@@ -965,6 +965,7 @@ async function search(q){
   var url="https://api.github.com/search/repositories?q="+encodeURIComponent(q+" fork:false archived:false is:public")
     +"&per_page=30";
   var r=await fetch(url,{headers:{"Accept":"application/vnd.github+json"}});
+  var left=parseInt(r.headers.get("x-ratelimit-remaining"),10); window.__ghLeft=isNaN(left)?null:left;   // RS41: searches left this minute
   if(r.status===403||r.status===429) throw new Error("GitHub rate limit reached (10 searches/minute without a token). Wait a minute and try again.");
   if(r.status===422) throw new Error("GitHub rejected the search “"+q+"”. Use fewer words.");
   if(!r.ok) throw new Error("GitHub search failed (HTTP "+r.status+").");
@@ -1207,7 +1208,7 @@ function turnstileToken(){
     if(!cfg) return "";
     var run=__tsQ.then(function(){ return new Promise(function(ok){
       var done=false, t=null, st=document.getElementById("status");
-      function fin(tok){ if(done) return; done=true; clearTimeout(t); cfg.fin=cfg.arm=null; ok(tok||""); }
+      function fin(tok){ if(done) return; done=true; clearTimeout(t); cfg.fin=cfg.arm=null; window.__tsInteractive=false; ok(tok||""); }
       function arm(ms){ clearTimeout(t); t=setTimeout(function(){ fin(""); },ms); }
       cfg.fin=fin; cfg.arm=arm; arm(8000);
       try{
@@ -1215,7 +1216,7 @@ function turnstileToken(){
           appearance:"interaction-only",
           callback:function(tok){ cfg.fin&&cfg.fin(tok); },
           "error-callback":function(){ cfg.fin&&cfg.fin(""); },
-          "before-interactive-callback":function(){ cfg.arm&&cfg.arm(90000);   // a person needs time to click
+          "before-interactive-callback":function(){ window.__tsInteractive=true; cfg.arm&&cfg.arm(90000);   // a person needs time to click
             if(st) st.textContent="Quick check: please confirm you\u2019re human below."; }});
         else window.turnstile.reset(cfg.id);   // tokens are single-use
         window.turnstile.execute(cfg.id);
@@ -1225,18 +1226,31 @@ function turnstileToken(){
     return run;
   });
 }
+// RS41: the bot-check wait has its own 5 s deadline (re-armed while a person is solving an interactive challenge).
+// TS_LATE marks a timeout; null still means "no bot check configured" and "" means "bot check failed".
+var TS_LATE={late:true};
+function tokenWithin(ms){ return new Promise(function(ok){ var done=false;
+  turnstileToken().then(function(v){ if(!done){ done=true; ok(v); } },function(){ if(!done){ done=true; ok(""); } });
+  (function tick(){ setTimeout(function(){ if(done) return; if(window.__tsInteractive) return tick(); done=true; ok(TS_LATE); },ms); })(); }); }
+var AI_OFF_KEY="replore_ai_off_until";   // RS41: only a reset time, set when the daily AI allowance is used up
+function aiOffUntil(){ try{ return +localStorage.getItem(AI_OFF_KEY)||0; }catch(_){ return 0; } }
 async function relevanceGate(query, repos){
-  var tok=await turnstileToken(), hdr={"Content-Type":"application/json"};
+  if(Date.now()<aiOffUntil()) return {fail:true,error:"llm_daily_limit",resetsInSec:Math.ceil((aiOffUntil()-Date.now())/1000)};   // don't ask again until it resets
+  if(window.__gateCtl) try{ window.__gateCtl.abort(); }catch(_){}   // a newer search supersedes the old check
+  var tok=await tokenWithin(5000), hdr={"Content-Type":"application/json"};
+  if(tok===TS_LATE) return {fail:true,error:"bot_check_slow"};
   if(tok) hdr["CF-Turnstile-Token"]=tok;
   var ctl=window.AbortController?new AbortController():null, timer=ctl&&setTimeout(function(){ ctl.abort(); },8000);
+  window.__gateCtl=ctl;
   try{ var res=await fetch("/api/relevance",{method:"POST",headers:hdr,signal:ctl&&ctl.signal,
-      body:JSON.stringify({query:String(query).slice(0,200),repos:repos.map(function(r){ return {name:r.name,description:(r.desc||"").slice(0,160),topics:(r.topics||[]).slice(0,8)}; })})});
+      body:JSON.stringify({query:String(query).slice(0,200),repos:repos.map(function(r){ return {name:r.name,description:(r.desc||"").slice(0,100),topics:(r.topics||[]).slice(0,5)}; })})});   // RS41: shorter = fewer tokens per check
     if(!res.ok){ var er={}; try{ er=await res.json()||{}; }catch(_){}   // read the body once
       if(res.status===404||res.status===405||res.status===501||(res.status===503&&er.error==="not_configured"))
         return "off";   // check not set up (no key / no function): behave as before, no note
+      if(er.error==="llm_daily_limit" && +er.resetsInSec>0) try{ localStorage.setItem(AI_OFF_KEY, String(Date.now()+Math.min(+er.resetsInSec,86400)*1000)); }catch(_){}
       return {fail:true, error:er.error||("http_"+res.status), resetsInSec:+er.resetsInSec||0}; }   // RS34: say why, incl. when it resets
     var j=await res.json(); return Array.isArray(j.drop)?j.drop:{fail:true,error:"bad_reply"};
-  }catch(e){ return {fail:true,error:e&&e.name==="AbortError"?"page_timeout":"network"}; } finally{ if(timer) clearTimeout(timer); } }
+  }catch(e){ return {fail:true,error:e&&e.name==="AbortError"?"page_timeout":"network"}; } finally{ if(timer) clearTimeout(timer); if(window.__gateCtl===ctl) window.__gateCtl=null; } }
 
 // RS21: ready-made prompts the user can click to fill the box.
 var EXAMPLES=[
@@ -1253,6 +1267,7 @@ var EXAMPLES=[
 ];
 // click an example → fill the form on the left, then search straight away (RS21)
 function pickExample(ex){
+  if(window.__busy) return;   // RS41: don't change the box under a search that's still running
   document.getElementById("q").value=ex.text;
   document.getElementById("platform").value=ex.platform;
   document.getElementById("starters").value=ex.starters;
@@ -1448,7 +1463,9 @@ async function run(){
     if(stack) queries=queries.map(function(q){return (q+" "+stack).trim();});  // narrow to the chosen language/tech
     if(!queries.length) throw new Error("Couldn't build a search. Try different words.");
     var excluded={license:0,stale:0,low:0,fork:0,harm:0}, lists=[];
-    for(var i=0;i<queries.length;i++){ think(st,"Searching GitHub ("+(i+1)+"/"+queries.length+")");
+    for(var i=0;i<queries.length;i++){
+      if(i>0 && window.__ghLeft!=null && window.__ghLeft<=1) break;   // RS41: keep the last call for the next search; fewer expansions, not a failure
+      think(st,"Searching GitHub ("+(i+1)+"/"+queries.length+")");
       var items=await search(queries[i]);
       if(gen!==window.__runGen) return;
       lists.push(keep(items,minStars,platform,excluded,seen)); }
@@ -1482,10 +1499,11 @@ document.getElementById("prd").addEventListener("change",function(e){
     if(!features.length){ out.innerHTML='<div class="panel"><p class="err">Couldn’t find features in that file. Use bullet points or short requirement lines.</p></div>'; return; }
     var minStars=Math.max(0,parseInt(document.getElementById("minstars").value,10)||0);
     var platform=document.getElementById("platform").value, preferStarters=document.getElementById("starters").value==="yes";
-    setGoBusy(true); out.innerHTML=""; var gen=++window.__runGen;
+    if(window.__busy){ e.target.value=""; return; }   // RS41: one search at a time
+    window.__busy=true; setGoBusy(true); out.innerHTML=""; var gen=++window.__runGen;
     try{ await runFeatures(features,minStars,platform,preferStarters,out,st,gen); }
     catch(err){ if(gen===window.__runGen){ st.textContent=""; out.innerHTML='<div class="panel"><p class="err">'+esc(err.message)+'</p></div>'; } }
-    finally{ if(gen===window.__runGen) setGoBusy(false); e.target.value=""; } };
+    finally{ if(gen===window.__runGen){ setGoBusy(false); window.__busy=false; } e.target.value=""; } };
   rd.onerror=function(){ out.innerHTML='<div class="panel"><p class="err">Could not read that file.</p></div>'; };
   rd.readAsText(f);
 });
@@ -1821,6 +1839,7 @@ function trendRows(items, kind){
 async function showTrending(kind){
   kind=TREND_TABS[kind]?kind:"rising";
   var gen=++window.__runGen; window.__busy=false; setGoBusy(false);
+  if(window.__gateCtl) try{ window.__gateCtl.abort(); }catch(_){}   // RS41: a running AI check is no longer needed
   var out=document.getElementById("out"), st=document.getElementById("status");
   stopDemo("heroDemo"); think(st,"Loading trending repos");
   try{
@@ -1989,6 +2008,7 @@ if(!restoreResults()) showHome();
 // full reset: text, similar-repo, every filter, picked repos, results and cached search (search-bar ✕ and logo)
 function resetAll(){
   window.__runGen++; window.__busy=false; setGoBusy(false);   // abandon any in-flight search so it can't repaint later
+  if(window.__gateCtl) try{ window.__gateCtl.abort(); }catch(_){}   // RS41: and stop its AI check
   clearSaved(); closeModals();
   ["q","like"].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=""; });
   ["platform","starters"].forEach(function(id){ var el=document.getElementById(id); if(!el) return;
