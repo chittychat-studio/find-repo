@@ -193,19 +193,22 @@
     background:linear-gradient(135deg,var(--accent-ink),var(--accent));-webkit-background-clip:text;
     background-clip:text;color:transparent}
   .theme-toggle{background:var(--offbg);border:1px solid var(--line);border-radius:999px;
-    width:34px;height:34px;cursor:pointer;font-size:15px;color:var(--ink);line-height:1;
+    width:32px;height:32px;cursor:pointer;font-size:15px;color:var(--ink);line-height:1;
     transition:transform .14s,border-color .18s,background .18s}
   .theme-toggle:hover{border-color:var(--accent);transform:rotate(-18deg) scale(1.06)}
-  .nav-btn{background:var(--offbg);border:1px solid var(--line);border-radius:999px;padding:6px 12px;
+  .nav-btn{background:var(--offbg);border:1px solid var(--line);border-radius:999px;padding:0 14px;min-height:32px;box-sizing:border-box;
+    display:inline-flex;align-items:center;justify-content:center;gap:5px;   /* RS44a: buttons and links in the bar look the same */
     font:inherit;font-size:12.5px;font-weight:600;color:var(--ink);cursor:pointer;line-height:1;white-space:nowrap;
     transition:border-color .18s,color .18s,transform .12s,box-shadow .18s}
   .nav-btn:hover{border-color:var(--accent);color:var(--accent-ink);transform:translateY(-1px);
     box-shadow:0 4px 12px -4px rgba(192,83,44,.4)}
-  a.nav-btn{text-decoration:none;display:inline-flex;align-items:center}
+  a.nav-btn{text-decoration:none}
+  .nav-ico{width:13px;height:13px;flex:0 0 auto}
   a.nav-btn:hover{text-decoration:none}
   .nav-star{background:linear-gradient(135deg,var(--accent),var(--accent-ink));border-color:transparent;color:#fff}
   .nav-star:hover{color:#fff;box-shadow:0 6px 16px -6px rgba(192,83,44,.7)}
   .nav-btn[hidden]{display:none}
+  .no-desc{font-style:italic;opacity:.75}
   .tip-qr{margin:8px auto 0;text-align:center} .tip-qr img{display:block;margin:0 auto 4px;border-radius:8px}
   .tip-qr figcaption{font-size:12px}
   @media (max-width:700px){ .tip-qr{display:none} }   /* RS44: a phone can't scan its own screen */   /* RS44: the tip button stays hidden until TIP_URL is set */
@@ -665,7 +668,7 @@
     <button id="pluginBtn" class="nav-btn" title="Use the plugin in Claude Code, Codex, Cursor or any AI agent">Plugin</button>
     <a id="starBtn" class="nav-btn nav-star" href="https://github.com/chittychat-studio/replore" target="_blank" rel="noopener" title="If Replore helped, a star on GitHub means a lot — thank you!">★ Star</a>
     <a class="nav-btn nav-tip tip-el tip-link" href="#" target="_blank" rel="noopener noreferrer" hidden
-      title="Optional tip. It helps us keep Replore free and fund more open-source projects.">☕ Tip</a>
+      title="Optional tip. It helps us keep Replore free and fund more open-source projects."><svg class="nav-ico" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6h9v4.5a3.5 3.5 0 0 1-3.5 3.5h-2a3.5 3.5 0 0 1-3.5-3.5z"/><path d="M11.5 7.5h1a2 2 0 0 1 0 4h-1.2"/><path d="M5.5 1.8v2M8 1.8v2"/></svg>Tip</a>
   </nav>
   <div class="topbar-right">
     <button id="navToggle" class="nav-toggle" aria-label="Menu" aria-controls="nav" aria-expanded="false">☰</button>
@@ -1164,7 +1167,7 @@ function cardHtml(r,i,qtokens){
       (r.forks?'<span class="forks" title="Forks">⑂ '+kstars(r.forks)+'</span>':'')+
       (r.starter?'<span class="tag t-star" title="A ready-made template to start your project from">Starter</span>':'')+'</div>'+
     (function(w){ return w?'<div class="why">'+esc(w)+'</div>':''; })(whyRelevant(r,qtokens))+
-    '<p class="desc">'+esc(r.desc||"—")+'</p>'+
+    '<p class="desc">'+descHtml(r)+'</p>'+
     (tops.length?'<div class="topics">'+tops.map(function(t){ return '<span>#'+esc(t)+'</span>'; }).join("")+'</div>':'')+
     '<div class="meta">'+esc(r.spdx)+' · updated <span title="'+esc(r.pushed)+'">'+esc(agoText(r.pushed)||r.pushed)+'</span></div>'+
     '<div class="rc-foot">'+
@@ -1283,10 +1286,11 @@ function watchMore(){ var s=document.querySelector("#out #resMore"); if(!s) retu
 function initResultFilter(){ window.__resFilter="all"; window.__resLimit=10; applyResultFilter(); watchMore(); checkMore(); }
 // RS34: ask the same-origin function which repos don't fit; "off" when not set up, {fail} on any failure (fail open, silent)
 // RS42: RAG wording appears only when the server says a RAG part is switched on (never claimed while it is off)
+function ragRan(d){ return !!(d && d!=="off" && !d.fail && d.rag && (d.rag.meaning||d.rag.index)); }
 function applyRagCopy(on){ document.querySelectorAll(".rag-only").forEach(function(el){ el.hidden=!on; });
   document.querySelectorAll(".rag-off").forEach(function(el){ el.hidden=!!on; }); }
 fetch("/api/relevance",{method:"GET",cache:"no-store"}).then(function(r){ return r.ok?r.json():null; })
-  .then(function(c){ applyRagCopy(!!(c&&c.rag&&(c.rag.rerank===true||c.rag.index===true))); }).catch(function(){});
+  .then(function(c){ window.__ragCfg=!!(c&&c.rag&&(c.rag.rerank===true||c.rag.index===true)); applyRagCopy(window.__ragCfg); }).catch(function(){});
 // RS34c: Cloudflare Turnstile bot check, loaded from challenges.cloudflare.com only when the owner set a site key.
 // Resolves null = no bot check configured; "" = no token (the function then refuses; the page shows keyword results).
 // Every wait has a deadline so a stalled Cloudflare can never hang the search (RS7); a failed load is retried
@@ -1357,6 +1361,7 @@ async function relevanceGate(query, repos){
     if(Array.isArray(j.sim) && j.sim.every(function(x){ return typeof x==="number"; })) d.sim=j.sim;
     if(Array.isArray(j.neighbors)) d.neighbors=j.neighbors.filter(function(x){ return x && typeof x.name==="string" &&
       /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(x.name) && typeof x.score==="number"; }).slice(0,8);
+    if(j.rag && typeof j.rag==="object") d.rag={meaning:j.rag.meaning===true, index:j.rag.index===true};   // RS42b: what actually ran
     return d;
   }catch(e){ return {fail:true,error:e&&e.name==="AbortError"?"page_timeout":"network"}; } finally{ if(timer) clearTimeout(timer); if(window.__gateCtl===ctl) window.__gateCtl=null; } }
 
@@ -1589,6 +1594,7 @@ async function run(){
     if(top.length || window.__ragIndex!==false){ think(st,"Checking which repos fit");   // RS34 check on the top 30; RS42: an empty
       var drops=await relevanceGate(like?(text+" (similar to "+like+")"):text, top.slice(0,30));   // list still asks the index
       if(gen!==window.__runGen) return;
+      if(window.__ragCfg) applyRagCopy(ragRan(drops));   // RS42b: claim "words and meaning" only when it ran for this search
       if(drops==="off"){ gate=null; window.__ragIndex=false; }
       else if(drops&&drops.fail){ gate={ok:false,error:drops.error,resetsIn:drops.resetsInSec}; }
       else if(drops){ var dropped={}; drops.forEach(function(d){ dropped[d.i]=1; });   // RS34: off-topic repos go to the end, shown
@@ -1972,6 +1978,10 @@ async function fetchTrending(kind){
   try{ localStorage.setItem(key, JSON.stringify({t:Date.now(), q:tq.q, items:items})); }catch(e){}
   return {items:items, q:tq.q};
 }
+// RS45: GitHub gives some repos no description. Say so plainly (never "—", never an invented one).
+var NO_DESC="No description on GitHub";
+function hasDesc(r){ return !!String((r&&r.desc)||"").trim(); }
+function descHtml(r){ return hasDesc(r)?esc(r.desc):'<span class="no-desc">'+NO_DESC+'</span>'; }
 function trendRows(items, kind){
   var excluded={license:0,stale:0,low:0,fork:0,harm:0};
   var rows=keep(items,0,"",excluded,{});
@@ -2048,11 +2058,11 @@ function startHomeThinking(wrap, demoHost){
 function buildTrendCarousel(){
   var box=document.getElementById("trendCar"), track=document.getElementById("tcarTrack"); if(!box||!track) return;
   fetchTrending("rising").then(function(got){
-    var rows=trendRows(got.items,"rising").rows.slice(0,12); if(rows.length<3) return;
+    var rows=trendRows(got.items,"rising").rows.filter(hasDesc).slice(0,12); if(rows.length<3) return;   // RS45: a showcase card must say what the repo does
     var card=function(r,dup){ var v=licenseVerdict(r.spdx);
       return '<a class="tcard" href="'+esc(r.url)+'" target="_blank" rel="noopener"'+(dup?' aria-hidden="true" tabindex="-1"':'')+'>'+
         '<span class="tc-top"><span class="tc-name">'+esc(r.name)+'</span><span class="tc-stars">★ '+kstars(r.stars)+'</span></span>'+
-        '<span class="tc-desc">'+esc(r.desc||"—")+'</span>'+
+        '<span class="tc-desc">'+esc(r.desc)+'</span>'+
         '<span class="tc-meta">'+esc(v.t||"")+(r.forks?' · 🍴 '+kstars(r.forks):'')+'</span></a>'; };
     // the list twice, so the glide can loop without a jump; the copy is hidden from screen readers and tab order
     track.innerHTML=rows.map(function(r){ return card(r,false); }).join("")+rows.map(function(r){ return card(r,true); }).join("");
@@ -2244,7 +2254,7 @@ document.getElementById("tourBtn").addEventListener("click",function(){ openModa
   var btn=document.getElementById("theme"), root=document.documentElement, KEY="findrepo_theme";
   function sysDark(){ return window.matchMedia && matchMedia("(prefers-color-scheme:dark)").matches; }
   function current(){ return root.getAttribute("data-theme") || (sysDark()?"dark":"light"); }
-  function paint(){ btn.textContent = current()==="dark" ? "☀️" : "☾"; }
+  function paint(){ btn.textContent = current()==="dark" ? "\u263C" : "\u263E"; }   // RS44a: both single-colour glyphs (☼ / ☾), never a colour emoji
   var saved; try{ saved=localStorage.getItem(KEY); }catch(e){}
   if(saved==="dark"||saved==="light") root.setAttribute("data-theme",saved);
   paint();

@@ -260,7 +260,7 @@ export async function verifyTurnstile(request, env, fetchImpl = fetch) {
 // RS34d: one record per failed check — codes and timings only. Never the query, repos, IP, token or provider text.
 const CODE = s => String(s == null ? "" : s).replace(/[^a-z0-9_:]/gi, "").slice(0, 40);
 export function logFailure(env, ev) {
-  const rec = { evt: "relevance_fail", code: CODE(ev.code), status: ev.status | 0,
+  const rec = { evt: ev.evt === "rag_fail" ? "rag_fail" : "relevance_fail", code: CODE(ev.code), status: ev.status | 0,
     trail: (ev.trail || []).slice(0, 4).map(CODE), ms: Math.max(0, Math.round(ev.ms || 0)), example: !!ev.example };
   try { console.log(JSON.stringify(rec)); } catch {}
   try {
@@ -315,7 +315,8 @@ async function handlePost(request, env, fetchImpl, waitUntil) {
     const drops = (out.body.drop || []).filter(d => { if (d.i >= n) { gone.add(d.i - n); return false; } return true; });
     out.body = { ...out.body, drop: drops, checked: n,
       ...(sem && sem.sim ? { sim: sem.sim } : {}),
-      ...(sem && sem.neighbors ? { neighbors: publicNeighbors(extra.filter((_, k) => !gone.has(k))) } : {}) };   // AI-dropped indexed repos never leave
+      ...(sem && sem.neighbors ? { neighbors: publicNeighbors(extra.filter((_, k) => !gone.has(k))) } : {}),   // AI-dropped indexed repos never leave
+      ...(f.rerank || f.index ? { rag: { meaning: !!(sem && sem.sim), index: !!(sem && Array.isArray(sem.neighbors)) } } : {}) };   // RS42b: what actually ran
   }
   const meta = { trail: out.trail, example: EXAMPLE_SET.has(body.query) };
   const diag = request.headers.get("X-Replore-Diag") === "1" && out.diag ? { diag: out.diag } : {};   // codes + timings only
@@ -358,14 +359,17 @@ export async function semanticScores(query, repos, env, ms = SEM_BUDGET_MS) {
   if (!f.rerank && !f.index) return null;
   const end = Date.now() + ms;
   const texts = [clean(query, MAX_QUERY), ...(f.rerank ? repos.map(cardText) : [])];   // query only when rerank is off
+  // RS42b: every fallback is logged (codes and timings only), so a broken semantic half is never silent
+  const fail = code => { logFailure(env, { evt: "rag_fail", code, ms: ms - (end - Date.now()) }); return null; };
   let vecs;
   try {
     const out = await race(env.AI.run(env.RAG_EMBED_MODEL || EMBED_MODEL, { text: texts }), end - Date.now());
     vecs = out && (Array.isArray(out.data) ? out.data : Array.isArray(out.response) ? out.response : null);
-  } catch { return null; }
-  if (!Array.isArray(vecs) || vecs.length !== texts.length || !vecs.every(v => Array.isArray(v) && v.length)) return null;
+  } catch (e) { return fail(e && e.message === "timeout" ? "sem_timeout" : "sem_error"); }
+  if (!Array.isArray(vecs) || vecs.length !== texts.length || !vecs.every(v => Array.isArray(v) && v.length)) return fail("sem_bad_shape");
   const res = {};
   if (f.rerank) res.sim = vecs.slice(1).map(v => round3(cosine(vecs[0], v)));
+  if (f.index && end - Date.now() <= 50) fail("index_timeout");
   if (f.index && end - Date.now() > 50) {
     try {
       const min = Number(env.RAG_MIN_SCORE || 0.5), have = new Set(repos.map(r => r.name.toLowerCase()));
@@ -376,7 +380,7 @@ export async function semanticScores(query, repos, env, ms = SEM_BUDGET_MS) {
         .slice(0, 8).map(m => ({ name: m.metadata.name, score: round3(m.score),
           description: typeof m.metadata.description === "string" ? m.metadata.description : "",
           topics: Array.isArray(m.metadata.topics) ? m.metadata.topics.filter(t => typeof t === "string").slice(0, CARD_TOPICS) : [] }));
-    } catch { /* index unavailable: the keyword results stand */ }
+    } catch (e) { fail(e && e.message === "timeout" ? "index_timeout" : "index_error"); }   // the keyword results stand
   }
   return res;
 }
