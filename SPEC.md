@@ -292,7 +292,7 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   filter" message. Filters apply only to the single top-matches list, not the grouped PRD view.
 - **RS29c** *(retired)* A per-results "this is keyword search" banner was shown, then removed at the owner's
   call: each card's "Matches your words" line already shows the match is lexical, and the plugin stays one click
-  away (menu + the "Want every suitable repo?" banner). The "How ranking works" modal still states the page is keyword search (matches words, not meaning), followed by a small AI check that hides repos that clearly don't fit (RS34). No copy on the page says there is no AI or no relevance check. The hero carries a small pill "✦ AI-powered repo finder" (owner decision 2026-10-14, over the maintainer's note that the AI only filters results, it doesn't find or rank them, and that results are plain keyword search when the AI check is unavailable); it folds away with the tagline once results show on single-column screens.
+  away (menu + the "Want every suitable repo?" banner). The "About the results" modal states how the page searches: needs-first keyword search (RS16a), then an AI check that moves repos that don't fit to "Less likely to fit" (RS34; it never hides them), and the one-hour repeat cache (RS43). No copy on the page says there is no AI or no relevance check. The hero carries a small pill "✦ AI-powered repo finder" (owner decision 2026-10-14, over the maintainer's note that the AI only filters results, it doesn't find or rank them, and that results are plain keyword search when the AI check is unavailable); it folds away with the tagline once results show on single-column screens.
 - **RS29a** One license verdict per card (RS14/RS20 on the web page). A card shows a **single** plain-English
   license verdict — ✅ free for commercial use / ✅ paid-use OK, changes stay open / ⚠ must open-source your app /
   ⚠ share your code even as a web app / ⛔ no licence — not the earlier redundant "Paid-use OK" + "Completely
@@ -533,7 +533,7 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   - **B. Server cache of AI verdicts, 1 hour.** RS34b's cache, which held only the built-in examples (1 day), now holds
     every check for 1 hour: an identical search over identical repos, by anyone, reuses the verdict instead of
     spending the shared AI allowance. The key is a SHA-256 fingerprint of the words and the repo list; the stored value
-    is only which repos to hide. Cloudflare's cache is per data centre, so a repeat from another region may still run
+    is only which repos don't fit. Cloudflare's cache is per data centre, so a repeat from another region may still run
     the check. Only the primary provider's answer is cached (unchanged); meaning scores (RS42) are never cached.
   - **Not built:** a "similar search" cache that reuses results for different words with the same meaning. It needs
     what people typed (as meaning vectors) to be stored, which breaks "nothing you type is stored".
