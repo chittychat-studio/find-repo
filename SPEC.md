@@ -153,7 +153,12 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   scrolls (results scroll inside their panel); single column with natural scroll on phones; on single-column screens, once results are shown the intro (tagline, mode tiles) folds away and the
    quick picks shrink to one swipeable row so the search bar and pills sit right above the matches (✕ or the logo brings the rest back; the Filters
    sheet also offers "Find similar repos" and "Match a whole plan", so both modes stay one tap away), and the
-   privacy line sits below the results, not in the search panel. Results render as
+   privacy line sits below the results, not in the search panel. Desktop stays one top-down column (owner's decision: no split screen) but
+   uses the width: from 1200px the page spans up to 1500px, the search area up to 1100px (wider bar, tiles and pill
+   rows), and the trending carousel (4 cards, 5 from 1500px) and results (4 columns) span the full page width. On the home
+   screen (no results yet) the opening section pairs the heading (centred over the search box), search, tiles and pills with the animated
+   how-it-works demo on the right, then the carousel runs full width below — a top-down page, not a split app; once
+   results show everything stacks full width. Results render as
   compact cards (rank, stars, what it does, a colour-coded license pill, free/starter tags) instead of a wide
   table. The plain-English license meaning (e.g. "OK to use in a paid product" / "Completely free?") renders as
   a line on every card at every breakpoint — not only on wide screens — so the core promise is visible on phones.
@@ -354,6 +359,16 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   prefers-reduced-motion, can be swiped, and disappears silently if GitHub can't be reached. On single-column screens
   it folds away with the intro once results show. No AI relevance check
   runs on it (there is no description to judge against). Web only; the plugin is a search tool and has no gallery.
+
+- **RS36** Thinking orb (web). A pill with a small rotating dotted sphere (latitude rings of dots, depth-shaded in the
+  ink colour, light and dark theme) and a short label with animated dots, in the style of a "Solving…" indicator.
+  Used in two places: (1) on the home screen under the how-it-works demo, its label cycling through what Replore
+  does ("Scanning open-source repos", "Checking licences", "Skipping abandoned projects", "Ranking by fit"); (2) as the
+  loading indicator in the status line while a search, similar-repo lookup, PRD search or trending list loads ("Searching
+  GitHub (1/3)", "Checking which repos fit", "Loading trending repos"), one pill per search whose label updates per step
+  and disappears when results show. It animates only while on screen and the tab is visible, draws one still frame
+  (static dots, no label cycling) under prefers-reduced-motion, is aria-hidden decoration (the label text stays
+  readable), stops once removed, and makes no network call.
 
 ## RX — Deliberately excluded (v0.1)
 
