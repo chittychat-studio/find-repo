@@ -631,6 +631,8 @@ def test_web_page_is_safe_static(monkeypatch):
     assert 'class="pick-cb"' in html and 'id="prdModal"' in html and 'id="prdPrompt"' in html
     assert "claude.ai/new?q=" in html and "Copy prompt" in html
     assert "chatgpt.com/?q=" in html and "gemini.google.com/app" in html   # RS28b
+    assert '"You are the principal architect for my vibe coding app, with 15+ years of experience building similar apps.' in html   # RS28e
+    assert "million dollar" not in html
     assert "list it under GAPS instead of stretching" in html   # RS28c
     assert "ask me 5 short questions that would most improve this plan" in html and "wait for my answers" in html   # RS28d
     skill = (ROOT / "skills" / "find" / "SKILL.md").read_text(encoding="utf-8")
