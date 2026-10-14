@@ -170,7 +170,7 @@ console.log("provider chain ok");
 }
 console.log("review regressions ok");
 
-// RS34b example cache: only the built-in example texts, only successful answers, never visitor text
+// RS34b / RS43 B verdict cache: only successful answers; examples 1 day, other searches 1 hour; never the words
 { const store = new Map();
   const cache = { match: async k => store.has(k.url) ? new Response(store.get(k.url)) : undefined,
                   put: async (k, r) => { store.set(k.url, await r.text()); } };
@@ -181,11 +181,15 @@ console.log("review regressions ok");
   assert.strictEqual(calls, 1, "second example tap is served from cache"); assert.deepStrictEqual(a.body, b.body); assert.ok(b.cached);
   // different candidate list -> different key -> fresh check
   await fn.cachedJudge(ex, repos.slice(0, 2), { AI }, fetch, cache); assert.strictEqual(calls, 2);
-  // visitor text is never cached
+  // RS43 B: any search is cached for 1 hour (examples 1 day); only a fingerprint key and which repos to hide are stored
+  store.clear(); calls = 0; const ttls = [];
+  const cache2 = { match: cache.match, put: async (k, r) => { ttls.push(r.headers.get("Cache-Control")); store.set(k.url, await r.text()); } };
+  await fn.cachedJudge("my secret startup idea", repos, { AI }, fetch, cache2);
+  await fn.cachedJudge("my secret startup idea", repos, { AI }, fetch, cache2);
+  assert.strictEqual(calls, 1, "repeat within the hour reuses the verdict"); assert.deepStrictEqual(ttls, ["max-age=3600"]);
+  for (const [url, val] of store) { assert.ok(!/secret|startup/.test(url + val), "the words are never stored"); }
+  await fn.cachedJudge(ex, repos, { AI }, fetch, cache2); assert.strictEqual(ttls[1], "max-age=86400");
   store.clear(); calls = 0;
-  await fn.cachedJudge("my secret startup idea", repos, { AI }, fetch, cache);
-  await fn.cachedJudge("my secret startup idea", repos, { AI }, fetch, cache);
-  assert.strictEqual(calls, 2); assert.strictEqual(store.size, 0);
   // failures are not cached; a broken cache never blocks the check
   const bad = { run: async () => { throw new Error("boom"); } };
   await fn.cachedJudge(ex, repos, { AI: bad }, fetch, cache); assert.strictEqual(store.size, 0);

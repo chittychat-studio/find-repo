@@ -496,6 +496,25 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   failed call (RS7 unchanged; owner did not opt into partial results). The Cloudflare rate-limit rule (10 requests /
   10 s per IP on `replore.cardzo.co.in/api/relevance`, all methods, block 10 s) is the owner's dashboard setting.
 
+- **RS43** Result caching, 1 hour (owner request 2026-10-14: "don't lose results and don't end up re-digging for
+  similar"). Anthropic prompt caching (`cache_control: {"type": "ephemeral", "ttl": "1h"}`) does not apply: Replore makes
+  no Claude API call (RS1, RS34a), and prompt caching only discounts re-reading a prompt — it never returns a saved
+  answer. What the owner wants is result caching, in two layers the owner chose:
+  - **A. Visitor's own browser, 1 hour.** The page keeps its last 10 searches (search words, filters, and the result
+    cards) in the visitor's own browser storage. The same search on the same device within an hour shows the saved
+    results instantly — no GitHub call, no AI check — with a status line saying how old they are and a "Search again"
+    link that bypasses the cache. Key: the words (case-folded) plus platform, minimum stars, project stage, stack and
+    the "like" repo. Expired entries are dropped on every write. Nothing leaves the device (the privacy page says so).
+  - **B. Server cache of AI verdicts, 1 hour.** RS34b's cache, which held only the built-in examples (1 day), now holds
+    every check for 1 hour: an identical search over identical repos, by anyone, reuses the verdict instead of
+    spending the shared AI allowance. The key is a SHA-256 fingerprint of the words and the repo list; the stored value
+    is only which repos to hide. Cloudflare's cache is per data centre, so a repeat from another region may still run
+    the check. Only the primary provider's answer is cached (unchanged); meaning scores (RS42) are never cached.
+  - **Not built:** a "similar search" cache that reuses results for different words with the same meaning. It needs
+    what people typed (as meaning vectors) to be stored, which breaks "nothing you type is stored".
+  - The plugin needs neither: the user's own Claude Code session applies Anthropic prompt caching itself, and the
+    plugin stores nothing on disk (RX2).
+
 ## RX — Deliberately excluded (v0.1)
 
 - **RX1** Scraping github.com HTML, or any non-API source.

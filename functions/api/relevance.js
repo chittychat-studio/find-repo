@@ -203,13 +203,15 @@ export const EXAMPLE_QUERIES = [
 ];
 const EXAMPLE_SET = new Set(EXAMPLE_QUERIES);
 const CACHE_TTL = 86400;
+export const RECENT_TTL = 3600;   // RS43: every other search, 1 hour
 export async function cacheKey(query, repos, origin = "https://replore.pages.dev") {
   const data = new TextEncoder().encode(JSON.stringify([2, query, repos.map(r => [r.name, r.description || "", r.topics || []])]));
   const hex = [...new Uint8Array(await crypto.subtle.digest("SHA-256", data))].map(b => b.toString(16).padStart(2, "0")).join("");
   return new Request(`${origin}/__relevance-cache/v2/${hex}`);   // v2: Mistral + indices-only prompt   // own origin: the Cache API is scoped to the zone
 }
 export async function cachedJudge(query, repos, env, fetchImpl = fetch, cache = globalThis.caches && globalThis.caches.default, origin, waitUntil) {
-  const usable = cache && EXAMPLE_SET.has(query);
+  const usable = !!cache;   // RS43: every search (examples 1 day, everything else 1 hour); stores only which repos to hide
+  const ttl = EXAMPLE_SET.has(query) ? CACHE_TTL : RECENT_TTL;
   let key;
   if (usable) {
     try { key = await cacheKey(query, repos, origin); const hit = await cache.match(key); if (hit) return { status: 200, body: await hit.json(), cached: true }; }
@@ -218,7 +220,7 @@ export async function cachedJudge(query, repos, env, fetchImpl = fetch, cache = 
   const out = await judgeChain(query, repos, env, fetchImpl);
   if (usable && key && out.status === 200 && out.first) {   // cache only the primary provider's answer
     const body = JSON.stringify(out.body);
-    const put = Promise.resolve().then(() => cache.put(key, new Response(body, { headers: { "Content-Type": "application/json", "Cache-Control": `max-age=${CACHE_TTL}` } }))).catch(() => {});
+    const put = Promise.resolve().then(() => cache.put(key, new Response(body, { headers: { "Content-Type": "application/json", "Cache-Control": `max-age=${ttl}` } }))).catch(() => {});
     if (waitUntil) waitUntil(put); else await put;   // RS41: write the cache after the answer is sent
   }
   return out;
