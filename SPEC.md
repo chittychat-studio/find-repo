@@ -503,7 +503,9 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   in `web/index.html`. Empty = every tip element stays hidden. Shown in two places only, never as a pop-up: a "☕ Tip"
   button next to ★ Star in the top bar (owner 2026-10-14: "not footer, beside the star button"), and one polite line in the plan window after the user has their plan ("Got a useful plan? Leave a
   tip ☕ It helps us keep Replore free and fund more open-source projects."). Tipping is optional and unlocks nothing.
-  The link only accepts Stripe's own `https://buy.stripe.com/` address (anything else keeps it hidden).
+  The link only accepts Stripe's own `https://buy.stripe.com/` address (anything else keeps it hidden). A Stripe
+  test-mode link (`/test_...`, takes no real money) is hidden on the live domains (replore.cardzo.co.in,
+  replore.pages.dev) and shows only on previews, so a test link can never reach visitors.
   **GitHub credit:** the footer, README and privacy page say "Repository data from the GitHub API. Replore is not
   affiliated with or endorsed by GitHub. GitHub® is a trademark of GitHub, Inc." The GitHub logo and Octocat are never
   used (GitHub brand rules); every card links back to the repo on GitHub.

@@ -41,6 +41,11 @@ assert.ok(s.keywordQueries("a diet app for iphone", "ios").every(q => q.includes
 assert.ok(s.tipUrlOk("https://buy.stripe.com/abc123XYZ"));
 ["", "http://buy.stripe.com/abc", "https://evil.com/buy.stripe.com/x", "https://buy.stripe.com/a b", "javascript:alert(1)", "https://buy.stripe.com/x?y=1"]
   .forEach(u => assert.ok(!s.tipUrlOk(u), u));
+// RS44: a test-mode link never shows on the live domains, only on previews
+assert.ok(!s.tipUrlOk("https://buy.stripe.com/test_abc", "replore.cardzo.co.in"));
+assert.ok(!s.tipUrlOk("https://buy.stripe.com/test_abc", "replore.pages.dev"));
+assert.ok(s.tipUrlOk("https://buy.stripe.com/test_abc", "claude-tip-nav.replore.pages.dev"));
+assert.ok(s.tipUrlOk("https://buy.stripe.com/abc", "replore.cardzo.co.in"));
 // RS43 A: the visitor's own 1-hour cache (pure functions)
 { const f = { q: "  Diet  Tracker ", platform: "web", minstars: "50", starters: "yes", stack: "", like: "" };
   const k = s.recentKey(f);
