@@ -631,6 +631,13 @@ def test_web_page_is_safe_static(monkeypatch):
     assert 'class="pick-cb"' in html and 'id="prdModal"' in html and 'id="prdPrompt"' in html
     assert "claude.ai/new?q=" in html and "Copy prompt" in html
     assert "chatgpt.com/?q=" in html and "gemini.google.com/app" in html   # RS28b
+    # RS28b: Gemini copies BEFORE opening its tab (a focused new tab makes the browser refuse the clipboard write)
+    gem = html[html.index('getElementById("prdGemini")'):]
+    gem = gem[:gem.index("gemini.google.com/app")]
+    assert 'execCommand("copy")' in gem and "say(false)" in gem
+    # RS34: the page does run an AI relevance check, so no copy may claim otherwise
+    for stale in ("There is no AI in this page", "For AI-written searches, a relevance check", "runs a semantic relevance check"):
+        assert stale not in html, stale
     # RS28a: 'Select all shown' acts on visible cards only; the prompt makes the AI triage USE / REFERENCE ONLY / REJECT
     assert 'id="resSelAll"' in html and "function shownPickBoxes" in html and 'style.display!=="none"' in html
     assert "USE, REFERENCE ONLY" in html and "build only on the ones you USE" in html and 'id="prdLong"' in html

@@ -236,7 +236,7 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
 - **RS28b** Other AI assistants (owner request 2026-10-14: "all three buttons equal importance"). The plan modal
   offers three same-style buttons in one row (stacked on phones): "Open in Claude", "Open in ChatGPT"
   (`https://chatgpt.com/?q=<encoded>`, best-effort and unofficial like the Claude link, dropped under the same length
-  rule) and "Open in Gemini" (copies the prompt, then opens `https://gemini.google.com/app`; Gemini has no known
+  rule) and "Open in Gemini" (copies the prompt first, synchronously, and only then opens `https://gemini.google.com/app`, because once the new tab has focus the browser refuses the copy; if copying fails the note says so and points to the copy icon; Gemini has no known
   pre-fill link, so a note says to paste). Nothing is
   sent by the page itself; each opens the visitor's own account. The privacy notice names both.
 - **RS28a** Select all shown + triage. In the top-matches view a "Select all shown" control ticks every card
@@ -259,7 +259,7 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   filter" message. Filters apply only to the single top-matches list, not the grouped PRD view.
 - **RS29c** *(retired)* A per-results "this is keyword search" banner was shown, then removed at the owner's
   call: each card's "Matches your words" line already shows the match is lexical, and the plugin stays one click
-  away (menu + the "Want every suitable repo?" banner). The "How ranking works" modal still states the page is keyword search (matches words, not meaning).
+  away (menu + the "Want every suitable repo?" banner). The "How ranking works" modal still states the page is keyword search (matches words, not meaning), followed by a small AI check that hides repos that clearly don't fit (RS34). No copy on the page says there is no AI or no relevance check, and none calls it "AI-powered": AI only filters, it doesn't find or rank (owner question 2026-10-14).
 - **RS29a** One license verdict per card (RS14/RS20 on the web page). A card shows a **single** plain-English
   license verdict — ✅ free for commercial use / ✅ paid-use OK, changes stay open / ⚠ must open-source your app /
   ⚠ share your code even as a web app / ⛔ no licence — not the earlier redundant "Paid-use OK" + "Completely
