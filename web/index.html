@@ -9,8 +9,9 @@
   It calls the PUBLIC GitHub search API from the browser (unauthenticated: ~10 searches/minute).
   No third-party requests for assets: GSAP 3.12.5 (motion) and the Inter/Spectral fonts are served from this site
   (vendor/, fonts/); the page degrades gracefully without GSAP. Only GitHub's API is called (RS33).
-  The browser version uses keyword search; the plugin (Claude Code, or the script in any AI agent) writes smarter queries, runs a
-  relevance check, and reads a whole PRD. There is no AI in this page (a public page can't hold a key).
+  The browser version uses keyword search plus a small server-side AI relevance check (functions/api/relevance.js, RS34; the
+  key lives on the server, never in this page); the plugin (Claude Code, or the script in any AI agent) also writes smarter
+  queries and reads a whole PRD.
 -->
 <script src="vendor/gsap.min.js" async></script>
 <link rel="stylesheet" href="fonts.css">
@@ -783,7 +784,7 @@
   <p class="mut" style="margin-top:12px"><b>Build a plan:</b> tick the repos you like on the results, then tap <b>Generate plan</b>.
     Replore hands the picks to your <b>own</b> Claude (Copy, or Open in Claude), which writes a full build plan
     (a PRD) you can code straight from — free and private.</p>
-  <p class="mut" style="margin-top:12px">For AI-written searches, a relevance check, and a whole PRD read feature
+  <p class="mut" style="margin-top:12px">For AI-written searches and a whole PRD read feature
     by feature, use the plugin (Claude Code, Codex, Cursor or any AI agent).</p>
 </div></div>
 
@@ -915,9 +916,9 @@
   <p class="mut">Results are ranked by <b>fit</b> — how well a repo matches your words, how popular it is (stars),
     and how freely you can use its license — so the top pick is relevant <i>and</i> popular <i>and</i> free to use,
     not just the most-starred. Each card says why it's relevant. This page is <b>keyword search</b>: it matches
-    your words, not their meaning. The
+    your words, then a small AI check hides repos that clearly don't fit. The
     <a href="https://github.com/chittychat-studio/replore" target="_blank" rel="noopener">plugin</a>
-    goes further: it writes smarter searches with AI, runs a semantic relevance check, and reads a whole plan
+    goes further: it has your AI write the searches and judge every result, and reads a whole plan
     feature by feature. Results are GitHub search matches, not a scan of every repository. Stars measure
     popularity, not quality, and can be bought. "Completely free?" and "OK in a paid product?" are read from the
     license only — a plain summary, not legal advice; some projects also sell a paid hosted version or add-ons.</p>
@@ -1716,10 +1717,16 @@ document.addEventListener("keydown",function(e){ if(e.key==="Escape") closeModal
       if(note) note.hidden=!tooLong; }
     openModal("prdModal"); });
   var gemBtn=document.getElementById("prdGemini");   // RS28b: Gemini has no pre-fill link — copy, then open it
+  // RS28b: copy BEFORE opening the tab: once Gemini's tab has focus the browser refuses clipboard writes from this page
   if(gemBtn) gemBtn.addEventListener("click",function(){ var text=pre?pre.textContent:"", gn=document.getElementById("prdGemNote");
-    window.open("https://gemini.google.com/app","_blank","noopener");
-    if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function(){ if(gn) gn.hidden=false; },function(){});
-    else if(gn){ gn.textContent="Tap the copy icon above, then paste into Gemini."; gn.hidden=false; } });
+    function say(ok){ if(!gn) return; gn.textContent=ok?"Prompt copied — paste it into Gemini (it has no pre-fill link).":"Couldn't copy automatically — tap the copy icon above, then paste into Gemini."; gn.hidden=false; }
+    var copied=false;
+    try{ var ta=document.createElement("textarea"); ta.value=text; ta.setAttribute("readonly",""); ta.style.position="fixed"; ta.style.top="0"; ta.style.opacity="0";
+      document.body.appendChild(ta); ta.select(); copied=document.execCommand("copy"); document.body.removeChild(ta); }catch(_){}
+    if(copied) say(true);
+    else if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function(){ say(true); },function(){ say(false); });
+    else say(false);
+    window.open("https://gemini.google.com/app","_blank","noopener"); });
   if(copyBtn) copyBtn.addEventListener("click",function(){ var text=pre?pre.textContent:"";
     function ok(){ copyBtn.textContent="✓"; setTimeout(function(){ copyBtn.textContent="⧉"; },1400); }
     if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(ok,ok); }
