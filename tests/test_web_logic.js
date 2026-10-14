@@ -51,6 +51,13 @@ assert.ok(s.keywordQueries("a diet app for iphone", "ios").every(q => q.includes
   assert.deepStrictEqual(names(s.hybridOrder(rows, "")), names(rows));
   const cq = s.confirmQueries(Array.from({length: 9}, (_, i) => "owner" + i + "/repository-name-" + i));
   assert.ok(cq.every(q => q.length <= 200) && cq.join(" ").split("repo:").length - 1 === 9); }
+// RS42 edge cases: every case in evals/hybrid_cases.json must give the plugin's exact order ("parity")
+{ const H = JSON.parse(require("fs").readFileSync(__dirname + "/../evals/hybrid_cases.json", "utf8"));
+  const LONG = "track my diet calories and steps with voice ".repeat(50).slice(0, 2000);
+  for (const c of H.cases) {
+    const rows = c.rows.map(r => ({ name: r.name, desc: r.desc || "", topics: r.topics || [] }));
+    const got = s.hybridOrder(rows, c.description === "LONG" ? LONG : c.description, c.sims).map(r => r.name);
+    assert.deepStrictEqual(got, c.parity, "web/plugin parity: " + c.name); } }
 // RS28f: long text ends at a word with "…", short text untouched
 { const long = "Open-source Python-based fitness tracker web app using Flask. Features include workout logging, nutrition tracking, and progress visualization. Ideal for developers and fitness enthusiasts looking to build their own";
   const c = s.clean(long);

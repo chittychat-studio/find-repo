@@ -36,6 +36,42 @@ def _rank(candidates, prefer_starters):
     return sorted(rows, key=lambda r: (-scout.fit_score(r, prefer_starters, floor), -r["stars"], r["full_name"]))
 
 
+def hybrid_cases():
+    """RS42: load the hybrid goal cases; 'LONG' expands to a 2,000-character description."""
+    data = json.loads((Path(__file__).parent / "hybrid_cases.json").read_text(encoding="utf-8"))
+    long_text = ("track my diet calories and steps with voice " * 50)[:2000]
+    for c in data["cases"]:
+        if c["description"] == "LONG":
+            c["description"] = long_text
+    return data
+
+
+def hybrid_check(case, order):
+    names = [r["name"] for r in case["rows"]]
+    exp = case["expect"]
+    if "first" in exp:
+        return order[0] == exp["first"]
+    if "order" in exp:
+        return order == exp["order"]
+    return order == names   # unchanged
+
+
+def run_hybrid():
+    import hybrid  # scripts/hybrid.py (RS42), on the path via scout's import
+    data = hybrid_cases()
+    cases, passed = data["cases"], 0
+    print(f"\nReplore — hybrid fusion eval ({len(cases)} goal and edge cases, RS42)\n")
+    for c in cases:
+        rows = [{"full_name": r["name"], "description": r.get("desc", ""), "topics": r.get("topics", [])} for r in c["rows"]]
+        order = [r["full_name"] for r in hybrid.hybrid_order(rows, c["description"], c["sims"])]
+        ok = hybrid_check(c, order) and order == c.get("parity", order)   # parity: the web page must match exactly
+        passed += ok
+        print(f"[{'PASS' if ok else 'FAIL'}] {c['name']}")
+        if not ok:
+            print(f"       goal: {c['goal']}\n       expected {c['expect']}, got {order}")
+    return passed, len(cases), data.get("threshold", 1.0)
+
+
 def main():
     data = json.loads((Path(__file__).parent / "fit_cases.json").read_text())
     cases, threshold = data["cases"], data.get("threshold", 1.0)
@@ -53,7 +89,10 @@ def main():
             print(f"       order: {[r['full_name'] for r in ranked]}")
     score = passed / len(cases) if cases else 0.0
     print(f"\nScore: {passed}/{len(cases)} = {score:.0%} (threshold {threshold:.0%})")
-    return 0 if score >= threshold else 1
+    hp, hn, hth = run_hybrid()
+    hscore = hp / hn if hn else 0.0
+    print(f"\nHybrid score: {hp}/{hn} = {hscore:.0%} (threshold {hth:.0%})")
+    return 0 if score >= threshold and hscore >= hth else 1
 
 
 if __name__ == "__main__":

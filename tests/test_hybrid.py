@@ -101,3 +101,65 @@ def test_semantic_unavailable_keeps_keyword_results():
     fetch = lambda q, token=None: {"items": [_repo("a/calorie-counter", 800, "Track calories and diet")]}
     res = scout.scout(["diet"], fetcher=fetch, now=NOW, semantic_on=True, semantic_fn=lambda d, r: None)
     assert res["semantic"] == "unavailable" and [r["full_name"] for r in res["top"]] == ["a/calorie-counter"]
+
+
+# ---- RS42 plugin edge cases ----
+def _kw(q, token=None):
+    return {"items": [_repo("b/karaoke", 900, "Make karaoke from songs"), _repo("a/calorie-counter", 800, "Track calories and diet")]}
+
+
+def test_confirm_failure_drops_neighbours_keeps_keyword_results():
+    def fetch(q, token=None):
+        if q.startswith("repo:"):
+            raise scout.ScoutError("GitHub rate limit reached.")
+        return _kw(q)
+    sem = lambda d, rows: {"sim": None, "neighbors": [{"name": "c/new", "score": 0.9}]}
+    res = scout.scout(["diet"], fetcher=fetch, now=NOW, semantic_on=True, semantic_fn=sem)
+    assert [r["full_name"] for r in res["top"]] == ["b/karaoke", "a/calorie-counter"]   # unconfirmed never shown (RS7)
+    assert "found by meaning" not in res["queries"]
+
+
+def test_neighbour_already_in_results_is_not_searched_again():
+    calls = []
+    def fetch(q, token=None):
+        calls.append(q)
+        return _kw(q)
+    sem = lambda d, rows: {"sim": None, "neighbors": [{"name": "a/calorie-counter", "score": 0.9}]}
+    scout.scout(["diet"], fetcher=fetch, now=NOW, semantic_on=True, semantic_fn=sem)
+    assert not any(q.startswith("repo:") for q in calls)
+
+
+def test_wrong_length_sims_are_ignored():
+    sem = lambda d, rows: {"sim": [0.1], "neighbors": []}
+    res = scout.scout(["diet"], fetcher=_kw, now=NOW, semantic_on=True, semantic_fn=sem, description=DESC)
+    plain = scout.scout(["diet"], fetcher=_kw, now=NOW)
+    assert [r["full_name"] for r in res["top"]] == [r["full_name"] for r in plain["top"]]
+
+
+def test_confirmed_neighbour_respects_filters():
+    """An indexed repo that is now archived, unlicensed or stale is filtered like any search result."""
+    def fetch(q, token=None):
+        if q.startswith("repo:"):
+            old = _repo("c/stale", 500, "Step counter")
+            old["pushed_at"] = "2020-01-01T00:00:00Z"
+            arch = dict(_repo("d/archived", 500, "Step counter"), archived=True)
+            return {"items": [old, arch]}
+        return _kw(q)
+    sem = lambda d, rows: {"sim": None, "neighbors": [{"name": "c/stale", "score": 0.9}, {"name": "d/archived", "score": 0.9}]}
+    res = scout.scout(["diet"], fetcher=fetch, now=NOW, semantic_on=True, semantic_fn=sem)
+    assert {r["full_name"] for r in res["top"]} == {"b/karaoke", "a/calorie-counter"}
+
+
+def test_semantic_sanitises_hostile_replies():
+    rows = [{"full_name": "a/b"}]
+    for payload in ([], "x", {"sim": ["0.9"], "neighbors": "nope"}, {"sim": [1], "neighbors": [{"name": "a/b repo:x/y", "score": 1}]}):
+        opener = lambda req, timeout, p=payload: _Resp(json.dumps(p).encode())
+        r = hybrid.semantic(DESC, rows, opener=opener)
+        assert r is None or (r["neighbors"] == [] and (r["sim"] is None or r["sim"] == [1]))
+    bad_json = lambda req, timeout: _Resp(b"<html>")
+    assert hybrid.semantic(DESC, rows, opener=bad_json) is None
+
+
+def test_non_english_and_empty_descriptions_do_not_crash():
+    for d in ("", "मेरे आहार ऐप", "🍎🏃", "a an the"):
+        assert hybrid.hybrid_order([{"full_name": "a/b"}, {"full_name": "c/d"}], d) == [{"full_name": "a/b"}, {"full_name": "c/d"}]

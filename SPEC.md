@@ -539,7 +539,9 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
     | Indexed repos | `neighbors` in the reply → one live `repo:` search | same, via `--semantic` | `RAG_INDEX=1` + `[[vectorize]]` binding `REPOS_INDEX` |
     | Index filling | — | — | `ops/ingest.py` (dry run unless `--apply`), Actions `rag-ingest` (manual) |
     Both clients produce identical BM25 numbers and fused orders (golden values asserted in `tests/test_hybrid.py` and
-    `tests/test_web_logic.js`); the server and the ingester embed identical card text (`cardText` / `card_text`).
+    `tests/test_web_logic.js`); `evals/hybrid_cases.json` holds 14 goal and edge cases (agreement, damping, empty, filler-only
+    and non-English text, injection, keyword stuffing, malformed or flat or negative scores, plurals, dotted names, one row,
+    a 2,000-character description), run by `evals/run.py` in CI, and the page must reproduce the plugin's exact order on each; the server and the ingester embed identical card text (`cardText` / `card_text`).
     `mode:"semantic"` returns meaning scores and indexed repos only — no AI judge, no Turnstile (it is cheap and the
     `/api/relevance` path is under the RS41 rate limit); it answers 404 `semantic_off` while both switches are off.
     The skill keeps the default `fit` ranking until Phase 1's gate passes, then switches to `--rank hybrid` (one-line change).
