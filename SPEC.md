@@ -354,15 +354,17 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   localStorage (public repo data only, never what the visitor typed) so tab switching doesn't spend the visitor's
   10 searches/minute. **Home carousel:** the home screen shows the top Rising repos as a self-rotating carousel
   ("🔥 Rising on GitHub this month") under the quick picks, with "See all trending" opening the gallery. It loads
-  after the page is idle (one GitHub call per visitor per 30 minutes, shared with the Rising tab cache), advances one
-  card every few seconds, pauses while hovered, focused or touched, does not auto-rotate under
-  prefers-reduced-motion, can be swiped, and disappears silently if GitHub can't be reached. On single-column screens
-  it folds away with the intro once results show. No AI relevance check
+  after the page is idle (one GitHub call per visitor per 30 minutes, shared with the Rising tab cache), glides
+  continuously (~35 px/s, seamless loop) along a curved gallery — the centre card faces the viewer, cards toward the
+  edges turn away and recede, edges fade out — pauses while hovered, focused or touched, stays still (but curved)
+  under prefers-reduced-motion, can be swiped, and disappears silently if GitHub can't be reached. On single-column screens
+  it folds away with the intro once results show. It is hidden while the Trending gallery is open (same list, no repetition). No AI relevance check
   runs on it (there is no description to judge against). Web only; the plugin is a search tool and has no gallery.
 
 - **RS36** Thinking orb (web). A pill with a small rotating dotted sphere (latitude rings of dots, depth-shaded in the
   ink colour, light and dark theme) and a short label with animated dots, in the style of a "Solving…" indicator.
-  Used in two places: (1) on the home screen directly under the how-it-works demo, driven by the demo's own clock:
+  Used in two places: (1) on the home screen inside the how-it-works demo card, as its footer next to the step dots (one
+  component, one frame whose content cross-dissolves between steps), driven by the demo's own clock:
   each time the card changes step, the label changes with it ("Reading your idea", "Searching GitHub", "Ranking by
   fit", "Writing your plan") — one animation, not two timers; (2) as the
   loading indicator in the status line while a search, similar-repo lookup, PRD search or trending list loads ("Searching
@@ -377,6 +379,12 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   your search"), search/exclusion details folded into a "How we searched" toggle, the plugin pitch as one line, no
   marketing clichés ("seamless", "elevate", "start shipping"…). Facts that matter stay visible: licence verdict,
   stars, last update, the "Show N more we left out" undo, and the privacy line (shortened, linking to the full notice).
+
+- **RS38** Motion (web, owner request "transitions … smooth look"). One motion language: views swapped into the
+  results area (home demo, results, trending, errors) fade and rise in; cards revealed by scrolling or filters ease in;
+  modals fade with the sheet rising; theme and hover changes transition colours over 0.3 s; the how-it-works demo
+  cross-dissolves inside one fixed frame (RS36). Same easing everywhere (cubic-bezier(.22,1,.36,1)), 0.25–0.6 s.
+  Everything is off under prefers-reduced-motion (the page's global reduced-motion rule).
 
 ## RX — Deliberately excluded (v0.1)
 
