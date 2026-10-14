@@ -1,0 +1,20 @@
+# SPEC RS34: run the 84-item relevance eval against the LIVE site's AI check. Manual only (plus PRs that change the
+# eval itself) — it spends ~9 AI checks from the site's free daily allowance, so it is never part of normal CI.
+name: relevance-eval-live
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - evals/relevance_live.mjs
+      - .github/workflows/relevance-eval.yml
+permissions:
+  contents: read
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node evals/relevance_live.mjs https://replore.pages.dev/api/relevance

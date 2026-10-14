@@ -303,7 +303,8 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   both. It reports a limit only when every configured provider failed: "busy" if any was a short per-minute limit,
   otherwise "used up" with the soonest reset (capped at 24 h); when any provider failed for another reason, the plain "couldn't check" note is shown. A slow first provider gets at most 60% of the budget so the fallback still runs. Not configured = neither a key nor the binding. A provider whose free
   tier is restricted to experimentation or prototyping (e.g. GitHub Models free usage) is not added to the chain
-  for the public site; every provider in the chain is named in `PRIVACY.md`. **Example cache (RS34b):** for the built-in example
+  for the public site; every provider in the chain is named in `PRIVACY.md`. The live chain is scored with `evals/relevance_live.mjs` (the same
+  84-item set and pass bar, posted to the deployed endpoint), run by the manual GitHub workflow `relevance-eval-live`. **Example cache (RS34b):** for the built-in example
   searches only (the fixed texts of RS21, listed in the function and kept identical to the page by a test), a successful
   answer is kept in Cloudflare's edge cache for 24 h, keyed by a SHA-256 of the example text and the candidate repos,
   so repeat quick-pick taps spend no AI allowance. Text a visitor types is never cached or stored. Provider-side
