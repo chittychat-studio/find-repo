@@ -12,7 +12,7 @@ const fakeLLM = (content, status = 200) => async (url, init) => {
   return new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status });
 };
 const env = { LLM_API_KEY: "sk-test-SECRET" };
-const noTrail = o => { const { trail, ...rest } = o || {}; return rest; };   // RS34d trail is internal
+const noTrail = o => { const { trail, diag, ...rest } = o || {}; return rest; };   // RS34d/RS34e trail + diag are internal
 const post = (body, e = env, ct = "application/json") =>
   fn.onRequestPost({ request: new Request("https://x/api/relevance", { method: "POST", headers: { "Content-Type": ct }, body: typeof body === "string" ? body : JSON.stringify(body) }), env: e });
 
@@ -108,7 +108,7 @@ console.log("limit classification ok");
   { let called = false; const groq = async () => { called = true; return fakeLLM(ok)(); };
     const out = await fn.judgeChain("portfolio site", repos, { ...env, AI: ai(() => ({ response: ok })) }, groq);
     assert.deepStrictEqual(out.body, { drop: [{ i: 1, why: "mobile" }], checked: 3 }); assert.strictEqual(called, false);
-    assert.strictEqual(ai.last.model, "@cf/meta/llama-3.1-8b-instruct-fp8");
+    assert.strictEqual(ai.last.model, "@cf/mistralai/mistral-small-3.1-24b-instruct");
     assert.match(ai.last.input.messages[0].content, /untrusted data/); }
   // Workers AI out of its daily allocation -> Groq answers
   { const AI = { run: async () => { throw new Error("4006: you have used up your daily free allocation of 10,000 neurons"); } };
@@ -225,8 +225,8 @@ console.log("example cache ok");
   assert.strictEqual(r.status, 403); assert.strictEqual(aiCalls, 1);
   // GET returns only the public site key
   const g = await (await fn.onRequestGet({ env: tenv })).text();
-  assert.deepStrictEqual(JSON.parse(g), { turnstile: "0xSITE" }); assert.ok(!g.includes("ts-SECRET"));
-  assert.deepStrictEqual(await (await fn.onRequestGet({ env: {} })).json(), { turnstile: null });
+  assert.deepStrictEqual(JSON.parse(g), { turnstile: "0xSITE", v: 2, tag: fn.buildTag() }); assert.ok(!g.includes("ts-SECRET"));
+  assert.deepStrictEqual(await (await fn.onRequestGet({ env: {} })).json(), { turnstile: null, v: 2, tag: fn.buildTag() });
 }
 console.log("bot check ok");
 
@@ -250,7 +250,7 @@ console.log("bot check ok");
   await fn.cachedJudge(ex, repos, { AI: down, LLM_API_KEY: "k" }, fakeLLM('{"drop":[]}'), cache, "https://replore.pages.dev");
   assert.strictEqual(store.size, 0, "fallback answer is not cached");
   await fn.cachedJudge(ex, repos, { AI }, fetch, cache, "https://replore.pages.dev");
-  assert.ok([...store.keys()][0].startsWith("https://replore.pages.dev/__relevance-cache/v1/"));
+  assert.ok([...store.keys()][0].startsWith("https://replore.pages.dev/__relevance-cache/v2/"));
   const r = await fn.onRequestPost({ request: req(), env: { AI } }); const body = await r.json();
   assert.ok(!("first" in body) && !("cached" in body)); }
 console.log("second review regressions ok");
@@ -268,7 +268,7 @@ console.log("diagnostic codes ok");
 // live regression: Workers AI retired the default model (5028) -> next model in the list answers
 { const seen = [];
   const AI = { run: async (model) => { seen.push(model);
-    if (model === "@cf/meta/llama-3.1-8b-instruct-fp8") throw new Error("AiError: 5028: model deprecated");
+    if (model === fn.WAI_MODELS[0]) throw new Error("AiError: 5028: model deprecated");
     return { response: '{"drop":[]}' }; } };
   const out = await fn.judgeWorkersAI("q", repos, { AI });
   assert.strictEqual(out.status, 200); assert.deepStrictEqual(seen, fn.WAI_MODELS);
@@ -313,3 +313,32 @@ console.log("model fallback ok");
   try { assert.strictEqual((await mk({ AI: { run: async () => { throw new Error("boom"); } }, RELEVANCE_LOG: bad })).status, 502); }
   finally { console.log = orig; } }
 console.log("failure log ok");
+
+// RS34e: compact reply format, keep rule, per-attempt diag, preview-only model override
+{ assert.deepStrictEqual(fn.parseDrops('{"drop":[2,0,2,9]}', 3), [{ i: 2, why: "" }, { i: 0, why: "" }]);   // numbers, dedup, range
+  assert.match(fn.SYSTEM_PROMPT, /\{"drop":\[2,5\]\}/); assert.match(fn.SYSTEM_PROMPT, /boilerplates/); assert.ok(!/at most 12 words/.test(fn.SYSTEM_PROMPT));
+  const seen = [];
+  const AI = { run: async (model, input) => { seen.push([model, input.max_tokens]);
+    if (model === fn.WAI_MODELS[0]) throw new Error("AiError: 5028: retired"); return { response: '{"drop":[1]}' }; } };
+  const out = await fn.judgeChain("q", repos, { AI });
+  assert.strictEqual(out.status, 200); assert.strictEqual(seen[0][1], 120);
+  assert.deepStrictEqual(out.diag.map(d => d.code), ["wai_error_5028", "ok"]); assert.ok(out.diag.every(d => typeof d.ms === "number" && d.model));
+  const req = (body, headers = {}) => new Request("https://x.pages.dev/api/relevance", { method: "POST",
+    headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify(body) });
+  // diag only on request, codes only
+  let r = await (await fn.onRequestPost({ request: req({ query: "q", repos }), env: { AI } })).json();
+  assert.ok(!("diag" in r));
+  r = await (await fn.onRequestPost({ request: req({ query: "q", repos }, { "X-Replore-Diag": "1" }), env: { AI } })).json();
+  assert.ok(Array.isArray(r.diag) && r.diag.length === 2); assert.ok(!JSON.stringify(r).includes("retired"));
+  // no build lets a client choose the model (the comparison-only override was removed)
+  seen.length = 0; await fn.onRequestPost({ request: req({ query: "q", repos, model: "@cf/x/fast" }), env: { AI, EVAL_MODELS: "@cf/x/fast" } });
+  assert.ok(!seen.some(s => s[0] === "@cf/x/fast"));
+  // numeric-string indices are understood, junk is not
+  assert.deepStrictEqual(fn.parseDrops('{"drop":["2","x","-1"]}', 3), [{ i: 2, why: "" }]);
+  // diag also comes back on an error response
+  const bad = { run: async () => { throw new Error("AiError: 3010: bad input"); } };
+  const er = await (await fn.onRequestPost({ request: req({ query: "q", repos }, { "X-Replore-Diag": "1" }), env: { AI: bad } })).json();
+  assert.ok(Array.isArray(er.diag) && er.diag[0].code === "wai_error_3010"); }
+// wrangler.toml carries no client-model allowlist
+{ const w = readFileSync(new URL("../wrangler.toml", import.meta.url), "utf8"); assert.ok(!/EVAL_MODELS|\[env\./.test(w), "no model allowlist / env override in wrangler.toml"); }
+console.log("diag + model override ok");

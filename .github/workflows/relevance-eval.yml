@@ -1,0 +1,28 @@
+# SPEC RS34/RS34e: score the deployed AI check against the 84-item set. Manual only — each run spends ~9 AI checks from
+# the site's free daily allowance, so it never runs on pushes or PRs.
+name: relevance-eval-live
+on:
+  workflow_dispatch:
+    inputs:
+      endpoint:
+        description: "Endpoint to score (production or a preview URL)"
+        default: "https://replore.pages.dev/api/relevance"
+permissions:
+  contents: read
+concurrency:
+  group: relevance-eval
+  cancel-in-progress: true
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Score the endpoint
+        env:
+          ENDPOINT: ${{ inputs.endpoint }}   # passed as data, never pasted into the script
+        run: |
+          case "$ENDPOINT" in https://*.pages.dev/api/relevance) ;; *) echo "endpoint must be a *.pages.dev /api/relevance URL"; exit 2;; esac
+          node evals/relevance_live.mjs "$ENDPOINT"
