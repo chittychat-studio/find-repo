@@ -346,3 +346,30 @@ console.log("failure log ok");
 // wrangler.toml carries no client-model allowlist
 { const w = readFileSync(new URL("../wrangler.toml", import.meta.url), "utf8"); assert.ok(!/EVAL_MODELS|\[env\./.test(w), "no model allowlist / env override in wrangler.toml"); }
 console.log("diag + model override ok");
+
+// RS41 traffic hardening
+{ // a per-minute "busy" error moves to the next Workers AI model; a daily-allowance error does not
+  const seen = [];
+  const busy = { run: async (m) => { seen.push(m); if (m === fn.WAI_MODELS[0]) throw new Error("AiError: 3040: Capacity temporarily exceeded"); return { response: '{"drop":[]}' }; } };
+  assert.strictEqual((await fn.judgeWorkersAI("q", repos, { AI: busy })).status, 200); assert.deepStrictEqual(seen, fn.WAI_MODELS);
+  seen.length = 0;
+  const daily = { run: async (m) => { seen.push(m); throw new Error("AiError: 4006: you have used up your daily free allocation of 10,000 neurons"); } };
+  assert.strictEqual((await fn.judgeWorkersAI("q", repos, { AI: daily })).error, "llm_daily_limit"); assert.strictEqual(seen.length, 1);
+  // oversized Content-Length is refused before the body is read
+  let read = false;
+  const big = new Request("https://replore.pages.dev/api/relevance", { method: "POST", headers: { "Content-Type": "application/json", "Content-Length": "999999" }, body: "{}" });
+  const origText = big.text.bind(big); big.text = () => { read = true; return origText(); };
+  const AIok = { run: async () => ({ response: '{"drop":[]}' }) };
+  assert.strictEqual((await fn.onRequestPost({ request: big, env: { AI: AIok } })).status, 413); assert.strictEqual(read, false);
+  // the example-cache write is handed to waitUntil (after the answer), and a throwing cache never breaks the check
+  const store = new Map(), handed = [];
+  const cache = { match: async () => undefined, put: async (k, v) => { store.set(k.url, v); } };
+  const ex = fn.EXAMPLE_QUERIES[0];
+  const r1 = await fn.cachedJudge(ex, repos, { AI: AIok }, fetch, cache, "https://replore.cardzo.co.in", p => handed.push(p));
+  assert.strictEqual(r1.status, 200); assert.strictEqual(handed.length, 1); await handed[0]; assert.strictEqual(store.size, 1);
+  const boom = { match: async () => undefined, put: () => { throw new Error("sync boom"); } };
+  assert.strictEqual((await fn.cachedJudge(ex, repos, { AI: AIok }, fetch, boom, "https://x", p => p)).status, 200);
+  // the budget fits inside the page's 8 s wait with room for the 3 s bot-check verify
+  const src = readFileSync(new URL("../functions/api/relevance.js", import.meta.url), "utf8");
+  assert.ok(/TIMEOUT_MS = 4500/.test(src)); }
+console.log("traffic hardening ok");

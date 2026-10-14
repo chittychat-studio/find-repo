@@ -4,7 +4,7 @@
 // Stores no request content (RS33); failures are logged as codes only (RS34d). Fails open: any problem -> an error status, and the page
 // shows its normal keyword results with a note (never a blank page, never invented repos — RS7).
 
-const MAX_BODY = 16384, MAX_QUERY = 200, MAX_REPOS = 30, MAX_DESC = 160, TIMEOUT_MS = 7000;
+const MAX_BODY = 16384, MAX_QUERY = 200, MAX_REPOS = 30, MAX_DESC = 160, TIMEOUT_MS = 4500;   // RS41: verify (≤3 s) + AI stays inside the page's 8 s wait
 // control, zero-width, bidi and line/paragraph-separator characters (built from code points so no invisible char sits in the source)
 const CTRL = new RegExp("[" + [[0x00, 0x1f], [0x7f, 0x9f], [0x200b, 0x200f], [0x2028, 0x2029], [0x202a, 0x202e], [0x2066, 0x2069]]
   .map(([a, b]) => String.fromCharCode(a) + "-" + String.fromCharCode(b)).join("") + "]", "g");
@@ -122,6 +122,7 @@ const WAI_CAPACITY = /capacity|too many requests|rate limit/i;
 // Llama 3.3 70B (98% kept) is the fallback if Mistral is unavailable.
 export const WAI_MODELS = ["@cf/mistralai/mistral-small-3.1-24b-instruct", "@cf/meta/llama-3.3-70b-instruct-fp8-fast"];
 const MODEL_GONE = /^wai_error_(5007|5028)$/;
+const MODEL_BUSY = /^llm_rate_limited$/;   // RS41: a per-minute capacity error tries the next model; a daily one is account-wide
 export async function judgeWorkersAI(query, repos, env, ms = TIMEOUT_MS) {
   const models = env.WORKERS_AI_MODEL ? String(env.WORKERS_AI_MODEL).split(",").map(s => s.trim()).filter(Boolean) : WAI_MODELS;
   const end = Date.now() + ms, diag = [];
@@ -132,7 +133,7 @@ export async function judgeWorkersAI(query, repos, env, ms = TIMEOUT_MS) {
     const t0 = Date.now();
     out = await runWorkersAI(model, query, repos, env, left);
     diag.push({ p: "workers-ai", model, ms: Date.now() - t0, code: out.status === 200 ? "ok" : out.error });   // codes only
-    if (!MODEL_GONE.test(out.error || "")) return { ...out, diag };
+    if (!MODEL_GONE.test(out.error || "") && !MODEL_BUSY.test(out.error || "")) return { ...out, diag };
   }
   return out ? { ...out, diag } : { status: 504, error: "wai_timeout", diag };
 }
@@ -207,7 +208,7 @@ export async function cacheKey(query, repos, origin = "https://replore.pages.dev
   const hex = [...new Uint8Array(await crypto.subtle.digest("SHA-256", data))].map(b => b.toString(16).padStart(2, "0")).join("");
   return new Request(`${origin}/__relevance-cache/v2/${hex}`);   // v2: Mistral + indices-only prompt   // own origin: the Cache API is scoped to the zone
 }
-export async function cachedJudge(query, repos, env, fetchImpl = fetch, cache = globalThis.caches && globalThis.caches.default, origin) {
+export async function cachedJudge(query, repos, env, fetchImpl = fetch, cache = globalThis.caches && globalThis.caches.default, origin, waitUntil) {
   const usable = cache && EXAMPLE_SET.has(query);
   let key;
   if (usable) {
@@ -216,7 +217,9 @@ export async function cachedJudge(query, repos, env, fetchImpl = fetch, cache = 
   }
   const out = await judgeChain(query, repos, env, fetchImpl);
   if (usable && key && out.status === 200 && out.first) {   // cache only the primary provider's answer
-    try { await cache.put(key, new Response(JSON.stringify(out.body), { headers: { "Content-Type": "application/json", "Cache-Control": `max-age=${CACHE_TTL}` } })); } catch {}
+    const body = JSON.stringify(out.body);
+    const put = Promise.resolve().then(() => cache.put(key, new Response(body, { headers: { "Content-Type": "application/json", "Cache-Control": `max-age=${CACHE_TTL}` } }))).catch(() => {});
+    if (waitUntil) waitUntil(put); else await put;   // RS41: write the cache after the answer is sent
   }
   return out;
 }
@@ -264,26 +267,28 @@ export function logFailure(env, ev) {
   return rec;
 }
 
-export async function onRequestPost({ request, env }, fetchImpl = fetch) {
-  const t0 = Date.now();
-  const res = await handlePost(request, env, fetchImpl);
+export async function onRequestPost(context, fetchImpl = fetch) {
+  const { request, env } = context, t0 = Date.now();
+  const later = typeof context.waitUntil === "function" ? p => context.waitUntil(p) : undefined;   // bound call (Workers needs it)
+  const res = await handlePost(request, env, fetchImpl, later);
   if (res.status !== 200 && res.__code !== "not_configured")
     logFailure(env, { code: res.__code, status: res.status, trail: res.__trail, ms: Date.now() - t0, example: res.__example });
   return res;
 }
 
-async function handlePost(request, env, fetchImpl) {
+async function handlePost(request, env, fetchImpl, waitUntil) {
   if (!env.LLM_API_KEY && !(env.AI && typeof env.AI.run === "function")) return json(503, { error: "not_configured" });
   if (!sameOrigin(request)) return json(403, { error: "bad_origin" });
   const ct = request.headers.get("Content-Type") || "";
   if (ct.split(";")[0].trim().toLowerCase() !== "application/json") return json(415, { error: "json_only" });
+  if (Number(request.headers.get("Content-Length") || 0) > MAX_BODY) return json(413, { error: "too_large" });   // RS41: before reading
   const raw = await request.text();
   if (raw.length > MAX_BODY) return json(413, { error: "too_large" });
   let body; try { body = JSON.parse(raw); } catch { return json(400, { error: "invalid_json" }); }
   const bad = validate(body);
   if (bad) return json(400, { error: bad });
   if (!(await verifyTurnstile(request, env, fetchImpl))) return json(403, { error: "bot_check_failed" });
-  const out = await cachedJudge(body.query, body.repos, env, fetchImpl, undefined, new URL(request.url).origin);
+  const out = await cachedJudge(body.query, body.repos, env, fetchImpl, undefined, new URL(request.url).origin, waitUntil);
   const meta = { trail: out.trail, example: EXAMPLE_SET.has(body.query) };
   const diag = request.headers.get("X-Replore-Diag") === "1" && out.diag ? { diag: out.diag } : {};   // codes + timings only
   return out.status === 200 ? json(200, { ...out.body, ...diag })   // internal flags (first, cached, trail) never leave
