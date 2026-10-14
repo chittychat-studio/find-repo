@@ -404,7 +404,11 @@
       padding:2px 0 6px;scrollbar-width:none;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity}
     body.has-results #quickpicks::-webkit-scrollbar{display:none}
     body.has-results #quickpicks .chip{flex:0 0 auto;white-space:nowrap;scroll-snap-align:start;font-size:14px;padding:9px 14px;min-height:40px}
-    body.has-results .hero{margin-bottom:6px}
+    body.has-results .hero{margin-bottom:0}
+    /* RS24: no empty band between the search and the results on phones; the status line shows only while it has text */
+    body.has-results .hero .status:empty{display:none}
+    body.has-results #quickpicks{margin-top:4px}
+    body.has-results .res-head{margin-top:0}
   }
   @media (min-width:1000px){
     .grid{grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
