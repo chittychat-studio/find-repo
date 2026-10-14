@@ -640,6 +640,7 @@ def test_web_page_is_safe_static(monkeypatch):
     assert 'var TIP_URL="";' in html or re.search(r'var TIP_URL="https://buy\.stripe\.com/[A-Za-z0-9_\-]+";', html)
     assert not re.search(r"(sk|pk|rk)_(live|test)_[A-Za-z0-9]", html), "no Stripe key may ever be in the page"
     assert html.count('class="mut tip-el"') == 1 and "fund more open-source projects" in html
+    assert 'class="tip-el tip-qr" hidden' in html and (ROOT / "web" / "tip-qr.png").exists()   # RS44 QR, hidden with the tip
     assert "Replore is not affiliated with or endorsed by GitHub" in html and "GitHub® is a trademark of GitHub, Inc." in html
     assert not re.search(r"octocat|mark-github", html, re.I)
     assert '"You are the principal architect for my vibe coding app, with 15+ years of experience building similar apps.' in html   # RS28e
@@ -758,10 +759,10 @@ def test_privacy_notice_matches_what_the_code_does():
         assert banned not in html, banned
     # only these hosts are contacted; PRIVACY.md names each of them
     hosts = set(re.findall(r"https://([a-z0-9.-]+)", html))
-    allowed = {"api.github.com", "github.com", "claude.ai", "claude.com", "replore.pages.dev", "cardzo.co.in", "chatgpt.com", "gemini.google.com", "api.web3forms.com", "groq.com", "www.cloudflare.com", "challenges.cloudflare.com"}  # RS34/RS34a provider terms, RS34c Turnstile
+    allowed = {"api.github.com", "github.com", "claude.ai", "claude.com", "replore.pages.dev", "cardzo.co.in", "chatgpt.com", "gemini.google.com", "api.web3forms.com", "groq.com", "www.cloudflare.com", "challenges.cloudflare.com", "buy.stripe.com"}  # RS34/RS34a provider terms, RS34c Turnstile, RS44 tips
     assert hosts <= allowed, hosts - allowed
     for named in ("api.github.com", "Cloudflare", "claude.ai", "security.log", "200 characters", "off by default",
-                  "Groq", "Cloudflare Workers AI", "Turnstile", "relevance check", "stores nothing", "Feedback", "chatgpt.com", "gemini.google.com", "Web3Forms"):  # RS34 data flow must be disclosed
+                  "Groq", "Cloudflare Workers AI", "Turnstile", "relevance check", "stores nothing", "Feedback", "chatgpt.com", "gemini.google.com", "Web3Forms", "Stripe"):  # RS34 data flow must be disclosed
         assert named in priv, named
     # the hook really writes only on a match, at most 200 chars, locally
     hook = (ROOT / "hooks" / "security_log.py").read_text()
