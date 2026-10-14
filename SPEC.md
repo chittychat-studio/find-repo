@@ -338,7 +338,8 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   `GET /api/relevance` and loads Turnstile from `challenges.cloudflare.com` only when a key is set (the one exception
   to RS33's no-third-party-script rule, disclosed in `PRIVACY.md`). Every browser-side wait (config, script, token) has a deadline and a failed load retries on the next search;
   an interactive challenge gets 90 s. Without the secret the check is off and behaviour
-  is unchanged. A per-IP Cloudflare rate-limiting rule on `/api/relevance` is the owner's dashboard setting, not code.
+  is unchanged. **Status:** switched on in production 2026-10-14 (owner created a dedicated "Replore" Turnstile
+  widget, Managed mode, hostnames `replore.cardzo.co.in` and `replore.pages.dev`; keys set as Pages variables). A per-IP Cloudflare rate-limiting rule on `/api/relevance` is the owner's dashboard setting, not code.
   Limits of this: an agent driving a real browser slowly can still pass; on the Workers Free plan the worst case of
   abuse is a day of keyword-only results, never a bill. The page shows only the kept repos and puts no note about the
   check above them (owner's decision, 2026-10-13). Dropped repos move to the end and show automatically after the
