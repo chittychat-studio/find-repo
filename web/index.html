@@ -1714,7 +1714,7 @@ document.addEventListener("keydown",function(e){ if(e.key==="Escape") closeModal
   function buildPrompt(){
     var q=(document.getElementById("q").value||"").trim() || "my project";
     var list=picks.map(function(r,i){ return (i+1)+". "+r.name+" — "+r.url+(r.desc?"\n   "+r.desc:""); }).join("\n");
-    return "You are the principal architect for my vibe coding app, with 15 years of experience building similar apps.\n\n"+   // RS28e
+    return "You are the principal architect for my vibe coding app, with 15+ years of experience building similar apps.\n\n"+   // RS28e
       "I'm building: "+q+"\n\n"+
       "Write a product requirements document (PRD) for it, built on these open-source GitHub repos:\n\n"+list+"\n\n"+
       "Not every repo above will fit (they came from a keyword search). First triage each one as USE, REFERENCE ONLY "+

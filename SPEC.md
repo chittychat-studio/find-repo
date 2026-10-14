@@ -256,7 +256,7 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   plan fits better. Trade-off accepted: the plan arrives one reply later. Exactly one round of questions, so the
   hand-off never turns into an open-ended chat before the plan.
 - **RS28e** Role line (owner wording 2026-10-14). The plan prompt opens with: "You are the principal architect for
-  my vibe coding app, with 15 years of experience building similar apps." The owner first proposed "my million
+  my vibe coding app, with 15+ years of experience building similar apps." The owner first proposed "my million
   dollar startup"; replaced because most users build small projects, and inflated stakes push the AI to plan for
   scale a portfolio site or hobby game doesn't need.
 - **RS28b** Other AI assistants (owner request 2026-10-14: "all three buttons equal importance"). The plan modal
