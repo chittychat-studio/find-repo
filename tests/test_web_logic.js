@@ -14,7 +14,7 @@ global.window = global;
 const s = {};
 new Function("document", "localStorage",
   code + "; this.keywordQueries=keywordQueries; this.rankByFit=rankByFit; this.fitScore=fitScore; this.whyRelevant=whyRelevant; this.esc=esc; this.lu=lu; this.freeText=freeText;" +
-  " this.keep=keep; this.recentKey=recentKey; this.recentFind=recentFind; this.recentAdd=recentAdd; this.CACHE_V=CACHE_V; this.clean=clean; this.harmful=harmful; this.harmfulRepo=harmfulRepo; this.prdFeatures=prdFeatures; this.trendingQuery=trendingQuery; this.trendRows=trendRows; this.feedbackUrl=feedbackUrl; this.feedbackPayload=feedbackPayload; this.agoText=agoText; this.cardHtml=cardHtml;").call(s, document, global.localStorage || {getItem:()=>null,setItem(){},removeItem(){}});
+  " this.keep=keep; this.recentKey=recentKey; this.recentFind=recentFind; this.recentAdd=recentAdd; this.CACHE_V=CACHE_V; this.clean=clean; this.harmful=harmful; this.harmfulRepo=harmfulRepo; this.prdFeatures=prdFeatures; this.trendingQuery=trendingQuery; this.trendRows=trendRows; this.feedbackUrl=feedbackUrl; this.feedbackPayload=feedbackPayload; this.agoText=agoText; this.cardHtml=cardHtml; this.bm25Scores=bm25Scores; this.repoText=repoText; this.rrfOrder=rrfOrder; this.hybridOrder=hybridOrder; this.confirmQueries=confirmQueries;").call(s, document, global.localStorage || {getItem:()=>null,setItem(){},removeItem(){}});
 
 // RS16: iOS excludes macOS
 // RS16: expansions are specific on-topic phrases, never a bare category (live regression: "website" -> "frontend framework"
@@ -53,6 +53,35 @@ assert.ok(s.keywordQueries("a diet app for iphone", "ios").every(q => q.includes
   assert.strictEqual(list[0].k, "k14", "newest first");
   list = s.recentAdd(list, { k: "late", v: s.CACHE_V, t: t0 + 2 * 3600000, html }, t0 + 2 * 3600000);
   assert.deepStrictEqual(list.map(e => e.k), ["late"], "expired entries dropped on write"); }
+// RS42 hybrid: same BM25 numbers as scripts/hybrid.py (tests/test_hybrid.py GOLDEN), same RRF, same damping
+{ const DESC = "voice based ai app to track my diet and step counter";
+  const docs = [s.repoText("a/calorie-counter", "Track calories and diet", ["nutrition"]), s.repoText("b/karaoke", "Make karaoke from songs", []),
+                s.repoText("c/step-counter", "Android step counter app", ["fitness"])];
+  assert.deepStrictEqual(Array.from(s.bm25Scores(DESC, docs)), [2.374521, 0, 1.871074]);
+  assert.deepStrictEqual(Array.from(s.rrfOrder(3, [null, [0, 5, 1]])), [1, 0, 2]);
+  const rows = [{name:"b/karaoke", desc:"Make karaoke from songs"}, {name:"z/noise", desc:"Unrelated toolkit"},
+                {name:"a/calorie-counter", desc:"Track calories and diet", topics:["nutrition"]}];
+  const names = rs => rs.map(r => r.name);
+  assert.deepStrictEqual(names(s.hybridOrder(rows, DESC)), ["b/karaoke", "a/calorie-counter", "z/noise"]);
+  assert.deepStrictEqual(names(s.hybridOrder(rows, DESC, [0.1, 0.2, 0.9])), ["a/calorie-counter", "b/karaoke", "z/noise"]);
+  assert.deepStrictEqual(names(s.hybridOrder(rows, "")), names(rows));
+  const cq = s.confirmQueries(Array.from({length: 9}, (_, i) => "owner" + i + "/repository-name-" + i));
+  assert.ok(cq.every(q => q.length <= 200) && cq.join(" ").split("repo:").length - 1 === 9); }
+// RS42 edge cases: every case in evals/hybrid_cases.json must give the plugin's exact order ("parity")
+{ const H = JSON.parse(require("fs").readFileSync(__dirname + "/../evals/hybrid_cases.json", "utf8"));
+  const LONG = "track my diet calories and steps with voice ".repeat(50).slice(0, 2000);
+  for (const c of H.cases) {
+    const rows = c.rows.map(r => ({ name: r.name, desc: r.desc || "", topics: r.topics || [] }));
+    const got = s.hybridOrder(rows, c.description === "LONG" ? LONG : c.description, c.sims).map(r => r.name);
+    assert.deepStrictEqual(got, c.parity, "web/plugin parity: " + c.name); } }
+// RS42 parity from RAW GitHub items (peer review): the page builds rows with keep(), the plugin with scout.py; same BM25
+{ const raw = JSON.parse(require("fs").readFileSync(__dirname + "/fixtures/raw_items.json", "utf8"));
+  const ex = { license: 0, stale: 0, low: 0, fork: 0, harm: 0 };
+  const rows = s.keep(raw.items, 0, "", ex, {});
+  const by = {}; rows.forEach(r => { by[r.name] = r; });
+  const ordered = raw.order.map(n => by[n]);
+  assert.ok(ordered.every(Boolean), "all fixture rows kept");
+  assert.deepStrictEqual(Array.from(s.bm25Scores(raw.description, ordered.map(r => s.repoText(r.name, r.desc, r.topics)))), raw.bm25); }
 // RS28f: long text ends at a word with "…", short text untouched
 { const long = "Open-source Python-based fitness tracker web app using Flask. Features include workout logging, nutrition tracking, and progress visualization. Ideal for developers and fitness enthusiasts looking to build their own";
   const c = s.clean(long);

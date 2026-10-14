@@ -666,7 +666,7 @@
 </header>
 <main class="page">
   <section class="hero">
-    <p class="hero-pill"><span aria-hidden="true">✦</span> AI-powered repo finder</p>   <!-- RS29c: owner wording 2026-10-14 -->
+    <p class="hero-pill"><span aria-hidden="true">✦</span> <span class="rag-off">AI-powered repo finder</span><span class="rag-only" hidden>Search by words and meaning</span></p>   <!-- RS29c: owner wording 2026-10-14 -->
     <h2 class="hero-title" id="heroTitle">Describe it.<br><em>Get repos that fit.</em></h2>
     <p class="sub">Popular, free-to-use, maintained repos for what you’re building.</p>
     <div id="demoSlot" class="demo-slot"></div>   <!-- RS24: on phones the demo sits here, before the search -->
@@ -787,6 +787,7 @@
   <img src="tour.png" alt="The Replore page: describe your project, then get the open-source repos that fit"
     loading="lazy" style="width:100%;border:1px solid var(--line);border-radius:12px;margin:16px 0 4px">
   <p class="mut" style="margin:0">Describe your project, tap Find, and get the repos that fit — relevant, popular, free to use.</p>
+  <p class="mut rag-only" style="margin-top:12px" hidden><b>Hybrid search:</b> repos are ranked by your words and by what you mean, so "voice notes" also finds "speech-to-text". Repos our index finds that the word search missed are checked on GitHub before you see them.</p>
   <p class="mut" style="margin-top:12px"><b>Build a plan:</b> tick the repos you like on the results, then tap <b>Generate plan</b>.
     Replore hands the picks to your <b>own</b> Claude (Copy, or Open in Claude), which writes a full build plan
     (a PRD) you can code straight from — free and private.</p>
@@ -883,9 +884,11 @@
 <div class="modal" id="privacyModal"><div class="sheet">
   <button class="x" data-close>&times;</button>
   <h2>Privacy</h2>
-  <p class="mut">Replore has no account, no database and no visitor analytics, and stores nothing you type. Its only server
+  <p class="mut">Replore has no account, no user database and no visitor analytics, and stores nothing you type. Its only server
     code is a small relevance check that passes your search to an AI and keeps none of it; if that check fails, it records
-    only the error type and time so we can fix it.</p>
+    only the error type and time so we can fix it. When our meaning-based search is switched on, the same check also asks an
+    AI model what your words mean and looks them up in an index of public repo names and descriptions (Cloudflare
+    Vectorize); every repo found that way is checked live on GitHub before you see it.</p>
   <ul class="guide">
     <li><b>Your search words</b> go from your browser straight to <b>GitHub</b> (with your IP address) to run the search.</li>
     <li><b>To show only relevant repos</b>, your search words and the list of repos found go through our relevance check
@@ -932,6 +935,7 @@
     feature by feature. Results are GitHub search matches, not a scan of every repository. Stars measure
     popularity, not quality, and can be bought. "Completely free?" and "OK in a paid product?" are read from the
     license only — a plain summary, not legal advice; some projects also sell a paid hosted version or add-ons.</p>
+  <p class="mut rag-only" style="margin-top:12px" hidden><b>Hybrid search:</b> repos are ranked by your words and by what you mean, so "voice notes" also finds "speech-to-text". Repos our index finds that the word search missed are checked on GitHub before you see them.</p>
 </div></div>
 
 <script>
@@ -1011,6 +1015,32 @@ function keywordQueries(text, platform){
   var ex = platform==="ios"?" -topic:macos":""; // keep iOS off Mac apps
   return qs.slice(0,MAX_QUERIES).map(function(q){return (q+ex).trim();});
 }
+
+// ---- RS42 hybrid retrieval: lexical (BM25 vs the whole description) + semantic (server meaning scores), fused by RRF.
+// Mirrors scripts/hybrid.py line for line; tests assert the same BM25 numbers in both (web and plugin stay in sync).
+function lexTokens(t){ return String(t||"").toLowerCase().replace(/[^a-z0-9 +#.]/g," ").split(/\s+/)
+  .filter(function(w){ return w && !STOP.has(w); }).map(function(w){ return w.length>3&&/s$/.test(w)?w.slice(0,-1):w; }); }
+function repoText(name, desc, topics){ return [String(name||"").replace(/[\/\-_]/g," "), desc||"", (topics||[]).join(" ")].join(" "); }
+function bm25Scores(query, docs){ var k1=1.2, b=0.75, toks=docs.map(lexTokens), n=toks.length; if(!n) return [];
+  var avg=(toks.reduce(function(a,t){ return a+t.length; },0)/n)||1, df={};
+  toks.forEach(function(t){ var u={}; t.forEach(function(w){ if(!u[w]){ u[w]=1; df[w]=(df[w]||0)+1; } }); });
+  var q={}; lexTokens(query).forEach(function(w){ q[w]=1; });
+  return toks.map(function(t){ var tf={}, s=0; t.forEach(function(w){ tf[w]=(tf[w]||0)+1; });
+    Object.keys(q).forEach(function(w){ if(tf[w]){ var idf=Math.log(1+(n-df[w]+0.5)/(df[w]+0.5));
+      s+=idf*tf[w]*(k1+1)/(tf[w]+k1*(1-b+b*t.length/avg)); } });
+    return Math.round(s*1e6)/1e6; }); }
+function rrfOrder(n, lists){ var fused=[], idx=[], i; for(i=0;i<n;i++){ fused.push(0); idx.push(i); }
+  lists.forEach(function(sc){ var ord=idx.slice(); if(sc) ord.sort(function(a,b){ return (sc[b]-sc[a])||(a-b); });
+    ord.forEach(function(it,rank){ fused[it]+=1/(60+rank+1); }); });
+  return idx.sort(function(a,b){ return (fused[b]-fused[a])||(a-b); }); }
+function hybridOrder(rows, description, sims){
+  if(!rows.length || !String(description||"").trim()) return rows.slice();
+  var lists=[null, bm25Scores(description, rows.map(function(r){ return repoText(r.name, r.desc, r.topics); }))];
+  if(sims && sims.length===rows.length) lists.push(sims);
+  return rrfOrder(rows.length, lists).map(function(i){ return rows[i]; }); }
+function confirmQueries(names){ var out=[], cur="";   // live GitHub check for indexed repos, each search under 200 chars
+  names.forEach(function(nm){ var part="repo:"+nm; if(cur && cur.length+1+part.length>200){ out.push(cur); cur=part; } else cur=(cur+" "+part).trim(); });
+  if(cur) out.push(cur); return out; }
 
 window.__runGen=0;   // search generation: resetAll() and each new search bump it (stale async results are dropped)
 async function search(q){
@@ -1237,6 +1267,11 @@ function watchMore(){ var s=document.querySelector("#out #resMore"); if(!s) retu
   window.__moreObs.observe(s); }
 function initResultFilter(){ window.__resFilter="all"; window.__resLimit=10; applyResultFilter(); watchMore(); checkMore(); }
 // RS34: ask the same-origin function which repos don't fit; "off" when not set up, {fail} on any failure (fail open, silent)
+// RS42: RAG wording appears only when the server says a RAG part is switched on (never claimed while it is off)
+function applyRagCopy(on){ document.querySelectorAll(".rag-only").forEach(function(el){ el.hidden=!on; });
+  document.querySelectorAll(".rag-off").forEach(function(el){ el.hidden=!!on; }); }
+fetch("/api/relevance",{method:"GET",cache:"no-store"}).then(function(r){ return r.ok?r.json():null; })
+  .then(function(c){ applyRagCopy(!!(c&&c.rag&&(c.rag.rerank===true||c.rag.index===true))); }).catch(function(){});
 // RS34c: Cloudflare Turnstile bot check, loaded from challenges.cloudflare.com only when the owner set a site key.
 // Resolves null = no bot check configured; "" = no token (the function then refuses; the page shows keyword results).
 // Every wait has a deadline so a stalled Cloudflare can never hang the search (RS7); a failed load is retried
@@ -1302,7 +1337,12 @@ async function relevanceGate(query, repos){
         return "off";   // check not set up (no key / no function): behave as before, no note
       if(er.error==="llm_daily_limit" && +er.resetsInSec>0) try{ localStorage.setItem(AI_OFF_KEY, String(Date.now()+Math.min(+er.resetsInSec,86400)*1000)); }catch(_){}
       return {fail:true, error:er.error||("http_"+res.status), resetsInSec:+er.resetsInSec||0}; }   // RS34: say why, incl. when it resets
-    var j=await res.json(); return Array.isArray(j.drop)?j.drop:{fail:true,error:"bad_reply"};
+    var j=await res.json(); if(!Array.isArray(j.drop)) return {fail:true,error:"bad_reply"};
+    var d=j.drop;   // RS42: meaning scores and indexed repos ride along only when the server has them switched on
+    if(Array.isArray(j.sim) && j.sim.every(function(x){ return typeof x==="number"; })) d.sim=j.sim;
+    if(Array.isArray(j.neighbors)) d.neighbors=j.neighbors.filter(function(x){ return x && typeof x.name==="string" &&
+      /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(x.name) && typeof x.score==="number"; }).slice(0,8);
+    return d;
   }catch(e){ return {fail:true,error:e&&e.name==="AbortError"?"page_timeout":"network"}; } finally{ if(timer) clearTimeout(timer); if(window.__gateCtl===ctl) window.__gateCtl=null; } }
 
 // RS21: ready-made prompts the user can click to fill the box.
@@ -1531,15 +1571,33 @@ async function run(){
       lists.push(keep(items,minStars,platform,excluded,seen)); }
     var ranked=rankByFit(lists,preferStarters), top=ranked.slice(0,60);  // sane upper bound; we no longer cap at 20
     var gate=null;
-    if(top.length){ think(st,"Checking which repos fit");   // RS34 relevance check on the top 30
-      var drops=await relevanceGate(like?(text+" (similar to "+like+")"):text, top.slice(0,30));
+    if(top.length || window.__ragIndex!==false){ think(st,"Checking which repos fit");   // RS34 check on the top 30; RS42: an empty
+      var drops=await relevanceGate(like?(text+" (similar to "+like+")"):text, top.slice(0,30));   // list still asks the index
       if(gen!==window.__runGen) return;
-      if(drops==="off"){ gate=null; }
+      if(drops==="off"){ gate=null; window.__ragIndex=false; }
       else if(drops&&drops.fail){ gate={ok:false,error:drops.error,resetsIn:drops.resetsInSec}; }
       else if(drops){ var dropped={}; drops.forEach(function(d){ dropped[d.i]=1; });   // RS34: off-topic repos go to the end, shown
         var cut=top.slice(0,30);                                                        // after the kept ones, under "Less likely to fit"
-        top=cut.filter(function(r,i){ return !dropped[i]; })
-          .concat(cut.filter(function(r,i){ return dropped[i]; }).map(function(r){ r.left=1; return r; }));
+        var keptRows=cut.filter(function(r,i){ return !dropped[i]; }), leftRows=cut.filter(function(r,i){ return dropped[i]; });
+        if(drops.sim||drops.neighbors){   // RS42 hybrid (server switched on): same rule as scripts/scout.py
+          var sims=null, simBy={};
+          if(drops.sim&&drops.sim.length===cut.length){ sims=[]; cut.forEach(function(r,i){ simBy[r.name]=drops.sim[i]; }); }
+          var nb=(drops.neighbors||[]).filter(function(x){ return !Object.prototype.hasOwnProperty.call(seen,x.name); }), score={};
+          nb.forEach(function(x){ score[x.name.toLowerCase()]=x.score; });
+          if(nb.length && !(window.__ghLeft!=null && window.__ghLeft<=1)){   // RS41: skip only when GitHub says we're nearly out
+            try{ think(st,"Checking repos found by meaning");   // indexed repos (already AI-checked) count only once GitHub confirms them
+              var found=(await search(confirmQueries(nb.map(function(x){ return x.name; }))[0]))
+                .filter(function(it){ return it && score[String(it.full_name||"").toLowerCase()]!=null; });
+              var conf=keep(found,minStars,platform,{license:0,stale:0,low:0,fork:0,harm:0},seen);   // not counted as "excluded"
+              if(gen!==window.__runGen) return;
+              conf.sort(function(a,b){ return score[b.name.toLowerCase()]-score[a.name.toLowerCase()]; });
+              conf.forEach(function(r){ r.rel=10; r.whyText="Found by meaning, confirmed on GitHub"; keptRows.push(r); });
+            }catch(_){}   // unconfirmed -> dropped (RS7); keyword results stand
+          }
+          if(sims) sims=keptRows.map(function(r){ var k=r.name.toLowerCase(); return simBy[r.name]!=null?simBy[r.name]:(score[k]!=null?score[k]:0); });
+          keptRows=hybridOrder(keptRows, like?(text+" "+like):text, sims);
+        }
+        top=keptRows.concat(leftRows.map(function(r){ r.left=1; return r; }));
         gate={ok:true,hidden:drops.length}; } }
     out.innerHTML=render(top,queries,excluded,ranked.length,qtok,heading,window.__likeNote||"",gate);
     // RS34: no on-screen note about the AI check; its outcome is kept as an attribute for diagnosis only
