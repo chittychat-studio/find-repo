@@ -631,6 +631,12 @@ def test_web_page_is_safe_static(monkeypatch):
     assert 'class="pick-cb"' in html and 'id="prdModal"' in html and 'id="prdPrompt"' in html
     assert "claude.ai/new?q=" in html and "Copy prompt" in html
     assert "chatgpt.com/?q=" in html and "gemini.google.com/app" in html   # RS28b
+    # RS44: tip jar is a Stripe Payment Link only (no key), hidden while empty; GitHub credit + no GitHub logo
+    assert 'var TIP_URL="";' in html or re.search(r'var TIP_URL="https://buy\.stripe\.com/[A-Za-z0-9_\-]+";', html)
+    assert not re.search(r"(sk|pk|rk)_(live|test)_[A-Za-z0-9]", html), "no Stripe key may ever be in the page"
+    assert html.count('class="mut tip-el"') == 1 and "fund more open-source projects" in html
+    assert "Replore is not affiliated with or endorsed by GitHub" in html and "GitHub® is a trademark of GitHub, Inc." in html
+    assert not re.search(r"octocat|mark-github", html, re.I)
     assert '"You are the principal architect for my vibe coding app, with 15+ years of experience building similar apps.' in html   # RS28e
     assert "million dollar" not in html
     assert "list it under GAPS instead of stretching" in html   # RS28c
