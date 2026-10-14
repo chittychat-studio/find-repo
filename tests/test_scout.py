@@ -654,6 +654,8 @@ def test_web_page_is_safe_static(monkeypatch):
     assert "function ownerHue" in html and 'class="pk-add"' in html and "✓ In plan" in html and "avatars.githubusercontent" not in html
     # RS38: below-the-fold cards reveal on entering the viewport; restored markup never stays invisible
     assert "function queueReveal" in html and "IntersectionObserver" in html and 'c.classList.remove("rv-wait"); });' in html
+    # RS39: the owner's public Web3Forms access key is configured (UUID shape), so Send really emails Cardzo
+    assert re.search(r'var WEB3FORMS_KEY="[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";', html)
     # RS36: demo steps use inline SVG art (theme colours), not emoji
     assert "var ART={" in html and "ico:ART.describe" in html and 'ico:"🔍"' not in html
     # RS24 richness: cursor tilt + star count-up are native (no extra library)

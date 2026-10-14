@@ -1579,7 +1579,7 @@ document.getElementById("trendHome").addEventListener("click",function(){ showTr
 document.getElementById("nextBtn").addEventListener("click",function(){ openModal("nextModal"); });
 // RS39 feedback: sent to Cardzo through Web3Forms (public access key, emails hello@cardzo.co.in). Without a key,
 // or if sending fails, the visitor is told plainly and offered the email-app link — never a fake "sent".
-var WEB3FORMS_KEY="";   // owner's public Web3Forms access key (safe to publish; it only lets this form email Cardzo)
+var WEB3FORMS_KEY="615d1716-7fa8-4f30-86a2-623fef081d11";   // owner's public Web3Forms access key (safe to publish; it only lets this form email Cardzo)
 var FB_TYPES=["Bug","Feature request","Content issue","Other"], FB_TO="hello@cardzo.co.in";
 function feedbackPayload(title, type, desc, email){
   title=String(title||"").trim().slice(0,120); if(!title) return null;
