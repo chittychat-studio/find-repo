@@ -342,7 +342,8 @@ def test_main_json(monkeypatch, capsys):
                               "license_use": scout.USE_PAID_OK, "free": scout.FREE_YES, "starter": False,
                               "start_hint": scout.HINT_README,
                               "pushed": "2026-09-01", "url": "https://github.com/a/b", "query": "x",
-                              "description": "a/b desc", "rel": 0, "why": "Top match for your search", "rank": 1}
+                              "description": "a/b desc", "rel": 0, "why": "Top match for your search",
+                              "topics": [], "rank": 1}
     assert data["rank_mode"] == "fit" and data["prefer_starters"] is False
     assert set(data["excluded"]) == {"fork_or_archived", "license", "stale", "low_stars", "duplicate"}
     assert data["min_stars"] == 50
@@ -390,8 +391,12 @@ def test_stdlib_only_and_no_model_calls():
     """RS1, RS11."""
     src = (ROOT / "scripts" / "scout.py").read_text()
     imports = set(re.findall(r"^\s*(?:import|from)\s+([a-zA-Z_]+)", src, re.M))
-    assert imports <= {"argparse", "csv", "datetime", "http", "io", "json", "math", "os", "re", "sys", "urllib"}, imports
+    assert imports <= {"argparse", "csv", "datetime", "http", "io", "json", "math", "os", "re", "sys", "urllib",
+                       "hybrid"}, imports   # RS42: hybrid is the local stdlib-only module below
     assert not re.search(r"anthropic|openai|claude", src, re.I)
+    hsrc = (ROOT / "scripts" / "hybrid.py").read_text()
+    assert set(re.findall(r"^\s*(?:import|from)\s+([a-zA-Z_]+)", hsrc, re.M)) <= {"json", "math", "re", "urllib", "collections"}
+    assert not re.search(r"anthropic|openai|api_key|Authorization", hsrc, re.I)   # no model key, ever (RS1)
 
 
 def test_skill_calls_real_script():

@@ -373,3 +373,45 @@ console.log("diag + model override ok");
   const src = readFileSync(new URL("../functions/api/relevance.js", import.meta.url), "utf8");
   assert.ok(/TIMEOUT_MS = 4500/.test(src)); }
 console.log("traffic hardening ok");
+
+// RS42 semantic half (dark by default): meaning scores + indexed repos, never on unless switched on, fail -> nothing
+{ const vec = t => /karaoke/i.test(t) ? [0, 1, 0] : /diet|calorie/i.test(t) ? [1, 0.1, 0] : [0.9, 0.2, 0];   // query ~ diet
+  const embedAI = { run: async (model, input) => {
+    if (input.text) { embedAI.model = model; return { shape: [input.text.length, 3], data: input.text.map(vec) }; }
+    return { response: '{"drop":[]}' }; } };
+  const two = [{ name: "a/calorie-counter", description: "Track calories and diet" }, { name: "b/karaoke", description: "Make karaoke from songs" }];
+  // off by default: no flags -> no semantic fields, judge unchanged
+  assert.strictEqual(await fn.semanticScores("diet tracker", two, { AI: embedAI }), null);
+  let r = await post({ query: "diet tracker", repos: two }, { AI: embedAI });
+  let j = await r.json(); assert.strictEqual(r.status, 200); assert.ok(!("sim" in j) && !("neighbors" in j));
+  // RAG_RERANK=1: one meaning score per repo, in order, diet above karaoke
+  const on = { AI: embedAI, RAG_RERANK: "1" };
+  const sem = await fn.semanticScores("diet tracker", two, on);
+  assert.strictEqual(sem.sim.length, 2); assert.ok(sem.sim[0] > sem.sim[1]); assert.strictEqual(embedAI.model, fn.EMBED_MODEL);
+  r = await post({ query: "diet tracker", repos: two }, on); j = await r.json();
+  assert.deepStrictEqual(j.drop, []); assert.deepStrictEqual(j.sim, sem.sim);
+  // embedding failure: the judge answer still comes back, just without meaning scores
+  const brokenAI = { run: async (m, input) => { if (input.text) throw new Error("5007 model gone"); return { response: '{"drop":[1]}' }; } };
+  r = await post({ query: "diet tracker", repos: two }, { AI: brokenAI, RAG_RERANK: "1" }); j = await r.json();
+  assert.ok(j.drop.length === 1 && j.drop[0].i === 1); assert.ok(!("sim" in j));
+  // wrong-shaped embedding reply -> ignored
+  assert.strictEqual(await fn.semanticScores("q", two, { AI: { run: async () => ({ data: [[1]] }) }, RAG_RERANK: "1" }), null);
+  // RAG_INDEX=1 with a Vectorize binding: neighbours above the floor, valid names, not already in the list
+  const idx = { query: async (v, o) => { idx.opts = o; return { matches: [
+    { id: "1", score: 0.82, metadata: { name: "c/step-counter" } }, { id: "2", score: 0.9, metadata: { name: "a/calorie-counter" } },
+    { id: "3", score: 0.3, metadata: { name: "d/weak" } }, { id: "4", score: 0.9, metadata: { name: "bad name; drop" } }] }; } };
+  const withIdx = { AI: embedAI, RAG_INDEX: "1", REPOS_INDEX: idx };
+  const nb = await fn.semanticScores("diet tracker", two, withIdx);
+  assert.deepStrictEqual(nb, { neighbors: [{ name: "c/step-counter", score: 0.82 }] }); assert.strictEqual(idx.opts.topK, 12);
+  assert.strictEqual(await fn.semanticScores("q", two, { AI: embedAI, RAG_INDEX: "1" }), null);   // flag without binding: off
+  // plugin opt-in mode: no Turnstile, no judge; 404 when switched off
+  r = await post({ mode: "semantic", query: "diet tracker", repos: two }, { AI: embedAI, TURNSTILE_SECRET: "x" });
+  assert.strictEqual(r.status, 404);
+  r = await post({ mode: "semantic", query: "diet tracker", repos: two }, { ...on, TURNSTILE_SECRET: "x" }); j = await r.json();
+  assert.strictEqual(r.status, 200); assert.ok(Array.isArray(j.sim) && !("drop" in j));
+  assert.strictEqual((await post({ mode: "other", query: "q", repos: two }, on)).status, 400);
+  assert.ok(fn.cosine([1, 0], [1, 0]) === 1 && fn.cosine([1, 0], [0, 1]) === 0 && fn.cosine([], []) === 0); }
+console.log("rag semantic ok");
+// RS42: the server embeds the same card text the index was filled with (ops/ingest.py, tests/test_ingest.py GOLDEN_CARD)
+assert.strictEqual(fn.cardText({ name: "a/b", description: "Hello <b>world</b>", topics: ["x", "y"] }), "a/b. Hello b world /b Topics: x, y");
+console.log("rag card parity ok");

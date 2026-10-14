@@ -26,6 +26,7 @@ const clean = (s, n) => String(s == null ? "" : s).replace(CTRL, " ").replace(/[
 
 export function validate(body) {
   if (!body || typeof body !== "object" || Array.isArray(body)) return "body must be an object";
+  if (body.mode != null && body.mode !== "semantic") return "mode must be semantic or absent";
   const { query, repos } = body;
   if (typeof query !== "string" || !query.trim() || query.length > MAX_QUERY) return `query must be 1-${MAX_QUERY} characters`;
   if (!Array.isArray(repos) || repos.length < 1 || repos.length > MAX_REPOS) return `repos must be a list of 1-${MAX_REPOS}`;
@@ -271,7 +272,7 @@ export async function onRequestPost(context, fetchImpl = fetch) {
   const { request, env } = context, t0 = Date.now();
   const later = typeof context.waitUntil === "function" ? p => context.waitUntil(p) : undefined;   // bound call (Workers needs it)
   const res = await handlePost(request, env, fetchImpl, later);
-  if (res.status !== 200 && res.__code !== "not_configured")
+  if (res.status !== 200 && res.__code !== "not_configured" && res.__code !== "semantic_off")   // RS42: "off" is not a failure
     logFailure(env, { code: res.__code, status: res.status, trail: res.__trail, ms: Date.now() - t0, example: res.__example });
   return res;
 }
@@ -287,12 +288,68 @@ async function handlePost(request, env, fetchImpl, waitUntil) {
   let body; try { body = JSON.parse(raw); } catch { return json(400, { error: "invalid_json" }); }
   const bad = validate(body);
   if (bad) return json(400, { error: bad });
+  if (body.mode === "semantic") {   // RS42 plugin opt-in: meaning scores + indexed repos only, no AI judge (cheap; path is rate-limited)
+    const f = ragFlags(env);
+    if (!f.rerank && !f.index) return json(404, { error: "semantic_off" });
+    const sem = await semanticScores(body.query, body.repos, env);
+    return sem ? json(200, sem) : json(503, { error: "semantic_unavailable" });
+  }
   if (!(await verifyTurnstile(request, env, fetchImpl))) return json(403, { error: "bot_check_failed" });
-  const out = await cachedJudge(body.query, body.repos, env, fetchImpl, undefined, new URL(request.url).origin, waitUntil);
+  const [out, sem] = await Promise.all([
+    cachedJudge(body.query, body.repos, env, fetchImpl, undefined, new URL(request.url).origin, waitUntil),
+    semanticScores(body.query, body.repos, env).catch(() => null),
+  ]);
+  if (out.status === 200 && sem) out.body = { ...out.body, ...sem };   // RS42: rides along; never cached (cache holds the judge only)
   const meta = { trail: out.trail, example: EXAMPLE_SET.has(body.query) };
   const diag = request.headers.get("X-Replore-Diag") === "1" && out.diag ? { diag: out.diag } : {};   // codes + timings only
   return out.status === 200 ? json(200, { ...out.body, ...diag })   // internal flags (first, cached, trail) never leave
     : json(out.status, { ...(out.resetsInSec ? { error: out.error, resetsInSec: out.resetsInSec } : { error: out.error }), ...diag }, meta);
+}
+
+// ---- RS42 semantic half of the hybrid search (dark by default) ----
+// RAG_RERANK=1  -> meaning score (cosine) of each repo vs the description, from a Workers AI embedding model.
+// RAG_INDEX=1   -> nearest repos from the Vectorize index bound as REPOS_INDEX (Phase 2). The page and plugin show an indexed
+//                  repo only after a live GitHub search confirms it. Only repo names and scores leave; nothing is stored.
+export const EMBED_MODEL = "@cf/baai/bge-m3";
+const NAME_RE = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+const round3 = x => Math.round(x * 1000) / 1000;
+export function cosine(a, b) {
+  let num = 0, na = 0, nb = 0;
+  for (let i = 0; i < Math.min(a.length, b.length); i++) { num += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
+  return na && nb ? num / Math.sqrt(na * nb) : 0;
+}
+export function cardText(r) {
+  const topics = (r.topics || []).slice(0, 8).map(t => clean(t, 30)).filter(Boolean).join(", ");
+  return `${clean(r.name, 140)}. ${clean(r.description, MAX_DESC)}${topics ? " Topics: " + topics : ""}`;
+}
+export function ragFlags(env) {
+  const ai = !!(env.AI && typeof env.AI.run === "function");
+  return { rerank: ai && env.RAG_RERANK === "1", index: ai && env.RAG_INDEX === "1" && !!(env.REPOS_INDEX && typeof env.REPOS_INDEX.query === "function") };
+}
+const race = (p, ms) => { let t; return Promise.race([p, new Promise((_, rej) => { t = setTimeout(() => rej(new Error("timeout")), ms); })]).finally(() => clearTimeout(t)); };
+export async function semanticScores(query, repos, env, ms = TIMEOUT_MS) {
+  const f = ragFlags(env);
+  if (!f.rerank && !f.index) return null;
+  const texts = [clean(query, MAX_QUERY), ...(f.rerank ? repos.map(cardText) : [])];
+  let vecs;
+  try {
+    const out = await race(env.AI.run(env.RAG_EMBED_MODEL || EMBED_MODEL, { text: texts }), ms);
+    vecs = out && (Array.isArray(out.data) ? out.data : Array.isArray(out.response) ? out.response : null);
+  } catch { return null; }
+  if (!Array.isArray(vecs) || vecs.length !== texts.length || !vecs.every(v => Array.isArray(v) && v.length)) return null;
+  const res = {};
+  if (f.rerank) res.sim = vecs.slice(1).map(v => round3(cosine(vecs[0], v)));
+  if (f.index) {
+    try {
+      const min = Number(env.RAG_MIN_SCORE || 0.5), have = new Set(repos.map(r => r.name.toLowerCase()));
+      const hit = await race(env.REPOS_INDEX.query(vecs[0], { topK: 12, returnMetadata: "all" }), ms);
+      res.neighbors = ((hit && hit.matches) || [])
+        .filter(m => m && typeof m.score === "number" && m.score >= min && m.metadata && typeof m.metadata.name === "string"
+          && NAME_RE.test(m.metadata.name) && !have.has(m.metadata.name.toLowerCase()))
+        .slice(0, 8).map(m => ({ name: m.metadata.name, score: round3(m.score) }));
+    } catch { /* index unavailable: the keyword results stand */ }
+  }
+  return res;
 }
 
 // RS34e: a fingerprint of the prompt + model list, so the live eval can wait for the build it means to score

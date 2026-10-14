@@ -20,6 +20,9 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import hybrid  # noqa: E402  RS42
+
 API = "https://api.github.com/search/repositories"
 MAX_QUERIES = 4  # RS8: unauthenticated search limit is 10 requests a minute
 MAX_TEXT = 200  # RS9
@@ -201,8 +204,11 @@ def _pushed(item):
 
 
 def scout(queries, fetcher=fetch, top=20, candidates=40, license_mode="open", max_age_months=24,
-          now=None, token=None, rank_mode="fit", prefer_starters=False, min_stars=0):
-    """RS2-RS5: search, merge, filter, rank. Returns a result dict; raises ScoutError (RS7)."""
+          now=None, token=None, rank_mode="fit", prefer_starters=False, min_stars=0,
+          description=None, semantic_on=False, semantic_fn=None):
+    """RS2-RS5: search, merge, filter, rank. Returns a result dict; raises ScoutError (RS7).
+    RS42: rank_mode "hybrid" re-orders by fit + BM25 against `description`; semantic_on (opt-in) adds meaning
+    scores and live-confirmed indexed repos from Replore's endpoint."""
     queries = [q.strip() for q in queries if q and q.strip()]
     if not queries:
         raise ScoutError("No search query given.")
@@ -219,17 +225,9 @@ def scout(queries, fetcher=fetch, top=20, candidates=40, license_mode="open", ma
 
     excluded = {"fork_or_archived": 0, "license": 0, "stale": 0, "low_stars": 0, "duplicate": 0}
     seen, by_query = {}, []  # name -> its kept row (or None if the name was seen but filtered out)
-    for q in queries:
-        kept = []
-        by_query.append(kept)
-        try:
-            data = fetcher(build_query(q), token)
-        except ScoutError as e:  # RS19: name the user's search, never the added qualifiers
-            raise ScoutError(f"Search {q!r}: {e}") from None
-        items = data.get("items") if isinstance(data, dict) else None  # RS7: malformed response fails closed
-        if not isinstance(items, list):
-            raise ScoutError(f"Unexpected GitHub response for {q!r}.")
+    def take(q, items, kept, rel_floor=0):
         for idx, it in enumerate(items):
+            idx += rel_floor
             if not isinstance(it, dict):
                 continue
             name = it.get("full_name")
@@ -283,11 +281,53 @@ def scout(queries, fetcher=fetch, top=20, candidates=40, license_mode="open", ma
                 "description": cdesc,
                 "rel": idx,  # RS2: best-match position, drives relevance in fit ranking (RS5)
                 "why": why_relevant(q, cname, cdesc, idx),  # RS24
+            "topics": sorted(topics)[:8],
             }
             kept.append(row)
             seen[name] = row
 
-    kept = rank(by_query, rank_mode, prefer_starters)  # RS5, RS15
+    for q in queries:
+        kept = []
+        by_query.append(kept)
+        try:
+            data = fetcher(build_query(q), token)
+        except ScoutError as e:  # RS19: name the user's search, never the added qualifiers
+            raise ScoutError(f"Search {q!r}: {e}") from None
+        items = data.get("items") if isinstance(data, dict) else None  # RS7: malformed response fails closed
+        if not isinstance(items, list):
+            raise ScoutError(f"Unexpected GitHub response for {q!r}.")
+        take(q, items, kept)
+
+    fit_mode = "fit" if rank_mode == "hybrid" else rank_mode
+    kept = rank(by_query, fit_mode, prefer_starters)  # RS5, RS15
+    semantic_status, sims = None, None
+    if semantic_on:  # RS42: opt-in meaning scores + indexed repos, confirmed live on GitHub before they count
+        res = (semantic_fn or hybrid.semantic)(description or " ".join(queries), kept)
+        semantic_status = "ok" if res else "unavailable"
+        if res and res["neighbors"]:
+            extra, nscore = [], {}
+            for cq in hybrid.confirm_queries([x["name"] for x in res["neighbors"] if x["name"] not in seen]):
+                try:
+                    data = fetcher(build_query(cq), token)
+                except ScoutError:
+                    continue  # unconfirmed indexed repos are dropped (fail closed), the keyword results stand
+                items = data.get("items") if isinstance(data, dict) else None
+                if isinstance(items, list):
+                    take("found by meaning", items, extra, rel_floor=10)
+            for x in res["neighbors"]:
+                nscore[x["name"]] = x["score"]
+            if extra:
+                by_query.append(extra)
+                queries = queries + ["found by meaning"]
+                kept = rank(by_query, fit_mode, prefer_starters)
+            if res["sim"] is not None and len(res["sim"]) == min(30, len(kept) - len(extra)):
+                base = {r["full_name"]: v for r, v in zip([r for r in kept if r not in extra][:30], res["sim"])}
+                base.update({r["full_name"]: nscore.get(r["full_name"], 0.0) for r in extra})
+                sims = [base.get(r["full_name"], 0.0) for r in kept]
+        elif res and res["sim"] is not None and len(res["sim"]) == min(30, len(kept)):
+            sims = res["sim"] + [0.0] * (len(kept) - len(res["sim"]))
+    if rank_mode == "hybrid" or sims is not None:
+        kept = hybrid.hybrid_order(kept, description or " ".join(queries), sims)
     # RS23: per-feature groups (a repo appears under the first query that returned it); build before _pushed is dropped
     groups = [{"query": queries[i], "repos": _order(by_query[i], prefer_starters)} for i in range(len(queries))]
     for i, r in enumerate(kept, 1):
@@ -302,6 +342,7 @@ def scout(queries, fetcher=fetch, top=20, candidates=40, license_mode="open", ma
         "max_age_months": max_age_months,
         "min_stars": min_stars,
         "rank_mode": rank_mode,
+        "semantic": semantic_status,
         "prefer_starters": prefer_starters,
         "excluded": excluded,
         "top": kept[:cap],
@@ -431,7 +472,10 @@ def main(argv=None):
     p.add_argument("--license", dest="license_mode", choices=["open", "any"], default="open")
     p.add_argument("--max-age-months", type=int, default=24)
     p.add_argument("--min-stars", type=int, default=50)
-    p.add_argument("--rank", dest="rank_mode", choices=["fit", "balanced", "stars"], default="fit")
+    p.add_argument("--rank", dest="rank_mode", choices=["fit", "balanced", "stars", "hybrid"], default="fit")
+    p.add_argument("--describe", default=None, help="RS42: the whole project description, for --rank hybrid")
+    p.add_argument("--semantic", action="store_true",
+                   help="RS42 opt-in: meaning scores + indexed repos from Replore's server (sends the description)")
     p.add_argument("--prefer-starters", action="store_true")
     fmt = p.add_mutually_exclusive_group()
     fmt.add_argument("--json", action="store_true")
@@ -447,7 +491,8 @@ def main(argv=None):
     try:
         res = scout(a.queries, fetcher=fetch, top=top, candidates=cand, license_mode=a.license_mode,
                     max_age_months=a.max_age_months, token=token, rank_mode=a.rank_mode,
-                    prefer_starters=a.prefer_starters, min_stars=a.min_stars)
+                    prefer_starters=a.prefer_starters, min_stars=a.min_stars,
+                    description=a.describe, semantic_on=a.semantic)
     except ScoutError as e:
         print(f"replore: {e}", file=sys.stderr)
         return 2

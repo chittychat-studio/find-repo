@@ -98,6 +98,9 @@ Then open a new terminal and try again. Do not search GitHub any other way.
    Add `--license any` only if the user says unlicensed repos are fine. Add `--max-age-months N` only if they ask.
    Leave the ranking at its default (fit: relevance + popularity + license-freedom, RS5); add `--rank stars`
    only if the user asks for pure star order, or `--rank balanced` for round-robin best-match across queries.
+   - Meaning-based search (RS42, opt-in): only if the user asks for it, add `--semantic --describe "<their whole
+     description>"`. Say first, in one line, that this sends their description to Replore's server for ranking.
+     If the output's `semantic` is `unavailable`, say the results are keyword-only this time.
    - Exit 2 (network, rate limit, bad query): show the error and stop. Never list repos from memory instead (RS7).
    - Exit 1 (no matches): show the queries and excluded counts, then offer broader queries, or ask what they are
      building if the input looked like nonsense (RS19). Do not invent results.

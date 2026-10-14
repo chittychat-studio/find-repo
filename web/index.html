@@ -1008,6 +1008,32 @@ function keywordQueries(text, platform){
   return qs.slice(0,MAX_QUERIES).map(function(q){return (q+ex).trim();});
 }
 
+// ---- RS42 hybrid retrieval: lexical (BM25 vs the whole description) + semantic (server meaning scores), fused by RRF.
+// Mirrors scripts/hybrid.py line for line; tests assert the same BM25 numbers in both (web and plugin stay in sync).
+function lexTokens(t){ return String(t||"").toLowerCase().replace(/[^a-z0-9 +#.]/g," ").split(/\s+/)
+  .filter(function(w){ return w && !STOP.has(w); }).map(function(w){ return w.length>3&&/s$/.test(w)?w.slice(0,-1):w; }); }
+function repoText(name, desc, topics){ return [String(name||"").replace(/[\/\-_]/g," "), desc||"", (topics||[]).join(" ")].join(" "); }
+function bm25Scores(query, docs){ var k1=1.2, b=0.75, toks=docs.map(lexTokens), n=toks.length; if(!n) return [];
+  var avg=(toks.reduce(function(a,t){ return a+t.length; },0)/n)||1, df={};
+  toks.forEach(function(t){ var u={}; t.forEach(function(w){ if(!u[w]){ u[w]=1; df[w]=(df[w]||0)+1; } }); });
+  var q={}; lexTokens(query).forEach(function(w){ q[w]=1; });
+  return toks.map(function(t){ var tf={}, s=0; t.forEach(function(w){ tf[w]=(tf[w]||0)+1; });
+    Object.keys(q).forEach(function(w){ if(tf[w]){ var idf=Math.log(1+(n-df[w]+0.5)/(df[w]+0.5));
+      s+=idf*tf[w]*(k1+1)/(tf[w]+k1*(1-b+b*t.length/avg)); } });
+    return Math.round(s*1e6)/1e6; }); }
+function rrfOrder(n, lists){ var fused=[], idx=[], i; for(i=0;i<n;i++){ fused.push(0); idx.push(i); }
+  lists.forEach(function(sc){ var ord=idx.slice(); if(sc) ord.sort(function(a,b){ return (sc[b]-sc[a])||(a-b); });
+    ord.forEach(function(it,rank){ fused[it]+=1/(60+rank+1); }); });
+  return idx.sort(function(a,b){ return (fused[b]-fused[a])||(a-b); }); }
+function hybridOrder(rows, description, sims){
+  if(!rows.length || !String(description||"").trim()) return rows.slice();
+  var lists=[null, bm25Scores(description, rows.map(function(r){ return repoText(r.name, r.desc, r.topics); }))];
+  if(sims && sims.length===rows.length) lists.push(sims);
+  return rrfOrder(rows.length, lists).map(function(i){ return rows[i]; }); }
+function confirmQueries(names){ var out=[], cur="";   // live GitHub check for indexed repos, each search under 200 chars
+  names.forEach(function(nm){ var part="repo:"+nm; if(cur && cur.length+1+part.length>200){ out.push(cur); cur=part; } else cur=(cur+" "+part).trim(); });
+  if(cur) out.push(cur); return out; }
+
 window.__runGen=0;   // search generation: resetAll() and each new search bump it (stale async results are dropped)
 async function search(q){
   // best-match (relevance) order seeds the fit ranking (RS2/RS5); stars are still in each result and weigh in RS5
@@ -1298,7 +1324,12 @@ async function relevanceGate(query, repos){
         return "off";   // check not set up (no key / no function): behave as before, no note
       if(er.error==="llm_daily_limit" && +er.resetsInSec>0) try{ localStorage.setItem(AI_OFF_KEY, String(Date.now()+Math.min(+er.resetsInSec,86400)*1000)); }catch(_){}
       return {fail:true, error:er.error||("http_"+res.status), resetsInSec:+er.resetsInSec||0}; }   // RS34: say why, incl. when it resets
-    var j=await res.json(); return Array.isArray(j.drop)?j.drop:{fail:true,error:"bad_reply"};
+    var j=await res.json(); if(!Array.isArray(j.drop)) return {fail:true,error:"bad_reply"};
+    var d=j.drop;   // RS42: meaning scores and indexed repos ride along only when the server has them switched on
+    if(Array.isArray(j.sim) && j.sim.every(function(x){ return typeof x==="number"; })) d.sim=j.sim;
+    if(Array.isArray(j.neighbors)) d.neighbors=j.neighbors.filter(function(x){ return x && typeof x.name==="string" &&
+      /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(x.name) && typeof x.score==="number"; }).slice(0,8);
+    return d;
   }catch(e){ return {fail:true,error:e&&e.name==="AbortError"?"page_timeout":"network"}; } finally{ if(timer) clearTimeout(timer); if(window.__gateCtl===ctl) window.__gateCtl=null; } }
 
 // RS21: ready-made prompts the user can click to fill the box.
@@ -1527,8 +1558,21 @@ async function run(){
       else if(drops&&drops.fail){ gate={ok:false,error:drops.error,resetsIn:drops.resetsInSec}; }
       else if(drops){ var dropped={}; drops.forEach(function(d){ dropped[d.i]=1; });   // RS34: off-topic repos go to the end, shown
         var cut=top.slice(0,30);                                                        // after the kept ones, under "Less likely to fit"
-        top=cut.filter(function(r,i){ return !dropped[i]; })
-          .concat(cut.filter(function(r,i){ return dropped[i]; }).map(function(r){ r.left=1; return r; }));
+        var keptRows=cut.filter(function(r,i){ return !dropped[i]; }), leftRows=cut.filter(function(r,i){ return dropped[i]; });
+        if(drops.sim||(drops.neighbors&&drops.neighbors.length)){   // RS42 hybrid (server switched on): keyword + BM25 + meaning
+          var simBy={}; if(drops.sim&&drops.sim.length===cut.length) cut.forEach(function(r,i){ simBy[r.name]=drops.sim[i]; });
+          var nb=(drops.neighbors||[]).filter(function(x){ return !Object.prototype.hasOwnProperty.call(seen,x.name); });
+          if(nb.length && !(window.__ghLeft!=null && window.__ghLeft<=1)){   // RS41: skip only when GitHub says we're nearly out
+              // indexed repos count only once GitHub confirms them live
+            try{ think(st,"Checking repos found by meaning"); var cq=confirmQueries(nb.map(function(x){ return x.name; }))[0];
+              var conf=keep(await search(cq),minStars,platform,excluded,seen); if(gen!==window.__runGen) return;
+              nb.forEach(function(x){ simBy[x.name]=x.score; });
+              conf.forEach(function(r){ r.rel=10; r.found="meaning"; keptRows.push(r); });
+            }catch(_){}   // unconfirmed -> dropped (RS7); keyword results stand
+          }
+          keptRows=hybridOrder(keptRows, like?(text+" "+like):text, keptRows.map(function(r){ return simBy[r.name]!=null?simBy[r.name]:0; }));
+        }
+        top=keptRows.concat(leftRows.map(function(r){ r.left=1; return r; }));
         gate={ok:true,hidden:drops.length}; } }
     out.innerHTML=render(top,queries,excluded,ranked.length,qtok,heading,window.__likeNote||"",gate);
     // RS34: no on-screen note about the AI check; its outcome is kept as an attribute for diagnosis only

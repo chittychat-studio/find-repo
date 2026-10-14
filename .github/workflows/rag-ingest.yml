@@ -1,0 +1,26 @@
+# SPEC RS42 Phase 2: fill the Vectorize index. Manual only (no schedule until the owner turns one on).
+# Default is a dry run (counts + cost estimate). Writing needs apply=true and the CF_ACCOUNT_ID / CF_API_TOKEN secrets.
+name: rag-ingest
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "Embed and write to Vectorize (spends Workers AI usage)"
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Ingest (dry run unless apply)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        run: python ops/ingest.py ${{ inputs.apply && '--apply' || '' }}

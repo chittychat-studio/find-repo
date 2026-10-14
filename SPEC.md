@@ -527,6 +527,25 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   - **Plugin parity.** The plugin keeps meaning-based judgement in the user's own AI (RS6), which is stronger than
     embeddings. Index search is offered to the plugin only as an opt-in flag that calls Replore's public endpoint,
     named in PRIVACY.md, off by default — the plugin's no-server default (RS11) is unchanged.
+  - **Built dark (owner 2026-10-14: "I want all 3 phases", "this structure in both plugin and web").** All three
+    phases are implemented and switched **off**; each is switched on by the owner only after its gate passes.
+    Same structure in both clients: keyword queries (RS16a) → GitHub search → BM25 against the whole description →
+    meaning scores and indexed repos (server) → live GitHub confirm of indexed repos → reciprocal rank fusion of the
+    fit order, the BM25 order and the meaning order (k = 60; BM25 alone can lift a repo but not overturn the fit order).
+    | Piece | Web page | Plugin | Switch |
+    |---|---|---|---|
+    | BM25 + RRF | `bm25Scores`, `hybridOrder` in `web/index.html` | `scripts/hybrid.py` (stdlib) | runs whenever the server returns meaning scores; plugin `--rank hybrid --describe "<text>"` |
+    | Meaning scores | `sim` in the `/api/relevance` reply | `--semantic` (opt-in) → `mode:"semantic"` on the same endpoint | Pages variable `RAG_RERANK=1` |
+    | Indexed repos | `neighbors` in the reply → one live `repo:` search | same, via `--semantic` | `RAG_INDEX=1` + `[[vectorize]]` binding `REPOS_INDEX` |
+    | Index filling | — | — | `ops/ingest.py` (dry run unless `--apply`), Actions `rag-ingest` (manual) |
+    Both clients produce identical BM25 numbers and fused orders (golden values asserted in `tests/test_hybrid.py` and
+    `tests/test_web_logic.js`); the server and the ingester embed identical card text (`cardText` / `card_text`).
+    `mode:"semantic"` returns meaning scores and indexed repos only — no AI judge, no Turnstile (it is cheap and the
+    `/api/relevance` path is under the RS41 rate limit); it answers 404 `semantic_off` while both switches are off.
+    The skill keeps the default `fit` ranking until Phase 1's gate passes, then switches to `--rank hybrid` (one-line change).
+    Unverified until a preview runs with the switches on: the exact reply shapes of the Workers AI embedding call
+    (`data`) and Vectorize `query` (`matches[].metadata.name`) are coded from Cloudflare's documented formats and
+    covered by fakes only.
   - **Not adopted:** LangChain, LlamaIndex, Haystack, RAGFlow and similar frameworks — they bring dependencies the
     stdlib plugin (RS11) and the no-build page (RS22) cannot take, for orchestration Replore does not need.
     BM25 *alone* as the reranker — measured at pooled AUC 0.56 on the relevance set, close to chance; it is kept

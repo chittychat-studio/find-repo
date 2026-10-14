@@ -14,7 +14,7 @@ global.window = global;
 const s = {};
 new Function("document", "localStorage",
   code + "; this.keywordQueries=keywordQueries; this.rankByFit=rankByFit; this.fitScore=fitScore; this.whyRelevant=whyRelevant; this.esc=esc; this.lu=lu; this.freeText=freeText;" +
-  " this.keep=keep; this.clean=clean; this.harmful=harmful; this.harmfulRepo=harmfulRepo; this.prdFeatures=prdFeatures; this.trendingQuery=trendingQuery; this.trendRows=trendRows; this.feedbackUrl=feedbackUrl; this.feedbackPayload=feedbackPayload; this.agoText=agoText; this.cardHtml=cardHtml;").call(s, document, global.localStorage || {getItem:()=>null,setItem(){},removeItem(){}});
+  " this.keep=keep; this.clean=clean; this.bm25Scores=bm25Scores; this.repoText=repoText; this.rrfOrder=rrfOrder; this.hybridOrder=hybridOrder; this.confirmQueries=confirmQueries; this.harmful=harmful; this.harmfulRepo=harmfulRepo; this.prdFeatures=prdFeatures; this.trendingQuery=trendingQuery; this.trendRows=trendRows; this.feedbackUrl=feedbackUrl; this.feedbackPayload=feedbackPayload; this.agoText=agoText; this.cardHtml=cardHtml;").call(s, document, global.localStorage || {getItem:()=>null,setItem(){},removeItem(){}});
 
 // RS16: iOS excludes macOS
 // RS16: expansions are specific on-topic phrases, never a bare category (live regression: "website" -> "frontend framework"
@@ -37,6 +37,20 @@ new Function("document", "localStorage",
   assert.ok(kq("a portfolio website with smooth scroll animations")[0].split(" ").length <= 3);            // core query <= 3 words
 }
 assert.ok(s.keywordQueries("a diet app for iphone", "ios").every(q => q.includes("-topic:macos")));
+// RS42 hybrid: same BM25 numbers as scripts/hybrid.py (tests/test_hybrid.py GOLDEN), same RRF, same damping
+{ const DESC = "voice based ai app to track my diet and step counter";
+  const docs = [s.repoText("a/calorie-counter", "Track calories and diet", ["nutrition"]), s.repoText("b/karaoke", "Make karaoke from songs", []),
+                s.repoText("c/step-counter", "Android step counter app", ["fitness"])];
+  assert.deepStrictEqual(Array.from(s.bm25Scores(DESC, docs)), [2.374521, 0, 1.871074]);
+  assert.deepStrictEqual(Array.from(s.rrfOrder(3, [null, [0, 5, 1]])), [1, 0, 2]);
+  const rows = [{name:"b/karaoke", desc:"Make karaoke from songs"}, {name:"z/noise", desc:"Unrelated toolkit"},
+                {name:"a/calorie-counter", desc:"Track calories and diet", topics:["nutrition"]}];
+  const names = rs => rs.map(r => r.name);
+  assert.deepStrictEqual(names(s.hybridOrder(rows, DESC)), ["b/karaoke", "a/calorie-counter", "z/noise"]);
+  assert.deepStrictEqual(names(s.hybridOrder(rows, DESC, [0.1, 0.2, 0.9])), ["a/calorie-counter", "b/karaoke", "z/noise"]);
+  assert.deepStrictEqual(names(s.hybridOrder(rows, "")), names(rows));
+  const cq = s.confirmQueries(Array.from({length: 9}, (_, i) => "owner" + i + "/repository-name-" + i));
+  assert.ok(cq.every(q => q.length <= 200) && cq.join(" ").split("repo:").length - 1 === 9); }
 // RS28f: long text ends at a word with "…", short text untouched
 { const long = "Open-source Python-based fitness tracker web app using Flask. Features include workout logging, nutrition tracking, and progress visualization. Ideal for developers and fitness enthusiasts looking to build their own";
   const c = s.clean(long);
