@@ -196,8 +196,8 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   An in-page animated "How it works" explainer (a looping step carousel) stands in for a video and is also
   shown as the results panel's empty state; a current screenshot of the live page (`web/tour.png`) is committed
   under `web/` and shown in the Tour.
-  Type is Inter (Google Fonts, the one external stylesheet) with a full system fallback if it fails to load; sizes
-  and weights are raised for prominence and legibility. The page defaults to light (`data-theme="light"` on the root); a toggle switches to dark and the choice is
+  Type follows RS47 (self-hosted Anton / Inter Tight / JetBrains Mono, no external stylesheet) with a full system
+  fallback if a font fails to load; sizes and weights are raised for prominence and legibility. The page defaults to light (`data-theme="light"` on the root); a toggle switches to dark and the choice is
   remembered in `localStorage` (a per-viewer convenience, wrapped in try/catch). No key or token is ever stored (RS22).
   Each result — web card and script row alike — carries a one-line *why relevant* note derived from the search:
   the user's own matching words if they appear in the repo name/description, else a best-match fallback. It is
@@ -500,6 +500,21 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   is left, so a search uses fewer expansions instead of failing outright; it still never shows partial results of a
   failed call (RS7 unchanged; owner did not opt into partial results). The Cloudflare rate-limit rule (10 requests /
   10 s per IP on `replore.cardzo.co.in/api/relevance`, all methods, block 10 s) is the owner's dashboard setting.
+
+- **RS47** Look and motion kit (owner 2026-10-15: "use these motion graphics and animations for our site", from a
+  portfolio spec; owner picked fonts, button/headline motion, card motion and the trending ring + ticker; owner's
+  example page supplied the colours). **Type:** Anton (headings, big numbers, mixed case), Inter Tight (body), JetBrains
+  Mono (small labels), all SIL OFL, self-hosted in `web/fonts/` with their licences; no CDN (RS22, RS33). **Colours:**
+  light theme from the owner's page (accent #3f6f8e, ink #1e2a36, page #f4f6f8, deep #22374a, tint #c7d6e2); the dark
+  theme is derived from it (not supplied by the owner) and every white-on-accent fill uses `--btn-grad`, which keeps
+  at least 4.5:1 in both themes. **Motion:** hero lines rise out of masks (expo.out) instead of the typewriter; the Find
+  button and top-bar pills are magnetic (mouse only), fill from below on hover and roll their label; result-card star
+  counts roll like an odometer and settle to plain text (screen readers get the plain number; saved results never hold
+  a half-rolled counter); result cards tilt up to about 10–12° with the glare. **Trending:** the home strip is a 3D ring
+  of up to 12 cards (turns about once a minute, pauses on hover/focus, drag or arrow keys to turn, only cards facing the
+  visitor take keyboard focus) with a scrolling ticker of the same names separated by a git-branch icon. Not adopted
+  from that spec, on purpose: preloader, smooth-scroll library, custom cursor, scroll-driven video (they slow a search
+  tool down or hurt accessibility). Everything still works and stays still under reduced motion.
 
 - **RS46** UI review baseline (owner request 2026-10-15: design critique + cut the fluff). Every link and button in the
   page footer has at least a 24px tap target (WCAG 2.2 2.5.8); footer text is at least 12px; the demo step dots keep their
