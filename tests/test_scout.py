@@ -657,9 +657,13 @@ def test_web_page_is_safe_static(monkeypatch):
     assert "Needs first, shell last (RS16a" in skill and "No good match" in skill and "RS28c" in skill   # web and plugin in sync
     assert "var GENERIC=" in html and "RS16a" in html
     # RS28b: Gemini copies BEFORE opening its tab (a focused new tab makes the browser refuse the clipboard write)
-    gem = html[html.index('getElementById("prdGemini")'):]
-    gem = gem[:gem.index("gemini.google.com/app")]
-    assert 'execCommand("copy")' in gem and "say(false)" in gem
+    cto = html[html.index("function copyThenOpen("):]
+    cto = cto[:cto.index("window.open(openUrl")]
+    assert 'execCommand("copy")' in cto and "say(false)" in cto      # copy happens before the tab opens
+    assert 'copyThenOpen("Gemini","https://gemini.google.com/app"' in html
+    # RS28g: a long prompt never hides Claude/ChatGPT; they switch to copy-then-open
+    assert 'linkMode(openLink, tooLong ? "https://claude.ai/new" : url, tooLong)' in html
+    assert 'openLink.setAttribute("hidden"' not in html and 'gpt.setAttribute("hidden"' not in html
     assert 'class="hero-pill"' in html and "AI-powered repo finder" in html   # RS29c owner wording
     # RS34: the page does run an AI relevance check, so no copy may claim otherwise
     for stale in ("There is no AI in this page", "For AI-written searches, a relevance check", "runs a semantic relevance check"):
