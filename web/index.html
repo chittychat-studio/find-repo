@@ -746,8 +746,8 @@
     <button type="button" id="prdGemini" class="ghost-cta" title="Copies the prompt, then opens Gemini — paste it there">Open in Gemini ↗</button>
   </div>
   <p id="prdGemNote" class="mut" style="margin-top:8px;text-align:center" hidden>Prompt copied — paste it into Gemini (it has no pre-fill link).</p>
-  <p id="prdLong" class="mut" style="margin-top:10px" hidden><b>Too many repos for the Claude and ChatGPT links.</b> Tap the copy
-    icon above and paste into any AI — or untick a few repos.</p>
+  <p id="prdLong" class="mut" style="margin-top:10px" hidden><b>Long plan:</b> each button copies the prompt first, then opens
+    the assistant. Paste it there.</p>
   <p class="mut tip-el" style="margin-top:10px;text-align:center" hidden>Got a useful plan? <a class="tip-link" href="#" target="_blank"
     rel="noopener noreferrer">Leave a tip ☕</a> It helps us keep Replore free and fund more open-source projects.</p>
   <figure class="tip-el tip-qr" hidden><img src="tip-qr.png" width="96" height="114" loading="lazy"
@@ -1833,26 +1833,31 @@ document.addEventListener("keydown",function(e){ if(e.key==="Escape") closeModal
     var text=buildPrompt(); if(pre) pre.textContent=text;
     if(openLink){ var url="https://claude.ai/new?q="+encodeURIComponent(text);
       var tooLong=url.length>7500, note=document.getElementById("prdLong");
-      if(tooLong) openLink.setAttribute("hidden","");       // too long for a URL — Copy only (RS28a: say so)
-      else { openLink.removeAttribute("hidden"); openLink.href=url; }
+      // RS28g: too long for a pre-filled link -> the button stays, copies the prompt first, then opens the plain page
+      linkMode(openLink, tooLong ? "https://claude.ai/new" : url, tooLong);
       var gpt=document.getElementById("prdGpt"), gurl="https://chatgpt.com/?q="+encodeURIComponent(text);   // RS28b
-      if(gpt){ if(gurl.length>7500) gpt.setAttribute("hidden",""); else { gpt.removeAttribute("hidden"); gpt.href=gurl; } }
-      var gn=document.getElementById("prdGemNote"); if(gn) gn.hidden=true;
+      if(gpt) linkMode(gpt, gurl.length>7500 ? "https://chatgpt.com/" : gurl, gurl.length>7500);
+      var gn=document.getElementById("prdGemNote"); if(gn) gn.hidden=true;   // RS28g: one note for every copy-then-open
       if(note) note.hidden=!tooLong; }
     var many=document.getElementById("prdMany");   // RS28f: warn, never drop picks silently
     if(many){ many.hidden=picks.length<=10; var mn=document.getElementById("prdManyN"); if(mn) mn.textContent=picks.length; }
     openModal("prdModal"); });
-  var gemBtn=document.getElementById("prdGemini");   // RS28b: Gemini has no pre-fill link — copy, then open it
-  // RS28b: copy BEFORE opening the tab: once Gemini's tab has focus the browser refuses clipboard writes from this page
-  if(gemBtn) gemBtn.addEventListener("click",function(){ var text=pre?pre.textContent:"", gn=document.getElementById("prdGemNote");
-    function say(ok){ if(!gn) return; gn.textContent=ok?"Prompt copied — paste it into Gemini (it has no pre-fill link).":"Couldn't copy automatically — tap the copy icon above, then paste into Gemini."; gn.hidden=false; }
+  // RS28b/RS28g: copy BEFORE opening the tab: once the new tab has focus the browser refuses clipboard writes from this page
+  function copyThenOpen(name, openUrl, why){ var text=pre?pre.textContent:"", gn=document.getElementById("prdGemNote");
+    function say(ok){ if(!gn) return; gn.textContent=ok?"Prompt copied — paste it into "+name+why+".":"Couldn't copy automatically — tap the copy icon above, then paste into "+name+"."; gn.hidden=false; }
     var copied=false;
     try{ var ta=document.createElement("textarea"); ta.value=text; ta.setAttribute("readonly",""); ta.style.position="fixed"; ta.style.top="0"; ta.style.opacity="0";
       document.body.appendChild(ta); ta.select(); copied=document.execCommand("copy"); document.body.removeChild(ta); }catch(_){}
     if(copied) say(true);
     else if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function(){ say(true); },function(){ say(false); });
     else say(false);
-    window.open("https://gemini.google.com/app","_blank","noopener"); });
+    window.open(openUrl,"_blank","noopener"); }
+  function linkMode(a, href, copyFirst){ a.removeAttribute("hidden"); a.href=href; if(copyFirst) a.setAttribute("data-copy-first","1"); else a.removeAttribute("data-copy-first"); }
+  [["prdOpen","Claude"],["prdGpt","ChatGPT"]].forEach(function(p){ var a=document.getElementById(p[0]); if(!a) return;
+    a.addEventListener("click",function(e){ if(a.getAttribute("data-copy-first")!=="1") return;   // short prompt: the pre-filled link opens as usual
+      e.preventDefault(); copyThenOpen(p[1], a.href, " (the plan is too long to pre-fill)"); }); });
+  var gemBtn=document.getElementById("prdGemini");   // RS28b: Gemini has no pre-fill link — copy, then open it
+  if(gemBtn) gemBtn.addEventListener("click",function(){ copyThenOpen("Gemini","https://gemini.google.com/app"," (it has no pre-fill link)"); });
   if(copyBtn) copyBtn.addEventListener("click",function(){ var text=pre?pre.textContent:"";
     function ok(){ copyBtn.textContent="✓"; setTimeout(function(){ copyBtn.textContent="⧉"; },1400); }
     if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(ok,ok); }

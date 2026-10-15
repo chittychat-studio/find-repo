@@ -277,8 +277,11 @@ Replore is a Claude Code plugin that returns the top 20 open-source GitHub repos
   "Deselect shown" when all visible cards are ticked. It never ticks hidden or filtered-out cards. Because a bulk
   selection will include repos that don't fit (keyword search has no relevance judgement), the hand-off prompt
   requires the user's AI to triage every listed repo as use / reference only / reject with a one-line reason, and to
-  build only on the ones it uses. When the prompt is too long for the "Open in Claude" link, the modal says so and
-  points to Copy instead of silently hiding the link.
+  build only on the ones it uses. When the prompt is too long for the "Open in Claude" link, the modal says so (RS28g).
+- **RS28g** No button disappears (owner 2026-10-15: "I see only Open in Gemini in mobile"). When the prompt is too long
+  for a pre-filled link (over 7,500 characters encoded), "Open in Claude" and "Open in ChatGPT" stay visible and work
+  like Gemini: copy the prompt first (synchronously), then open the assistant's plain new-chat page, and the note under
+  the buttons says "Prompt copied — paste it into …". Short prompts keep the pre-filled links.
 - **RS29** Result-side filters, result count, and no arbitrary cap (RS22 web page). A search renders **every
   fit-ranked match that passes the filters**, not a fixed 20 — capping at 20 when (say) 23 passed is arbitrary
   and was removed. A sane upper bound (60) guards against a runaway list; the page shows the first 10 and the rest load **automatically as the user scrolls** (10 at a time, no button; a "Showing X of Y" hint) — nothing is re-fetched (RS7 unaffected, no new API call). The
