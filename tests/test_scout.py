@@ -584,7 +584,9 @@ def test_web_page_is_safe_static(monkeypatch):
     fonts = _re.findall(r"url\((fonts/[^)]+)\)", fcss)
     assert fonts and all((ROOT / "web" / f).exists() for f in fonts), fonts
     assert "http" not in fcss.split("*/", 1)[1]  # no remote font URLs
-    assert (ROOT / "web" / "fonts" / "Inter-OFL.txt").exists() and (ROOT / "web" / "fonts" / "Spectral-OFL.txt").exists()
+    for lic in ("Anton-OFL.txt", "InterTight-OFL.txt", "JetBrainsMono-OFL.txt"):   # RS47: every bundled font ships its licence
+        assert (ROOT / "web" / "fonts" / lic).exists(), lic
+    assert "Spectral" not in html and '"Inter",' not in html
     for host in ("googleapis", "gstatic", "cdnjs", "unpkg", "jsdelivr"):
         assert host not in html.lower(), host
     # calls the public search API in best-match order (RS2), forks/archived excluded; fit ranking (RS5) re-ranks
@@ -790,3 +792,18 @@ def test_about_text_matches_what_the_page_does():
     about = html[html.index('id="aboutModal"'):html.index("</div></div>", html.index('id="aboutModal"'))]
     assert "hides repos" not in about and "Less likely to fit" in about and "Less likely to fit" in html.split('id="aboutModal"')[1]
     assert "specific needs first" in about and "within an hour" in about and "not legal advice" in about
+
+
+def test_rs47_look_and_motion_kit():
+    """RS47: owner palette + self-hosted type, masked hero lines, magnets, odometer, trending ring + ticker."""
+    html = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
+    fcss = (ROOT / "web" / "fonts.css").read_text(encoding="utf-8")
+    for fam in ("'Anton'", "'Inter Tight'", "'JetBrains Mono'"):
+        assert fam in fcss, fam
+    assert "--accent:#3f6f8e" in html and "--btn-grad:" in html and "192,83,44" not in html
+    assert 'class="ln" aria-hidden="true"' in html and 'aria-label="Describe it. Get repos that fit."' in html and "var segs=" not in html
+    assert "data-magnet" in html and 'G.quickTo(el,"x"' in html and "(hover:hover) and (pointer:fine)" in html
+    assert "function odometer(" in html and "function snapHtml(" in html and "html:out.innerHTML" not in html
+    assert 'class="tring"' in html and 'class="ttape"' in html and "TAPE_ICON" in html and "✦</b>" not in html
+    assert "f>0.6 ? 0 : -1" in html   # only cards facing the visitor are focusable
+
