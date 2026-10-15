@@ -80,7 +80,7 @@
   /* top-down page: big search hero on top, results below */
   .page{max-width:1160px;margin:0 auto;padding:20px 20px 56px;width:100%}
   .hero{max-width:760px;margin:0 auto 14px;text-align:center}
-  .gh-credit{font-size:11.5px;color:var(--muted);text-align:center;margin:4px 0 0;opacity:.85}   /* RS44 */
+  .gh-credit{font-size:12px;color:var(--muted);text-align:center;margin:4px auto 0;max-width:780px;opacity:.85}   /* RS44 */
   .brand-by{white-space:nowrap}
   .hero-pill{display:inline-flex;align-items:center;gap:6px;margin:0 0 12px;padding:5px 12px;border-radius:999px;
     font-size:13px;font-weight:600;letter-spacing:.01em;color:var(--accent-ink);background:rgba(192,83,44,.08);border:1px solid rgba(192,83,44,.22)}
@@ -432,7 +432,8 @@
   .group-h span{color:var(--muted);font-weight:500}
   .err{color:var(--warn);font-weight:600}
   .excl{font-size:11.5px;color:var(--muted);margin:14px 4px 4px}
-  .privacy-note{text-align:center;font-size:11.5px;color:var(--muted);margin:18px auto 8px;max-width:620px;line-height:1.45;opacity:.85}
+  .privacy-note{text-align:center;font-size:12.5px;color:var(--muted);margin:18px auto 8px;max-width:680px;line-height:1.45;opacity:.85}
+  .privacy-note .link-btn,.privacy-note a{display:inline-block;padding:4px 2px;min-height:24px}   /* RS46: 24px tap targets */
   /* result-side filter chips + show-more */
   .res-filter{display:flex;flex-wrap:wrap;gap:8px;margin:0 4px 14px}
   .rfilter,.rsel{background:var(--offbg);border:1px solid var(--line);border-radius:999px;padding:7px 13px;font:inherit;
@@ -487,12 +488,13 @@
     .out-wrap{max-width:none}
     /* home screen only (not while a search runs, RS24: no squeeze-then-jump): opening section = search (left) + live demo visual (right), then full-width bands below */
     body:not(.has-results):not(.searching) .page{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);column-gap:24px;
-      grid-template-areas:"hero out" "car car" "foot foot";align-items:center}
+      grid-template-areas:"hero out" "car car" "foot foot" "credit credit";align-items:center}
     body:not(.has-results):not(.searching) .out-wrap{display:contents}
     body:not(.has-results):not(.searching) .hero{grid-area:hero;max-width:none;margin:0;text-align:center;padding-left:clamp(16px,4vw,72px)}   /* RS24: off the page edge */   /* heading centred over the search */
     body:not(.has-results):not(.searching) #out{grid-area:out;align-self:center}
     body:not(.has-results):not(.searching) #trendCar{grid-area:car;margin-top:28px}
     body:not(.has-results):not(.searching) .out-wrap > .privacy-note{grid-area:foot}
+    body:not(.has-results):not(.searching) .out-wrap > .gh-credit{grid-area:credit}
   }
   @media (min-width:1500px){ .tcard{flex-basis:calc((100% - 40px)/5)} }
   /* RS36: on wide screens the home demo fills its half of the opening section (bigger art, type and frame) */
@@ -538,6 +540,7 @@
   .demo-card .num{position:absolute;top:14px;left:16px;font-size:12px;font-weight:700;color:var(--accent-ink);
     background:var(--offbg);border:1px solid var(--line);border-radius:999px;padding:2px 9px}
   .demo-dots{display:flex;gap:8px;justify-content:center;margin-top:16px}
+  .demo-dot{position:relative} .demo-dot::after{content:"";position:absolute;inset:-8px}   /* RS46: 24px hit area, dot unchanged */
   .demo-dot{width:8px;height:8px;border-radius:50%;background:var(--line);cursor:pointer;border:0;padding:0;
     transition:background .3s,transform .3s}
   .demo-dot.on{background:linear-gradient(135deg,var(--accent),var(--accent-ink));transform:scale(1.3)}
@@ -678,14 +681,14 @@
 <main class="page">
   <section class="hero">
     <p class="hero-pill"><span aria-hidden="true">✦</span> <span class="rag-off">AI-powered repo finder</span><span class="rag-only" hidden>Search by words and meaning</span></p>   <!-- RS29c: owner wording 2026-10-14 -->
-    <h2 class="hero-title" id="heroTitle">Describe it.<br><em>Get repos that fit.</em></h2>
+    <h2 class="hero-title" id="heroTitle" aria-label="Describe it. Get repos that fit.">Describe it.<br><em>Get repos that fit.</em></h2>
     <p class="sub">Popular, free-to-use, maintained repos for what you’re building.</p>
     <div id="demoSlot" class="demo-slot"></div>   <!-- RS24: on phones the demo sits here, before the search -->
 
     <div class="search">
       <div class="vibebar">
         <span class="vb-ico" aria-hidden="true">✦</span>
-        <textarea id="q" rows="1" placeholder="whats vibing?" aria-label="What are you building?"></textarea>
+        <textarea id="q" rows="1" placeholder="What are you building?" aria-label="What are you building?"></textarea>
         <button id="clearQ" class="vb-x" type="button" title="Clear search" aria-label="Clear search" hidden>✕</button>
         <button id="optsBtn" class="vb-chip" type="button" aria-haspopup="dialog" title="Narrow by platform, stack, stars">⚙ Filters</button>
         <button id="go" class="go-btn" title="Find repos">Find <span class="arr">→</span></button>
@@ -711,7 +714,7 @@
     <p class="privacy-note">🔒 Nothing you type is stored.
       <button type="button" class="link-btn" onclick="openModal('privacyModal')">Privacy</button> ·
       <button type="button" class="link-btn" id="tourBtn">Tour</button> ·
-      <button type="button" class="link-btn" id="aboutBtn">How ranking works</button> ·
+      <button type="button" class="link-btn" id="aboutBtn">About the results</button> ·
       <button type="button" class="link-btn" id="nextBtn">Next steps</button> ·
       <button type="button" class="link-btn" id="fbBtn">Feedback</button>
       <span class="brand-by">· A <a href="https://cardzo.co.in" target="_blank" rel="noopener noreferrer">Cardzo</a> product</span></p>
@@ -752,7 +755,7 @@
   <p id="prdMany" class="mut" style="margin-top:10px" hidden><b>Plans work best with 10 or fewer repos.</b> You picked
     <span id="prdManyN"></span> — untick the weakest few for a sharper plan.</p>
   <p class="mut" style="margin-top:10px"><b>Open in Claude</b> opens a new chat on your own claude.ai account
-    with the prompt ready to send. (If your browser doesn't pre-fill it, just tap the copy icon and paste.)
+    with the prompt ready to send. (If it doesn't pre-fill, tap the copy icon and paste.)
     New to the plugin? <button class="link-btn" onclick="openModal('pluginModal')">See setup</button>.</p>
 </div></div>
 
@@ -814,9 +817,8 @@
 <div class="modal" id="pluginModal"><div class="sheet">
   <button class="x" data-close>&times;</button>
   <h2>Use Replore in your AI agent</h2>
-  <p class="mut">The smart version has your AI write the searches, judge which results fit, and show every suitable
-    repo — not just this page's list. In Claude Code it also reads a whole PRD feature by feature. Free &amp;
-    open-source. Pick your agent:</p>
+  <p class="mut">Your own AI writes the searches, judges every result and shows every repo that fits, not just this
+    page's list. In Claude Code it also reads a whole PRD feature by feature. Free and open source. Pick your agent:</p>
 
   <div class="tabs" role="tablist" aria-label="Which AI agent">
     <button type="button" class="tab on" data-tab="cc" role="tab" id="tab-cc" aria-controls="panel-cc" aria-selected="true">Claude Code</button>
@@ -861,19 +863,19 @@
 <div class="modal" id="nextModal"><div class="sheet">
   <button class="x" data-close>&times;</button>
   <h2>Found some repos — what now?</h2>
-  <p class="mut">You've got a shortlist. Here's how to go from "a list of repos" to actually building, in three steps.</p>
+  <p class="mut">Three steps from a shortlist to building.</p>
   <ol class="guide">
     <li><b>Pick the ones that fit</b> — tap <i>＋ Add to plan</i> on the 2–3 cards you like. Compare them:
       check the license verdict (can you use it in a paid product?) and the <i>updated</i> date before you commit to one.</li>
     <li><b>Get a build plan</b> — hit <i>Generate plan</i> on the bar that appears. Replore turns your picks plus
       what you're building into a step-by-step prompt — no AI runs here, it hands the prompt to <b>your own</b> AI.</li>
-    <li><b>Build it with your AI agent</b> — paste the plan into Claude Code, Codex, Cursor or any agent and start
-      shipping. Want smarter search and a feature-by-feature plan from a whole PRD? <button type="button" class="link-btn" onclick="openModal('pluginModal')">Use the plugin</button>.</li>
+    <li><b>Build it with your AI agent</b> — paste the plan into Claude Code, Codex, Cursor or any agent.
+      Want smarter search and a feature-by-feature plan from a whole PRD? <button type="button" class="link-btn" onclick="openModal('pluginModal')">Use the plugin</button>.</li>
   </ol>
   <p class="mut" style="margin-top:12px">Remember: stars are popularity, not quality, and a license is a plain summary, not legal advice.</p>
 </div></div>
 
-<!-- RS39 feedback: opens a pre-filled GitHub issue; nothing is sent from this page -->
+<!-- RS39/RS40 feedback: sent by email through Web3Forms only when the visitor presses Send -->
 <button type="button" class="fb-fab" id="fbFab">Feedback</button>
 <div class="modal" id="fbModal"><div class="sheet fb-sheet">
   <button class="x" data-close>&times;</button>
@@ -900,19 +902,18 @@
 <div class="modal" id="privacyModal"><div class="sheet">
   <button class="x" data-close>&times;</button>
   <h2>Privacy</h2>
-  <p class="mut">Replore has no account, no user database and no visitor analytics, and stores nothing you type. Its only server
-    code is a small relevance check that passes your search to an AI and keeps none of it; if that check fails, it records
-    only the error type and time so we can fix it. When our meaning-based search is switched on, the same check also asks an
-    AI model what your words mean and looks them up in an index of public repo names and descriptions (Cloudflare
-    Vectorize); every repo found that way is checked live on GitHub before you see it.</p>
+  <p class="mut">Replore has no account, no user database and no visitor analytics, and stores nothing you type.</p>
   <ul class="guide">
     <li><b>Your search words</b> go from your browser straight to <b>GitHub</b> (with your IP address) to run the search.</li>
-    <li><b>To show only relevant repos</b>, your search words and the list of repos found go through our relevance check
-      to an AI provider (<b>Cloudflare Workers AI</b>, or <b>Groq</b> when that is unavailable or over its daily limit), which judges which repos fit.
+    <li><b>To sort repos by fit</b>, your search words and the list of repos found go through our relevance check (our only
+      server code) to an AI provider (<b>Cloudflare Workers AI</b>, or <b>Groq</b> when that is unavailable or over its daily limit), which judges which repos fit.
       We don't store or log them; each provider handles them under its own terms
       (<a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Cloudflare</a>,
-      <a href="https://groq.com/privacy-policy/" target="_blank" rel="noopener">Groq</a>). If the check is unavailable you simply
-      get the unfiltered keyword results.</li>
+      <a href="https://groq.com/privacy-policy/" target="_blank" rel="noopener">Groq</a>). If a check fails we record only the
+      error type and time. If the check is unavailable you get the keyword results unchanged.</li>
+    <li><b>Meaning-based search</b> (only when switched on): the same check asks an AI model what your words mean and looks
+      them up in an index of public repo names and descriptions (Cloudflare Vectorize). Every repo found that way is checked
+      live on GitHub before you see it.</li>
     <li><b>Where repo data comes from:</b> the GitHub API. Replore is not affiliated with or endorsed by GitHub.
       GitHub® is a trademark of GitHub, Inc. Tips (if you leave one) go through Stripe; we never see your card details.</li>
     <li><b>Saved for an hour:</b> your browser keeps your last 10 searches and their results on this device for one hour,
